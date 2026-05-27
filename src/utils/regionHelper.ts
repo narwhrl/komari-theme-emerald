@@ -1,3 +1,5 @@
+const REGION_FLAG_REGEX = /[\u{1F1E0}-\u{1F1FF}]{2}/gu
+
 // 地区emoji到名称的映射
 export const emojiToRegionMap: Record<string, { en: string, zh: string, code: string, aliases: string[] }> = {
   '🇭🇰': {
@@ -1693,8 +1695,7 @@ export function getRegionByAlias(aliasOrCode: string): { emoji: string, en: stri
 export function extractRegionEmojis(text: string): string[] {
   const emojis: string[] = []
   // 匹配国旗emoji（由两个区域指示符字符组成）
-  const flagRegex = /[\u{1F1E0}-\u{1F1FF}]{2}/gu
-  const matches = text.match(flagRegex)
+  const matches = text.match(REGION_FLAG_REGEX)
 
   if (matches) {
     for (const match of matches) {

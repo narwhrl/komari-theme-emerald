@@ -96,7 +96,7 @@ export function fillMissingTimePoints<T extends { time?: string, updated_at?: st
   timedData.sort((a, b) => a.timeMs - b.timeMs)
 
   const firstItem = timedData[0]
-  const lastItem = timedData.at(-1)
+  const lastItem = timedData[timedData.length - 1]
 
   if (!firstItem || !lastItem)
     return []

@@ -2,6 +2,7 @@ import dayjs from 'dayjs'
 
 /** 字节单位常量 */
 const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'] as const
+const LAST_BYTE_UNIT = BYTE_UNITS[BYTE_UNITS.length - 1]
 
 /** 时间单位配置（秒为单位） */
 const TIME_UNITS = [
@@ -49,7 +50,7 @@ export function formatBytes(bytes: number, decimals = 1): string {
 
   const k = 1024
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  const unit = BYTE_UNITS[i] ?? BYTE_UNITS.at(-1)
+  const unit = BYTE_UNITS[i] ?? LAST_BYTE_UNIT
   return `${(bytes / k ** i).toFixed(decimals)} ${unit}`
 }
 
@@ -88,11 +89,11 @@ export function formatBytesWithConfig(bytes: number, config?: ByteDecimalsConfig
       }
     }
     // 所有单位都被禁用，使用默认行为
-    const unit = BYTE_UNITS[i] ?? BYTE_UNITS.at(-1)
+    const unit = BYTE_UNITS[i] ?? LAST_BYTE_UNIT
     return `${(bytes / k ** i).toFixed(1)} ${unit}`
   }
 
-  const unit = BYTE_UNITS[i] ?? BYTE_UNITS.at(-1)
+  const unit = BYTE_UNITS[i] ?? LAST_BYTE_UNIT
   return `${(bytes / k ** i).toFixed(decimals)} ${unit}`
 }
 
@@ -126,11 +127,11 @@ export function formatBytesSplit(bytes: number, config?: ByteDecimalsConfig): { 
         return { value: (bytes / k ** j).toFixed(nextDecimals), unit: `${unit}` }
       }
     }
-    const unit = BYTE_UNITS[i] ?? BYTE_UNITS.at(-1)
+    const unit = BYTE_UNITS[i] ?? LAST_BYTE_UNIT
     return { value: (bytes / k ** i).toFixed(1), unit: `${unit}` }
   }
 
-  const unit = BYTE_UNITS[i] ?? BYTE_UNITS.at(-1)
+  const unit = BYTE_UNITS[i] ?? LAST_BYTE_UNIT
   return { value: (bytes / k ** i).toFixed(decimals), unit: `${unit}` }
 }
 

@@ -123,7 +123,7 @@ const availableViews = computed(() => {
     }
   }
 
-  const maxPreset = presetViews.at(-1)
+  const maxPreset = presetViews[presetViews.length - 1]
   if (maxPreset && maxHours > maxPreset.hours) {
     const label = maxHours % 24 === 0
       ? `${Math.floor(maxHours / 24)} 天`
@@ -297,7 +297,7 @@ const latestStatus = computed(() => {
   const data = remoteData.value
   if (!data.length)
     return null
-  return data.at(-1) ?? null
+  return data.length > 0 ? data[data.length - 1] ?? null : null
 })
 
 // ==================== 工具函数 ====================

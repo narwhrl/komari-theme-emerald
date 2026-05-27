@@ -9,6 +9,8 @@ interface OSConfig {
   keywords: string[]
 }
 
+const OS_NAME_SPLIT_REGEX = /[\s/]+/
+
 // 操作系统匹配组
 const osConfigs: OSConfig[] = [
   {
@@ -251,7 +253,7 @@ export function getOSName(osString: string): string {
   }
 
   // 使用空格或斜杠分割，取第一个部分
-  const parts = osString.trim().split(/[\s/]/)
+  const parts = osString.trim().split(OS_NAME_SPLIT_REGEX)
   return parts[0] || 'Unknown'
 }
 

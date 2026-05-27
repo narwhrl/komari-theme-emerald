@@ -43,7 +43,7 @@ bun run lint
 Notes:
 
 - `bun run build` runs type check plus production build
-- `bun run lint` runs oxlint and eslint with `--fix`
+- `bun run lint` runs eslint with `--fix --cache`
 - There is no test suite in this repository
 - Do not invent `bun test` or Vitest commands here
 

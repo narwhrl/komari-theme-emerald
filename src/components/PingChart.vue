@@ -67,7 +67,7 @@ const availableViews = computed(() => {
     }
   }
 
-  const maxPreset = presetViews.at(-1)
+  const maxPreset = presetViews[presetViews.length - 1]
   if (maxPreset && maxHours > maxPreset.hours) {
     const label = maxHours % 24 === 0
       ? `${Math.floor(maxHours / 24)} 天`
@@ -230,7 +230,7 @@ const mergedData = computed(() => {
   )
 
   const hours = selectedHours.value
-  const lastItem = merged.at(-1)
+  const lastItem = merged[merged.length - 1]
   const lastTs = lastItem ? dayjs(lastItem.time as string).valueOf() : dayjs().valueOf()
   const fromTs = lastTs - hours * 3600_000
 

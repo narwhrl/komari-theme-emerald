@@ -113,6 +113,9 @@ const EXPIRE_THRESHOLDS = {
   long_term: 36500, // 约100年视为长期
 } as const
 
+const TAG_COLOR_SUFFIX_REGEX = /<(\w+)>$/
+const TAG_COLOR_SUFFIX_REMOVE_REGEX = /<\w+>$/
+
 /**
  * 解析计费周期类型
  * @param billingCycle 计费周期（天）
@@ -263,10 +266,10 @@ export function getExpireText(expiredAt: string | number | undefined, lang: 'zh-
  * @returns 解析后的标签对象
  */
 export function parseTagWithColor(tag: string): { text: string, color: TagColor | null } {
-  const colorMatch = tag.match(/<(\w+)>$/)
+  const colorMatch = tag.match(TAG_COLOR_SUFFIX_REGEX)
   if (colorMatch && colorMatch[1]) {
     const colorCandidate = colorMatch[1].toLowerCase()
-    const text = tag.replace(/<\w+>$/, '')
+    const text = tag.replace(TAG_COLOR_SUFFIX_REMOVE_REGEX, '')
     if ((TAG_COLORS as readonly string[]).includes(colorCandidate)) {
       return { text, color: colorCandidate as TagColor }
     }

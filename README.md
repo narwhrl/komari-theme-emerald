@@ -40,20 +40,20 @@ bun run preview
 
 ## 技术栈
 
-| 类别     | 技术                                   |
-| -------- | -------------------------------------- |
-| 框架     | Vue 3                                  |
-| 构建工具 | Vite 7                                 |
-| UI 组件  | reka-ui（shadcn-vue 风格组件）         |
-| 样式方案 | Tailwind CSS v4 + tw-animate-css       |
-| 状态管理 | Pinia 3                                |
-| 路由     | Vue Router 5                           |
-| 提示系统 | vue-sonner（Toaster）                  |
-| 图标     | @iconify/vue                           |
-| 图表     | vue-echarts                            |
-| 3D 地球  | cobe                                   |
-| 实用工具 | @vueuse/core, dayjs                    |
-| 代码规范 | ESLint (@antfu/eslint-config) + oxlint |
+| 类别     | 技术                             |
+| -------- | -------------------------------- |
+| 框架     | Vue 3                            |
+| 构建工具 | Vite 7                           |
+| UI 组件  | reka-ui（shadcn-vue 风格组件）   |
+| 样式方案 | Tailwind CSS v4 + tw-animate-css |
+| 状态管理 | Pinia 3                          |
+| 路由     | Vue Router 5                     |
+| 提示系统 | vue-sonner（Toaster）            |
+| 图标     | @iconify/vue                     |
+| 图表     | vue-echarts                      |
+| 3D 地球  | cobe                             |
+| 实用工具 | @vueuse/core, dayjs              |
+| 代码规范 | ESLint (@antfu/eslint-config)    |
 
 ## 鸣谢
 

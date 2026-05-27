@@ -34,6 +34,11 @@ interface JsonRpcErrorResponse {
 /** JSON-RPC 2.0 响应 */
 type JsonRpcResponse<T = unknown> = JsonRpcSuccessResponse<T> | JsonRpcErrorResponse
 
+const HTTP_PROTOCOL_PREFIX = 'http://'
+const HTTPS_PROTOCOL_PREFIX = 'https://'
+const WS_PROTOCOL_PREFIX = 'ws://'
+const WSS_PROTOCOL_PREFIX = 'wss://'
+
 /** RPC 方法元数据 */
 export interface MethodMeta {
   name: string
@@ -284,7 +289,9 @@ export class RpcClient {
    */
   private initWebSocket(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const wsUrl = this.baseUrl.replace(/^http/, 'ws').replace(/^https/, 'wss')
+      const wsUrl = this.baseUrl.startsWith(HTTPS_PROTOCOL_PREFIX)
+        ? this.baseUrl.replace(HTTPS_PROTOCOL_PREFIX, WSS_PROTOCOL_PREFIX)
+        : this.baseUrl.replace(HTTP_PROTOCOL_PREFIX, WS_PROTOCOL_PREFIX)
 
       // 关闭现有连接（如果有）
       if (this.ws) {
