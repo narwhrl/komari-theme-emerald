@@ -2,6 +2,7 @@
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/vue'
 import { computed, ref } from 'vue'
+import NodePingListCell from '@/components/NodePingListCell.vue'
 import TrafficProgress from '@/components/TrafficProgress.vue'
 import { Badge } from '@/components/ui/badge'
 import { ProgressThin } from '@/components/ui/progress-thin'
@@ -26,11 +27,10 @@ const appStore = useAppStore()
 
 const columns: ColumnConfig[] = [
   { key: 'status', label: '状态', width: '40px', sortable: false },
-  { key: 'region', label: '地区', width: '40px', sortable: false },
   { key: 'os', label: '系统', width: '40px', sortable: false },
   { key: 'name', label: '节点', width: 'minmax(160px, 0.8fr)', sortable: true },
   { key: 'tags', label: '标签', width: 'minmax(200px, 1fr)', sortable: false },
-  { key: 'uptime', label: '运行时间', width: '130px', sortable: true },
+  { key: 'uptime', label: '运行时间', width: '116px', sortable: true },
   { key: 'cpu', label: 'CPU', width: '100px', sortable: false },
   { key: 'mem', label: '内存', width: '100px', sortable: false },
   { key: 'disk', label: '硬盘', width: '100px', sortable: false },
@@ -91,7 +91,7 @@ const sortedNodes = computed(() => {
 
 const formatBytes = (bytes: number) => formatBytesWithConfig(bytes)
 const formatBytesPerSecond = (bytes: number) => formatBytesPerSecondWithConfig(bytes)
-const formatUptime = (seconds: number) => formatUptimeWithFormat(seconds, 'minute')
+const formatUptime = (seconds: number) => formatUptimeWithFormat(seconds, 'hour')
 
 const columnKeys = computed(() => columns.map(c => c.key))
 
@@ -195,7 +195,7 @@ function getCustomTags(node: NodeData): Array<string> {
       <div class="grid p-2 bg-background/60 rounded-lg backdrop-blur-sm gap-2" :style="gridStyle">
         <div
           v-for="col in columns" :key="col.key"
-          :class="[col.sortable ? 'cursor-pointer' : '', ['status', 'os', 'region'].includes(col.key) ? 'text-center' : 'text-left']"
+          :class="[col.sortable ? 'cursor-pointer' : '', ['status', 'os'].includes(col.key) ? 'text-center' : 'text-left']"
           @click="handleSort(col)"
         >
           <span class="text-xs text-muted-foreground">
@@ -222,26 +222,20 @@ function getCustomTags(node: NodeData): Array<string> {
               </div>
             </div>
 
-            <!-- 国旗 -->
-            <div v-else-if="col.key === 'region'" class="flex justify-center">
-              <img
-                v-if="hasRegion(node.region)"
-                :src="getFlagSrc(node.region)"
-                :alt="getRegionDisplayName(node.region)"
-                class="size-5 rounded-sm"
-              >
-            </div>
-
             <!-- 节点名称 -->
-            <div v-else-if="col.key === 'name'" class="space-y-1" :class="[!node.online && 'blur-sm opacity-30']">
-              <div class="text-xs font-semibold truncate">
-                {{ node.name }}
+            <div v-else-if="col.key === 'name'" class="space-y-0.5" :class="[!node.online && 'blur-sm opacity-30']">
+              <div class="flex gap-1 items-center text-xs font-semibold">
+                <img
+                  v-if="hasRegion(node.region)" :src="getFlagSrc(node.region)"
+                  :alt="getRegionDisplayName(node.region)" class="size-5 rounded-sm"
+                >
+                <span class="truncate">{{ node.name }}</span>
               </div>
               <div
                 v-if="getPriceTags(node).length > 0"
-                class="flex flex-row gap-3 text-[11px] text-muted-foreground/70 truncate"
+                class="text-[11px] text-muted-foreground/70 truncate"
               >
-                <span v-for="(tag, index) in getPriceTags(node)" :key="index">
+                <span v-for="(tag, index) in getPriceTags(node)" :key="index" :class="!!index && 'ml-3'">
                   {{ tag }}
                 </span>
               </div>
@@ -259,11 +253,17 @@ function getCustomTags(node: NodeData): Array<string> {
               </div>
             </div>
 
+            <!-- 延迟/丢包 -->
+            <!-- <div v-else-if="col.key === 'ping'">
+              <NodePingListCell :uuid="node.uuid" :online="node.online" />
+            </div> -->
+
             <!-- 运行时间 -->
-            <div v-else-if="col.key === 'uptime'">
+            <div v-else-if="col.key === 'uptime'" class="flex flex-col gap-0.5">
               <span class="text-[10px] text-muted-foreground truncate">
                 {{ formatUptime(node.uptime ?? 0) }}
               </span>
+              <NodePingListCell :uuid="node.uuid" :online="node.online" />
             </div>
 
             <!-- 操作系统 -->
