@@ -179,7 +179,7 @@ const pingEmptyText = computed(() => {
     return '加载失败'
   if (pingStats.loading.value)
     return '加载中...'
-  return 'Null'
+  return '暂无有效数据'
 })
 
 const latencyPanelTooltip = computed(() => {

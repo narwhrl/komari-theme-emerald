@@ -37,8 +37,14 @@ interface PingRecordsResponse {
 }
 
 const HISTORY_BUCKET_COUNT = 20
-const CACHE_VERSION = 1
+const CACHE_VERSION = 2
 const CACHE_KEY_PREFIX = 'komari-theme-emerald:node-ping-stats'
+const FULL_LOSS_EPSILON = 1e-6
+
+interface TaskRecordSummary {
+  total: number
+  success: number
+}
 
 function createEmptyStats(): NodePingStatsState {
   return {
@@ -54,6 +60,49 @@ function average(values: number[]): number {
   if (!values.length)
     return 0
   return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function summarizeTaskRecords(records: PingRecord[]): Map<number, TaskRecordSummary> {
+  const summaries = new Map<number, TaskRecordSummary>()
+
+  for (const record of records) {
+    const summary = summaries.get(record.task_id) ?? { total: 0, success: 0 }
+    summary.total += 1
+    if (record.value >= 0) {
+      summary.success += 1
+    }
+    summaries.set(record.task_id, summary)
+  }
+
+  return summaries
+}
+
+function isTaskFullyLost(task: PingTaskInfo | undefined, summary: TaskRecordSummary | undefined): boolean {
+  if (isFiniteNumber(task?.loss) && task.loss >= 100 - FULL_LOSS_EPSILON)
+    return true
+
+  return Boolean(summary && summary.total > 0 && summary.success === 0)
+}
+
+function getIncludedTaskIds(records: PingRecord[], tasks: PingTaskInfo[]): Set<number> {
+  const recordSummaries = summarizeTaskRecords(records)
+  const tasksById = new Map(tasks.map(task => [task.id, task]))
+  const taskIds = new Set<number>([
+    ...recordSummaries.keys(),
+    ...tasksById.keys(),
+  ])
+
+  return new Set(
+    [...taskIds].filter((taskId) => {
+      const task = tasksById.get(taskId)
+      const summary = recordSummaries.get(taskId)
+      return !isTaskFullyLost(task, summary)
+    }),
+  )
 }
 
 function getCacheKey(uuid: string, hours: number): string {
@@ -165,27 +214,34 @@ function buildPingHistory(records: PingRecord[]): NodePingHistoryPoint[] {
 }
 
 function buildStats(result?: PingRecordsResponse): NodePingStatsState {
-  const records = result?.records ?? []
-  const tasks = result?.tasks ?? []
+  const rawRecords = result?.records ?? []
+  const rawTasks = result?.tasks ?? []
+  const includedTaskIds = getIncludedTaskIds(rawRecords, rawTasks)
+
+  if (!includedTaskIds.size)
+    return createEmptyStats()
+
+  const records = rawRecords.filter(record => includedTaskIds.has(record.task_id))
+  const tasks = rawTasks.filter(task => includedTaskIds.has(task.id))
   const history = buildPingHistory(records)
 
   const latencyValues = tasks
     .map(task => task.avg ?? task.latest ?? task.p50)
-    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+    .filter(isFiniteNumber)
   const historyLatencyValues = history
     .map(point => point.latency)
-    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+    .filter(isFiniteNumber)
 
   const taskLossValues = tasks
     .map(task => task.loss)
-    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+    .filter(isFiniteNumber)
   const historyLossValues = history
     .map(point => point.loss)
-    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+    .filter(isFiniteNumber)
 
   const volatilityValues = tasks
     .map(task => task.p99_p50_ratio)
-    .filter((value): value is number => typeof value === 'number' && value > 0 && Number.isFinite(value))
+    .filter((value): value is number => isFiniteNumber(value) && value > 0)
 
   const avgLatency = latencyValues.length ? average(latencyValues) : average(historyLatencyValues)
   const avgLoss = taskLossValues.length ? average(taskLossValues) : average(historyLossValues)
