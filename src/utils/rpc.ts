@@ -115,6 +115,22 @@ export interface VersionInfo {
   hash: string
 }
 
+/**
+ * 单个 Ping 任务的最新探测汇总
+ * 注意：该字段在 getNodesLatestStatus 响应中实际存在，但官方文档与旧类型定义遗漏，键为 task_id 字符串
+ */
+export interface NodeStatusPing {
+  name: string
+  /** 最新探测延迟（毫秒）；<0 表示丢包，与 PingRecord.value === -1 同义 */
+  latest: number
+  avg: number
+  tail: number
+  /** 丢包率（%） */
+  loss: number
+  min: number
+  max: number
+}
+
 /** 节点状态 */
 export interface NodeStatus {
   client: string
@@ -140,6 +156,8 @@ export interface NodeStatus {
   connections_udp: number
   online: boolean
   uptime: number
+  /** 各 Ping 任务最新探测汇总，键为 task_id 字符串 */
+  ping?: Record<string, NodeStatusPing>
 }
 
 /** 状态记录 */
