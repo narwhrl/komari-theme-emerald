@@ -9,7 +9,10 @@ const hasError = ref(false)
 
 const backgroundStyle = computed(() => {
   const blur = appStore.backgroundBlur
-  return { filter: blur > 0 ? `blur(${blur}px)` : 'none' }
+  return {
+    filter: blur > 0 ? `blur(${blur}px)` : 'none',
+    opacity: appStore.backgroundType === 'video' && !isLoaded.value ? 0 : 1,
+  }
 })
 
 const backgroundContainerStyle = computed(() => {
@@ -37,6 +40,10 @@ const showLoadedBackground = computed(() =>
   showBackground.value && currentUrl.value && isLoaded.value && !hasError.value,
 )
 
+const showMediaBackground = computed(() =>
+  showBackground.value && currentUrl.value && !hasError.value && (backgroundType.value === 'video' || showLoadedBackground.value),
+)
+
 const showDefaultBackground = computed(() => {
   if (!showBackground.value)
     return false
@@ -53,15 +60,19 @@ const showLoadingBackground = computed(() =>
 
 let imageLoader: HTMLImageElement | null = null
 
-function loadImage(url: string) {
-  isLoaded.value = false
-  hasError.value = false
-
+function clearImageLoader() {
   if (imageLoader) {
     imageLoader.onload = null
     imageLoader.onerror = null
     imageLoader = null
   }
+}
+
+function loadImage(url: string) {
+  isLoaded.value = false
+  hasError.value = false
+
+  clearImageLoader()
 
   imageLoader = new Image()
   imageLoader.onload = () => {
@@ -86,31 +97,24 @@ function handleVideoError() {
   hasError.value = true
 }
 
-watch(currentUrl, (url) => {
-  if (url && backgroundType.value === 'image') {
+watch([currentUrl, backgroundType], ([url, type]) => {
+  if (url && type === 'image') {
     loadImage(url)
   }
-  else if (url && backgroundType.value === 'video') {
+  else if (url && type === 'video') {
+    clearImageLoader()
     isLoaded.value = false
     hasError.value = false
   }
   else {
+    clearImageLoader()
     isLoaded.value = false
     hasError.value = false
   }
 }, { immediate: true })
 
-watch(backgroundType, (type) => {
-  if (type === 'image' && currentUrl.value)
-    loadImage(currentUrl.value)
-})
-
 onUnmounted(() => {
-  if (imageLoader) {
-    imageLoader.onload = null
-    imageLoader.onerror = null
-    imageLoader = null
-  }
+  clearImageLoader()
 })
 </script>
 
@@ -123,7 +127,7 @@ onUnmounted(() => {
       <div v-if="showLoadingBackground" class="background-loading" />
     </Transition>
     <Transition name="fade">
-      <div v-if="showLoadedBackground" class="background-media" :style="backgroundStyle">
+      <div v-if="showMediaBackground" class="background-media" :style="backgroundStyle">
         <div
           v-if="backgroundType === 'image'"
           class="background-image"
@@ -137,8 +141,10 @@ onUnmounted(() => {
           autoplay
           loop
           muted
+          preload="auto"
           playsinline
           @loadeddata="handleVideoLoaded"
+          @canplay="handleVideoLoaded"
           @error="handleVideoError"
         />
       </div>
@@ -166,6 +172,7 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   transform: scale(1.1);
+  transition: opacity 0.8s ease;
 }
 
 .background-image {
