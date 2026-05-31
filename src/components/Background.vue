@@ -12,13 +12,24 @@ const backgroundStyle = computed(() => {
   return { filter: blur > 0 ? `blur(${blur}px)` : 'none' }
 })
 
-const overlayStyle = computed(() => {
-  if (appStore.backgroundOverlay <= 0)
+const backgroundContainerStyle = computed(() => {
+  const overlay = appStore.backgroundOverlay
+  if (overlay >= 0)
     return {}
-  return { backgroundColor: `rgba(0, 0, 0, ${appStore.backgroundOverlay / 100})` }
+
+  return { opacity: 1 - Math.abs(overlay) / 100 }
+})
+
+const overlayStyle = computed(() => {
+  const overlay = appStore.backgroundOverlay
+  if (overlay <= 0)
+    return {}
+
+  return { backgroundColor: `rgba(0, 0, 0, ${overlay / 100})` }
 })
 
 const showBackground = computed(() => appStore.backgroundEnabled)
+const showBackgroundOverlay = computed(() => appStore.backgroundOverlay > 0)
 const currentUrl = computed(() => appStore.currentBackgroundUrl)
 const backgroundType = computed(() => appStore.backgroundType)
 
@@ -104,7 +115,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="showBackground" class="background-container">
+  <div v-if="showBackground" class="background-container" :style="backgroundContainerStyle">
     <Transition name="fade">
       <div v-if="showDefaultBackground" class="background-default" />
     </Transition>
@@ -132,7 +143,7 @@ onUnmounted(() => {
         />
       </div>
     </Transition>
-    <div class="background-overlay" :style="overlayStyle" />
+    <div v-if="showBackgroundOverlay" class="background-overlay" :style="overlayStyle" />
   </div>
 </template>
 

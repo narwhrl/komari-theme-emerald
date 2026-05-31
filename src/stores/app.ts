@@ -226,7 +226,7 @@ const useAppStore = defineStore('app', () => {
 
   const backgroundOverlay = computed<number>(() => {
     const settings = publicSettings.value?.theme_settings
-    if (settings && typeof settings.backgroundOverlay === 'number' && settings.backgroundOverlay >= 0 && settings.backgroundOverlay <= 100) {
+    if (settings && typeof settings.backgroundOverlay === 'number' && settings.backgroundOverlay >= -100 && settings.backgroundOverlay <= 100) {
       return settings.backgroundOverlay
     }
     return 0
