@@ -119,7 +119,12 @@ function handleNodeClick(node: typeof nodesStore.nodes[number]) {
       </Alert>
     </div>
 
-    <NodeGeneralCards v-if="!appStore.hideGeneralCard" :nodes="groupNodeList" :globe-nodes="groupNodeList" />
+    <NodeGeneralCards
+      v-if="!appStore.hideGeneralCard"
+      :nodes="groupNodeList"
+      :globe-nodes="groupNodeList"
+      :transition-key="appStore.nodeSelectedGroup"
+    />
 
     <div class="node-info p-4 pt-0 flex flex-col gap-4 relative z-1 pointer-events-none" :class="!!appStore.hideGeneralCard && 'pt-4'">
       <div class="nodes">

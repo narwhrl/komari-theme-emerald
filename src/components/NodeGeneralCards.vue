@@ -14,6 +14,7 @@ import { formatBytesPerSecondSplit, formatBytesSplit } from '@/utils/helper'
 const props = defineProps<{
   nodes?: NodeData[]
   globeNodes?: NodeData[]
+  transitionKey?: string
 }>()
 const appStore = useAppStore()
 const nodesStore = useNodesStore()
@@ -22,6 +23,13 @@ const exchangeRateSource = ref<ExchangeRateSource | 'loading'>('loading')
 const financeCurrency = ref<CurrencyCode>('CNY')
 const excludeFreeNodes = ref(true)
 const summaryNodes = computed(() => props.nodes ?? nodesStore.nodes)
+const summaryTransitionKey = computed(() => props.transitionKey ?? summaryNodes.value.map(node => node.uuid).join('|'))
+
+function getMetricSwitchStyle(index: number): Record<string, string> {
+  return {
+    '--metric-switch-delay': `${index * 50}ms`,
+  }
+}
 
 const totalSpeed = computed(() => {
   const onlineNodes = summaryNodes.value.filter(node => node.online)
@@ -134,14 +142,20 @@ onMounted(async () => {
               class="text-slate-500/20 group-hover:text-slate-500 transition-colors"
             />
           </div>
-          <div class="flex items-baseline gap-1 min-w-0">
-            <span class="text-md md:text-2xl font-bold leading-none tracking-tight">
-              {{ formattedMemoryUsed.value }}
-            </span>
-            <span class="text-[11px] md:text-xs font-medium text-muted-foreground truncate">
-              {{ formattedMemoryUsed.unit }} / {{ formattedMemoryTotal.value }} {{ formattedMemoryTotal.unit }}
-            </span>
-          </div>
+          <Transition name="metric-switch" mode="out-in">
+            <div
+              :key="`memory-${summaryTransitionKey}`"
+              class="flex items-baseline gap-1 min-w-0"
+              :style="getMetricSwitchStyle(0)"
+            >
+              <span class="text-md md:text-2xl font-bold leading-none tracking-tight">
+                {{ formattedMemoryUsed.value }}
+              </span>
+              <span class="text-[11px] md:text-xs font-medium text-muted-foreground truncate">
+                {{ formattedMemoryUsed.unit }} / {{ formattedMemoryTotal.value }} {{ formattedMemoryTotal.unit }}
+              </span>
+            </div>
+          </Transition>
         </div>
       </CardX>
       <CardX
@@ -158,12 +172,18 @@ onMounted(async () => {
               class="text-slate-500/20 group-hover:text-slate-500 transition-colors"
             />
           </div>
-          <div class="flex items-baseline gap-1 min-w-0">
-            <span class="text-md md:text-2xl font-bold leading-none tracking-tight">{{ formattedDiskUsed.value }}</span>
-            <span class="text-[11px] md:text-xs font-medium text-muted-foreground truncate">
-              {{ formattedDiskUsed.unit }} / {{ formattedDiskTotal.value }} {{ formattedDiskTotal.unit }}
-            </span>
-          </div>
+          <Transition name="metric-switch" mode="out-in">
+            <div
+              :key="`disk-${summaryTransitionKey}`"
+              class="flex items-baseline gap-1 min-w-0"
+              :style="getMetricSwitchStyle(1)"
+            >
+              <span class="text-md md:text-2xl font-bold leading-none tracking-tight">{{ formattedDiskUsed.value }}</span>
+              <span class="text-[11px] md:text-xs font-medium text-muted-foreground truncate">
+                {{ formattedDiskUsed.unit }} / {{ formattedDiskTotal.value }} {{ formattedDiskTotal.unit }}
+              </span>
+            </div>
+          </Transition>
         </div>
       </CardX>
 
@@ -185,14 +205,20 @@ onMounted(async () => {
             as="span" placement="top" :content="totalValueTooltip" class="min-w-0"
             content-class="whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal"
           >
-            <div class="flex items-baseline gap-1 min-w-0">
-              <span class="text-md md:text-2xl font-bold leading-none tracking-tight">
-                {{ formattedRemainingValue.symbol }}{{ formattedRemainingValue.value }}
-              </span>
-              <span class="block cursor-help truncate text-[11px] md:text-xs font-medium text-muted-foreground">
-                {{ formattedRemainingValue.currency }}
-              </span>
-            </div>
+            <Transition name="metric-switch" mode="out-in">
+              <div
+                :key="`remaining-value-${summaryTransitionKey}`"
+                class="flex items-baseline gap-1 min-w-0"
+                :style="getMetricSwitchStyle(2)"
+              >
+                <span class="text-md md:text-2xl font-bold leading-none tracking-tight">
+                  {{ formattedRemainingValue.symbol }}{{ formattedRemainingValue.value }}
+                </span>
+                <span class="block cursor-help truncate text-[11px] md:text-xs font-medium text-muted-foreground">
+                  {{ formattedRemainingValue.currency }}
+                </span>
+              </div>
+            </Transition>
           </DataTooltip>
         </div>
       </CardX>
@@ -217,14 +243,20 @@ onMounted(async () => {
             class="min-w-0"
             content-class="whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal"
           >
-            <div class="flex items-baseline gap-1">
-              <span class="inline-block text-md md:text-2xl font-bold leading-none tracking-tight">
-                {{ totalTrafficTooltip.value }}
-              </span>
-              <span class="inline-block text-[11px] md:text-xs font-medium text-muted-foreground">
-                {{ totalTrafficTooltip.unit }}
-              </span>
-            </div>
+            <Transition name="metric-switch" mode="out-in">
+              <div
+                :key="`traffic-${summaryTransitionKey}`"
+                class="flex items-baseline gap-1"
+                :style="getMetricSwitchStyle(3)"
+              >
+                <span class="inline-block text-md md:text-2xl font-bold leading-none tracking-tight">
+                  {{ totalTrafficTooltip.value }}
+                </span>
+                <span class="inline-block text-[11px] md:text-xs font-medium text-muted-foreground">
+                  {{ totalTrafficTooltip.unit }}
+                </span>
+              </div>
+            </Transition>
           </DataTooltip>
         </div>
       </CardX>
@@ -243,10 +275,16 @@ onMounted(async () => {
               class="text-slate-500/20 group-hover:text-slate-500 transition-colors"
             />
           </div>
-          <div class="flex items-baseline gap-1">
-            <span class="text-md md:text-2xl font-bold leading-none tracking-tight">{{ formattedSpeedUp.value }}</span>
-            <span class="text-[11px] md:text-xs font-medium text-muted-foreground">{{ formattedSpeedUp.unit }}</span>
-          </div>
+          <Transition name="metric-switch" mode="out-in">
+            <div
+              :key="`speed-up-${summaryTransitionKey}`"
+              class="flex items-baseline gap-1"
+              :style="getMetricSwitchStyle(4)"
+            >
+              <span class="text-md md:text-2xl font-bold leading-none tracking-tight">{{ formattedSpeedUp.value }}</span>
+              <span class="text-[11px] md:text-xs font-medium text-muted-foreground">{{ formattedSpeedUp.unit }}</span>
+            </div>
+          </Transition>
         </div>
       </CardX>
       <CardX
@@ -263,14 +301,61 @@ onMounted(async () => {
               class="text-slate-500/20 group-hover:text-slate-500 transition-colors"
             />
           </div>
-          <div class="flex items-baseline gap-1">
-            <span class="text-md md:text-2xl font-bold leading-none tracking-tight">
-              {{ formattedSpeedDown.value }}
-            </span>
-            <span class="text-[11px] md:text-xs font-medium text-muted-foreground">{{ formattedSpeedDown.unit }}</span>
-          </div>
+          <Transition name="metric-switch" mode="out-in">
+            <div
+              :key="`speed-down-${summaryTransitionKey}`"
+              class="flex items-baseline gap-1"
+              :style="getMetricSwitchStyle(5)"
+            >
+              <span class="text-md md:text-2xl font-bold leading-none tracking-tight">
+                {{ formattedSpeedDown.value }}
+              </span>
+              <span class="text-[11px] md:text-xs font-medium text-muted-foreground">{{ formattedSpeedDown.unit }}</span>
+            </div>
+          </Transition>
         </div>
       </CardX>
     </div>
   </div>
 </template>
+
+<style scoped>
+.metric-switch-enter-active,
+.metric-switch-leave-active {
+  transition:
+    opacity 160ms ease,
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 180ms ease;
+}
+
+.metric-switch-enter-active {
+  transition-delay: var(--metric-switch-delay, 0ms);
+}
+
+.metric-switch-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+  filter: blur(3px);
+}
+
+.metric-switch-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+  filter: blur(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-switch-enter-active,
+  .metric-switch-leave-active {
+    transition: none;
+    transition-delay: 0ms;
+  }
+
+  .metric-switch-enter-from,
+  .metric-switch-leave-to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+</style>
