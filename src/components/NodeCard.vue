@@ -136,7 +136,7 @@ function hasRegion(region: string | null | undefined): boolean {
     </template>
 
     <template #default>
-      <div class="flex flex-col gap-3 -mt-4">
+      <div class="flex flex-col gap-3">
         <div class="gap-3 grid grid-cols-2">
           <!-- <div class="flex flex-col gap-1 col-span-2">
                 <div class="flex gap-2 items-center">

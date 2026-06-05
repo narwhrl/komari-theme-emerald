@@ -28,11 +28,13 @@ const hasHeaderSlot = defineSlots<{
 }>()
 
 const paddingClass = computed(() => {
+  const isShowHeader = hasHeaderSlot.header || hasHeaderSlot['header-extra'] || props.title
+  const pt = isShowHeader ? 'pt-0' : ''
   if (props.size === 'small')
-    return 'p-3'
+    return `p-3 ${pt}`
   if (props.size === 'large')
-    return 'p-6'
-  return 'p-4'
+    return `p-6 ${pt}`
+  return `p-4 ${pt}`
 })
 
 const headerPaddingClass = computed(() => {
