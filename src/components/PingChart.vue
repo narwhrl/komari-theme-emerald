@@ -142,12 +142,25 @@ const error = ref<string | null>(null)
 // 任务选择
 const selectedTaskIds = ref<number[]>([])
 const cutPeak = ref(false)
+const showLoss = ref(true)
 const isTouchTooltipMode = ref(false)
 const activeTaskTooltipId = ref<number | null>(null)
 const smoothInfoTooltipOpen = ref(false)
 
 const chartMargin = { top: 30, right: 24, bottom: 52, left: 56 }
 let coarsePointerMediaQuery: MediaQueryList | null = null
+
+const mergeToleranceMs = computed(() => {
+  const taskIntervals = tasks.value
+    .map(t => t.interval)
+    .filter((v): v is number => typeof v === 'number' && v > 0)
+
+  const fallbackIntervalSec = taskIntervals.length ? Math.min(...taskIntervals) : 60
+  return Math.min(
+    6000,
+    Math.max(800, Math.floor(fallbackIntervalSec * 1000 * 0.25)),
+  )
+})
 
 function syncTouchTooltipMode() {
   if (typeof window === 'undefined') {
@@ -225,17 +238,7 @@ const mergedData = computed(() => {
   if (!data.length)
     return []
 
-  const taskList = tasks.value
-
-  const taskIntervals = taskList
-    .map(t => t.interval)
-    .filter((v): v is number => typeof v === 'number' && v > 0)
-
-  const fallbackIntervalSec = taskIntervals.length ? Math.min(...taskIntervals) : 60
-  const toleranceMs = Math.min(
-    6000,
-    Math.max(800, Math.floor(fallbackIntervalSec * 1000 * 0.25)),
-  )
+  const toleranceMs = mergeToleranceMs.value
 
   const grouped: Map<number, Record<string, unknown>> = new Map()
   const anchors: number[] = []
@@ -368,6 +371,46 @@ const selectedTasks = computed(() => {
   return tasks.value.filter(t => selectedTaskIds.value.includes(t.id))
 })
 
+const packetLossMarkers = computed(() => {
+  const data = mergedData.value
+  const markers = new Map<number, number[]>()
+
+  if (!data.length || !selectedTasks.value.length)
+    return markers
+
+  const chartTimes = data.map(item => dayjs(item.time as string).valueOf())
+  const toleranceMs = mergeToleranceMs.value
+
+  for (const task of selectedTasks.value) {
+    const points = new Set<number>()
+    const taskLossRecords = remoteData.value.filter(rec => rec.task_id === task.id && rec.value < 0)
+
+    for (const record of taskLossRecords) {
+      const lossTs = dayjs(record.time).valueOf()
+      let matchedIndex = -1
+
+      for (let i = 0; i < chartTimes.length; i++) {
+        const chartTs = chartTimes[i]
+        if (chartTs === undefined)
+          continue
+
+        if (Math.abs(chartTs - lossTs) <= toleranceMs) {
+          matchedIndex = i
+          break
+        }
+      }
+
+      if (matchedIndex >= 0) {
+        points.add(matchedIndex)
+      }
+    }
+
+    markers.set(task.id, Array.from(points).sort((a, b) => a - b))
+  }
+
+  return markers
+})
+
 // 切换任务选中状态
 function toggleTask(taskId: number) {
   if (selectedTaskIds.value.includes(taskId)) {
@@ -426,6 +469,7 @@ const pingChartOption = computed(() => {
   // 构建 series，确保颜色与卡片一致
   const series = taskList.map((task) => {
     const color = getTaskColor(task.id)
+    const lossMarkerIndexes = packetLossMarkers.value.get(task.id) || []
     return {
       name: task.name,
       type: 'line' as const,
@@ -435,6 +479,23 @@ const pingChartOption = computed(() => {
       connectNulls: false,
       lineStyle: { width: 1.5, color, cap: 'round' as const },
       itemStyle: { color }, // 确保 symbol 颜色一致
+      markLine: showLoss.value && lossMarkerIndexes.length
+        ? {
+            silent: true,
+            symbol: ['none', 'none'],
+            animation: false,
+            label: { show: false },
+            lineStyle: {
+              color,
+              width: 1,
+              type: 'solid' as const,
+              opacity: 0.55,
+            },
+            data: lossMarkerIndexes.map(index => ({
+              xAxis: index,
+            })),
+          }
+        : undefined,
     }
   })
 
@@ -696,8 +757,15 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- 平滑峰值开关 -->
-        <div class="flex flex-wrap gap-4 items-center py-2 justify-between">
+        <div class="flex flex-wrap gap-2 items-center py-2">
+          <!-- 丢包可视化开关 -->
+          <Button
+            variant="ghost" size="xs" class="h-7 rounded-sm bg-background/50 hover:bg-background border-none"
+            :class="showLoss && 'shadow-[0_0_0_2px] shadow-green-600/10 text-green-600'" @click="showLoss = !showLoss"
+          >
+            丢包可视化
+          </Button>
+          <!-- 平滑峰值开关 -->
           <TooltipProvider>
             <div class="flex gap-2 items-center">
               <Button
