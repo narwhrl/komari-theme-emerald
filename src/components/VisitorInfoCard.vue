@@ -295,7 +295,7 @@ onMounted(async () => {
             :class="[expand || !index ? 'block opacity-100 translate-y-0' : 'hidden md:block md:opacity-100', !expand && index ? 'md:translate-y-0' : '']"
           >
             <div v-if="loading" class="h-2 w-15 animate-pulse rounded-full bg-muted/70" />
-            <p v-else class="mt-0.5 max-w-30 truncate text-xs font-medium text-muted-foreground sm:max-w-50">
+            <p v-else class="max-w-30 truncate text-xs font-medium text-muted-foreground sm:max-w-50">
               {{ item.value }}
             </p>
           </div>
