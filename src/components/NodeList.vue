@@ -25,7 +25,10 @@ const props = defineProps<{
   transitionKey?: string
 }>()
 
-const emit = defineEmits<{ click: [node: NodeData] }>()
+const emit = defineEmits<{
+  click: [node: NodeData]
+  pingClick: [node: NodeData]
+}>()
 
 const rowStaggerMs = 35
 const rowStaggerLimit = 12
@@ -129,6 +132,10 @@ function hasRegion(region: string | null | undefined): boolean {
 
 function handleClick(node: NodeData) {
   emit('click', node)
+}
+
+function openPingDialog(node: NodeData) {
+  emit('pingClick', node)
 }
 
 function getRowTransitionKey(node: NodeData): string {
@@ -289,7 +296,17 @@ function getCustomTags(node: NodeData): Array<string> {
                 <span class="text-[10px] text-muted-foreground truncate">
                   {{ formatUptime(node.uptime ?? 0) }}
                 </span>
-                <NodePingListCell :uuid="node.uuid" :online="node.online" />
+                <NodePingListCell
+                  :uuid="node.uuid"
+                  :online="node.online"
+                  role="button"
+                  tabindex="0"
+                  class="outline-none"
+                  :aria-label="`${node.name} 延迟 / 丢包`"
+                  @click.stop="openPingDialog(node)"
+                  @keydown.enter.stop.prevent="openPingDialog(node)"
+                  @keydown.space.stop.prevent="openPingDialog(node)"
+                />
               </div>
 
               <!-- 操作系统 -->

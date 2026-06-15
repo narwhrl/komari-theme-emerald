@@ -15,7 +15,10 @@ import { formatPriceWithCycle, getDaysUntilExpired, getExpireStatus, parseTags }
 
 const props = defineProps<{ node: NodeData }>()
 
-const emit = defineEmits<{ click: [] }>()
+const emit = defineEmits<{
+  click: []
+  pingClick: [node: NodeData]
+}>()
 
 const appStore = useAppStore()
 
@@ -99,6 +102,10 @@ const customTags = computed(() => parseTags(props.node.tags).map(t => t.text))
 
 function hasRegion(region: string | null | undefined): boolean {
   return Boolean(region?.trim())
+}
+
+function openPingDialog() {
+  emit('pingClick', props.node)
 }
 </script>
 
@@ -270,15 +277,21 @@ function hasRegion(region: string | null | undefined): boolean {
           </div> -->
           <!-- 延迟 -->
           <div
-            class="group/panel relative col-span-3 flex flex-col gap-1.5 p-1.5 h-10 rounded-sm bg-slate-500/5"
+            role="button"
+            tabindex="0"
+            class="group/panel relative col-span-3 flex h-10 cursor-pointer flex-col gap-1.5 rounded-sm bg-slate-500/5 p-1.5 text-left transition-colors hover:bg-slate-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             :class="[!props.node.online ? 'blur-xs opacity-60' : '']" :title="latencyPanelTooltip"
+            :aria-label="`${props.node.name} 延迟`"
+            @click.stop="openPingDialog"
+            @keydown.enter.stop.prevent="openPingDialog"
+            @keydown.space.stop.prevent="openPingDialog"
           >
             <div class="flex items-center justify-between gap-2 text-[11px] leading-none relative">
               <span class="text-muted-foreground">延迟</span>
               <span class="font-medium text-foreground/85">{{ latencyDisplay }}</span>
             </div>
             <div
-              class="grid h-full items-end gap-[1px] opacity-80 group-hover/panel:opacity-100 cursor-auto"
+              class="grid h-full items-end gap-[1px] opacity-80 group-hover/panel:opacity-100"
               :style="{ gridTemplateColumns: `repeat(${latencyRenderBars.length}, minmax(0, 1fr))` }"
             >
               <DataTooltip v-for="bar in latencyRenderBars" :key="bar.key" placement="top" :content="bar.tooltip" class="h-full w-full">
@@ -291,15 +304,21 @@ function hasRegion(region: string | null | undefined): boolean {
           </div>
           <!-- 丢包 -->
           <div
-            class="group/panel relative col-span-3 flex flex-col gap-1.5 p-1.5 h-10 rounded-sm bg-slate-500/5"
+            role="button"
+            tabindex="0"
+            class="group/panel relative col-span-3 flex h-10 cursor-pointer flex-col gap-1.5 rounded-sm bg-slate-500/5 p-1.5 text-left transition-colors hover:bg-slate-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             :class="[!props.node.online ? 'blur-xs opacity-60' : '']" :title="lossPanelTooltip"
+            :aria-label="`${props.node.name} 丢包`"
+            @click.stop="openPingDialog"
+            @keydown.enter.stop.prevent="openPingDialog"
+            @keydown.space.stop.prevent="openPingDialog"
           >
             <div class="flex items-center justify-between gap-2 text-[11px] leading-none">
               <span class="text-muted-foreground">丢包</span>
               <span class="font-medium text-foreground/85">{{ lossDisplay }}</span>
             </div>
             <div
-              class="grid h-full items-end gap-[1px] opacity-80 group-hover/panel:opacity-100 cursor-auto"
+              class="grid h-full items-end gap-[1px] opacity-80 group-hover/panel:opacity-100"
               :style="{ gridTemplateColumns: `repeat(${lossRenderBars.length}, minmax(0, 1fr))` }"
             >
               <DataTooltip v-for="bar in lossRenderBars" :key="bar.key" placement="top" :content="bar.tooltip" class="h-full w-full">

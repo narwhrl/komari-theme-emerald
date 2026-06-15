@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/vue'
 import { useDebounceFn } from '@vueuse/core'
 import { computed, defineAsyncComponent, nextTick, onActivated, onDeactivated, ref, watch } from 'vue'
@@ -6,6 +7,7 @@ import { useRouter } from 'vue-router'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Empty } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -19,6 +21,7 @@ defineOptions({ name: 'HomeView' })
 const NodeCard = defineAsyncComponent(() => import('@/components/NodeCard.vue'))
 const NodeGeneralCards = defineAsyncComponent(() => import('@/components/NodeGeneralCards.vue'))
 const NodeList = defineAsyncComponent(() => import('@/components/NodeList.vue'))
+const PingChart = defineAsyncComponent(() => import('@/components/PingChart.vue'))
 
 const nodeItemStaggerMs = 35
 const nodeItemStaggerLimit = 12
@@ -41,6 +44,7 @@ onDeactivated(() => {
 
 const searchText = ref('')
 const debouncedSearchText = ref('')
+const selectedPingNodeUuid = ref<string | null>(null)
 
 const updateDebouncedSearch = useDebounceFn((value: string) => {
   debouncedSearchText.value = value
@@ -97,8 +101,26 @@ const nodeList = computed(() => {
   return filtered
 })
 
+const selectedPingNode = computed(() => {
+  if (!selectedPingNodeUuid.value)
+    return null
+  return nodesStore.nodes.find(node => node.uuid === selectedPingNodeUuid.value) ?? null
+})
+
+const pingDialogOpen = computed({
+  get: () => selectedPingNode.value !== null,
+  set: (open: boolean) => {
+    if (!open)
+      selectedPingNodeUuid.value = null
+  },
+})
+
 function handleNodeClick(node: typeof nodesStore.nodes[number]) {
   router.push({ name: 'instance-detail', params: { id: node.uuid } })
+}
+
+function handlePingClick(node: NodeData) {
+  selectedPingNodeUuid.value = node.uuid
 }
 
 function getNodeItemTransitionKey(node: typeof nodesStore.nodes[number]): string {
@@ -199,7 +221,7 @@ function getNodeItemTransitionStyle(index: number): Record<string, string> {
                 class="min-w-0"
                 :style="getNodeItemTransitionStyle(index)"
               >
-                <NodeCard :node="node" @click="handleNodeClick(node)" />
+                <NodeCard :node="node" @click="handleNodeClick(node)" @ping-click="handlePingClick" />
               </div>
             </TransitionGroup>
             <NodeList
@@ -207,6 +229,7 @@ function getNodeItemTransitionStyle(index: number): Record<string, string> {
               :nodes="nodeList"
               :transition-key="appStore.nodeSelectedGroup"
               @click="handleNodeClick"
+              @ping-click="handlePingClick"
             />
             <div v-else class="text-muted-foreground text-center py-8">
               <Empty description="暂无节点" />
@@ -215,6 +238,23 @@ function getNodeItemTransitionStyle(index: number): Record<string, string> {
         </Tabs>
       </div>
     </div>
+
+    <Dialog v-model:open="pingDialogOpen">
+      <DialogContent
+        v-if="selectedPingNode"
+        class="max-w-6xl gap-0 overflow-hidden border-none bg-background/50 p-0 backdrop-blur-sm"
+        overlay-class="opacity-50"
+      >
+        <DialogHeader class="flex h-13 flex-row items-center px-4">
+          <DialogTitle class="truncate">
+            {{ selectedPingNode.name }} 延迟 / 丢包
+          </DialogTitle>
+        </DialogHeader>
+        <div class="max-h-[calc(90vh-4rem)] overflow-y-auto p-4 pt-0">
+          <PingChart :uuid="selectedPingNode.uuid" />
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
