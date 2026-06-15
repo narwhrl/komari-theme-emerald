@@ -21,7 +21,7 @@ const nodesStore = useNodesStore()
 const exchangeRates = ref(financeHelper.DEFAULT_EXCHANGE_RATES)
 const exchangeRateBaseCurrency = ref<CurrencyCode>('CNY')
 const excludeFreeNodes = ref(true)
-const financeRateCurrencies: CurrencyCode[] = ['CNY', 'USD', 'HKD', 'EUR', 'GBP', 'JPY']
+const financeRateCurrencies: readonly CurrencyCode[] = financeHelper.DISPLAY_FINANCE_CURRENCIES
 const summaryNodes = computed(() => props.nodes ?? nodesStore.nodes)
 const summaryTransitionKey = computed(() => props.transitionKey ?? summaryNodes.value.map(node => node.uuid).join('|'))
 const metricSwitchTransitionProps = computed(() => ({

@@ -1,6 +1,41 @@
 import type { NodeData } from '@/stores/nodes'
 
-export type CurrencyCode = 'CNY' | 'USD' | 'HKD' | 'EUR' | 'GBP' | 'JPY'
+const FINANCE_CURRENCY_CONFIG = {
+  AUD: { rate: 0.20941, symbol: 'A$' },
+  BRL: { rate: 0.74734, symbol: 'R$' },
+  CAD: { rate: 0.20691, symbol: 'C$' },
+  CHF: { rate: 0.11746, symbol: 'CHF' },
+  CNY: { rate: 1, symbol: '¥' },
+  CZK: { rate: 3.0787, symbol: 'Kč' },
+  DKK: { rate: 0.95296, symbol: 'kr' },
+  EUR: { rate: 0.1275, symbol: '€' },
+  GBP: { rate: 0.11027, symbol: '£' },
+  HKD: { rate: 1.1594, symbol: '$' },
+  HUF: { rate: 44.688, symbol: 'Ft' },
+  IDR: { rate: 2622.37, symbol: 'Rp' },
+  ILS: { rate: 0.43085, symbol: '₪' },
+  INR: { rate: 14.0178, symbol: '₹' },
+  ISK: { rate: 18.4626, symbol: 'kr' },
+  JPY: { rate: 23.707, symbol: '¥' },
+  KRW: { rate: 224.11, symbol: '₩' },
+  MXN: { rate: 2.5472, symbol: 'Mex$' },
+  MYR: { rate: 0.59945, symbol: 'RM' },
+  NOK: { rate: 1.4096, symbol: 'kr' },
+  NZD: { rate: 0.2535, symbol: 'NZ$' },
+  PHP: { rate: 8.9288, symbol: '₱' },
+  PLN: { rate: 0.54138, symbol: 'zł' },
+  RON: { rate: 0.66769, symbol: 'lei' },
+  SEK: { rate: 1.3895, symbol: 'kr' },
+  SGD: { rate: 0.18975, symbol: 'S$' },
+  THB: { rate: 4.8172, symbol: '฿' },
+  TRY: { rate: 6.849, symbol: '₺' },
+  USD: { rate: 0.14799, symbol: '$' },
+  ZAR: { rate: 2.3995, symbol: 'R' },
+} as const
+
+export type CurrencyCode = keyof typeof FINANCE_CURRENCY_CONFIG
+export const SUPPORTED_FINANCE_CURRENCIES = Object.keys(FINANCE_CURRENCY_CONFIG) as CurrencyCode[]
+export const DISPLAY_FINANCE_CURRENCIES = ['CNY', 'USD', 'HKD', 'EUR', 'GBP', 'JPY'] as const satisfies readonly CurrencyCode[]
 export type ExchangeRates = Record<CurrencyCode, number>
 export type ExchangeRateSource = 'cache' | 'network' | 'stale-cache' | 'default'
 
@@ -12,55 +47,48 @@ interface ExchangeRatesCache {
 }
 
 const CACHE_KEY = 'komari_finance_exchange_rates_cny_v1'
-const REQUIRED_CURRENCIES: CurrencyCode[] = ['CNY', 'USD', 'HKD', 'EUR', 'GBP', 'JPY']
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const MONTH_DAYS = 30
 const LONG_TERM_YEARS = 100
 
-export const DEFAULT_EXCHANGE_RATES: ExchangeRates = {
-  CNY: 1,
-  USD: 0.142536,
-  HKD: 1.108377,
-  EUR: 0.12102,
-  GBP: 0.105581,
-  JPY: 22.231552,
-}
+export const DEFAULT_EXCHANGE_RATES = Object.fromEntries(
+  Object.entries(FINANCE_CURRENCY_CONFIG).map(([currency, config]) => [currency, config.rate]),
+) as ExchangeRates
 
-export const CURRENCY_SYMBOLS: Record<CurrencyCode, string> = {
-  CNY: '¥',
-  USD: '$',
-  HKD: '$',
-  EUR: '€',
-  GBP: '£',
-  JPY: '¥',
-}
+export const CURRENCY_SYMBOLS = Object.fromEntries(
+  Object.entries(FINANCE_CURRENCY_CONFIG).map(([currency, config]) => [currency, config.symbol]),
+) as Record<CurrencyCode, string>
 
 const EXCHANGE_RATE_APIS = [
-  {
-    url: 'https://open.er-api.com/v6/latest/CNY',
-    parse: (data: unknown) => (data as { rates?: unknown }).rates,
-  },
   {
     url: 'https://api.frankfurter.app/latest?from=CNY',
     parse: (data: unknown) => (data as { rates?: unknown }).rates,
   },
+  {
+    url: 'https://open.er-api.com/v6/latest/CNY',
+    parse: (data: unknown) => (data as { rates?: unknown }).rates,
+  },
 ] as const
+const CURRENCY_ALIASES: Record<string, CurrencyCode> = {
+  '$': 'USD',
+  'HK$': 'HKD',
+  '€': 'EUR',
+  '£': 'GBP',
+  '¥': 'CNY',
+  '￥': 'CNY',
+}
 
 export function normalizeCurrency(currency: string | null | undefined): CurrencyCode {
   const value = String(currency || 'CNY').trim().toUpperCase()
 
-  if (value === 'USD' || value === '$')
-    return 'USD'
-  if (value === 'HKD' || value === 'HK$')
-    return 'HKD'
-  if (value === 'EUR' || value === '€')
-    return 'EUR'
-  if (value === 'GBP' || value === '£')
-    return 'GBP'
-  if (value === 'JPY')
-    return 'JPY'
+  if (isSupportedCurrency(value))
+    return value
 
-  return 'CNY'
+  return CURRENCY_ALIASES[value] || 'CNY'
+}
+
+export function isSupportedCurrency(currency: string): currency is CurrencyCode {
+  return (SUPPORTED_FINANCE_CURRENCIES as readonly string[]).includes(currency)
 }
 
 export function getTodayDateKey(date = new Date()): string {
@@ -312,7 +340,7 @@ function sanitizeExchangeRates(rates: unknown): ExchangeRates | null {
   const record = rates as Record<string, unknown>
   const result = { CNY: 1 } as ExchangeRates
 
-  for (const currency of REQUIRED_CURRENCIES) {
+  for (const currency of SUPPORTED_FINANCE_CURRENCIES) {
     if (currency === 'CNY')
       continue
 
