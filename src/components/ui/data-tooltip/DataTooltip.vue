@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, useSlots, watch } from 'vue'
 import { cn } from '@/lib/utils'
 
 type DataTooltipPlacement = 'top' | 'bottom' | 'left' | 'right'
@@ -26,6 +26,14 @@ const props = withDefaults(defineProps<Props>(), {
   placement: 'top',
   as: 'div',
 })
+const slots = useSlots()
+
+const rootRef = ref<HTMLElement | null>(null)
+const isOpen = ref(false)
+let lastTouchOpenAt = 0
+let shouldStopNextClick = false
+
+const hasTooltip = computed(() => Boolean(props.content || slots.content))
 
 const placementClass: Record<DataTooltipPlacement, string> = {
   top: 'bottom-full left-1/2 mb-2 -translate-x-1/2',
@@ -42,20 +50,94 @@ const sizeStyle = computed(() => {
     style.height = typeof props.height === 'number' ? `${props.height}px` : props.height
   return style
 })
+
+function isTouchLikePointer(event: PointerEvent) {
+  const hasCoarsePointer = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(hover: none), (pointer: coarse)').matches
+
+  return event.pointerType !== 'mouse' || hasCoarsePointer
+}
+
+function closeTooltip() {
+  isOpen.value = false
+}
+
+function removeDocumentListeners() {
+  if (typeof document === 'undefined')
+    return
+
+  document.removeEventListener('pointerdown', handleDocumentPointerDown, true)
+  document.removeEventListener('keydown', handleDocumentKeydown)
+}
+
+function handleDocumentPointerDown(event: PointerEvent) {
+  const root = rootRef.value
+  if (!root || !event.target || root.contains(event.target as Node))
+    return
+
+  closeTooltip()
+}
+
+function handleDocumentKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape')
+    closeTooltip()
+}
+
+function handlePointerDown(event: PointerEvent) {
+  if (!hasTooltip.value || !isTouchLikePointer(event))
+    return
+
+  lastTouchOpenAt = Date.now()
+  shouldStopNextClick = true
+  isOpen.value = !isOpen.value
+}
+
+function handleClick(event: MouseEvent) {
+  if (shouldStopNextClick && Date.now() - lastTouchOpenAt < 800)
+    event.stopPropagation()
+
+  shouldStopNextClick = false
+}
+
+watch(isOpen, (open) => {
+  if (typeof document === 'undefined')
+    return
+
+  if (open) {
+    document.addEventListener('pointerdown', handleDocumentPointerDown, true)
+    document.addEventListener('keydown', handleDocumentKeydown)
+    return
+  }
+
+  removeDocumentListeners()
+})
+
+watch(hasTooltip, (value) => {
+  if (!value)
+    closeTooltip()
+})
+
+onBeforeUnmount(removeDocumentListeners)
 </script>
 
 <template>
   <component
     :is="as"
+    ref="rootRef"
     data-slot="data-tooltip"
+    :data-state="isOpen ? 'open' : 'closed'"
     :class="cn('group/data-tooltip relative inline-block', props.class)"
+    @pointerdown.capture="handlePointerDown"
+    @click="handleClick"
   >
     <slot />
     <span
-      v-if="content || $slots.content"
+      v-if="hasTooltip"
       role="tooltip"
       :class="cn(
         'pointer-events-none absolute z-20 hidden rounded bg-foreground/80 p-1 text-[10px] leading-none text-background shadow-lg group-hover/data-tooltip:block group-focus-within/data-tooltip:block whitespace-normal break-words',
+        isOpen && 'block',
         placementClass[placement],
         props.contentClass,
       )"
