@@ -60,7 +60,8 @@ bun run preview
 ## 鸣谢
 
 - [Komari](https://github.com/komari-monitor/komari)
-- [Komari Naive](https://github.com/tonyliuzj/komari-naive)
+- [Komari Next](https://github.com/tonyliuzj/komari-next)
+- [Komari Naive](https://github.com/lyimoexiao/komari-theme-naive)
 - [Vue 3](https://vuejs.org/)
 - [Vite](https://vitejs.dev/)
 - [reka-ui](https://reka-ui.com/)
