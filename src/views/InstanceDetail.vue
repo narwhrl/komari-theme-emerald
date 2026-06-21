@@ -13,7 +13,7 @@ import * as financeHelper from '@/utils/financeHelper'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat } from '@/utils/helper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
-import { getBillingCycleText, getExpireStatus, getExpireText } from '@/utils/tagHelper'
+import { getBillingCycleText, getExpireText, getExpireTextClass } from '@/utils/tagHelper'
 
 const LoadChart = defineAsyncComponent(() => import('@/components/LoadChart.vue'))
 const PingChart = defineAsyncComponent(() => import('@/components/PingChart.vue'))
@@ -132,14 +132,7 @@ const remainingTimeValueClass = computed(() => {
   if (!data.value?.expired_at)
     return ''
 
-  const status = getExpireStatus(data.value.expired_at)
-  if (status === 'expired' || status === 'critical')
-    return 'text-destructive'
-  if (status === 'warning')
-    return 'text-orange-600 dark:text-orange-400'
-  if (status === 'long_term')
-    return 'text-muted-foreground'
-  return 'text-emerald-600 dark:text-emerald-400'
+  return getExpireTextClass(data.value.expired_at)
 })
 
 const metricCards = computed<MetricCard[]>(() => {

@@ -186,13 +186,30 @@ export function getExpireStatus(expiredAt: string | number | undefined): ExpireS
 
   if (days <= 0)
     return 'expired'
-  if (days <= EXPIRE_THRESHOLDS.critical)
+  if (days < EXPIRE_THRESHOLDS.critical)
     return 'critical'
-  if (days <= EXPIRE_THRESHOLDS.warning)
+  if (days < EXPIRE_THRESHOLDS.warning)
     return 'warning'
   if (days > EXPIRE_THRESHOLDS.long_term)
     return 'long_term'
   return 'normal'
+}
+
+/**
+ * 获取过期时间的文本颜色类
+ * @param expiredAt 过期时间
+ * @returns Tailwind 文本颜色类
+ */
+export function getExpireTextClass(expiredAt: string | number | undefined): string {
+  const status = getExpireStatus(expiredAt)
+
+  if (status === 'expired' || status === 'critical')
+    return 'text-destructive'
+  if (status === 'warning')
+    return 'text-yellow-600 dark:text-yellow-400'
+  if (status === 'long_term')
+    return 'text-muted-foreground'
+  return 'text-emerald-600 dark:text-emerald-400'
 }
 
 /**

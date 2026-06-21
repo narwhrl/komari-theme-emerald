@@ -11,7 +11,7 @@ import { useAppStore } from '@/stores/app'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
-import { formatPriceWithCycle, getDaysUntilExpired, getExpireStatus, parseTags } from '@/utils/tagHelper'
+import { formatPriceWithCycle, getDaysUntilExpired, getExpireStatus, getExpireTextClass, parseTags } from '@/utils/tagHelper'
 
 const props = defineProps<{ node: NodeData }>()
 
@@ -80,22 +80,38 @@ const trafficUsed = computed(() => {
   }
 })
 
-const priceTags = computed(() => {
-  const tags: Array<string> = []
+interface PriceTagItem {
+  text: string
+  highlightValue?: string
+  prefix?: string
+  suffix?: string
+}
+
+const priceTags = computed<PriceTagItem[]>(() => {
+  const tags: PriceTagItem[] = []
   const lang = appStore.lang
   const node = props.node
   if (node.price !== 0) {
     const days = getDaysUntilExpired(node.expired_at)
     const status = getExpireStatus(node.expired_at)
-    if (status === 'expired')
-      tags.push(lang === 'zh-CN' ? '已过期' : 'Expired')
-    else if (status === 'long_term')
-      tags.push(lang === 'zh-CN' ? '长期' : 'Long-term')
-    else tags.push(lang === 'zh-CN' ? `剩余 ${days} 天` : `${days} days left`)
     const priceText = formatPriceWithCycle(node.price, node.billing_cycle, node.currency, lang)
-    tags.push(priceText)
+    tags.push({ text: priceText })
+    if (status === 'expired')
+      tags.push({ text: lang === 'zh-CN' ? '已过期' : 'Expired' })
+    else if (status === 'long_term')
+      tags.push({ text: lang === 'zh-CN' ? '长期' : 'Long-term' })
+    else if (lang === 'zh-CN')
+      tags.push({ text: `剩余 ${days} 天`, prefix: '剩余 ', highlightValue: String(days), suffix: ' 天' })
+    else
+      tags.push({ text: `${days} days left`, highlightValue: String(days), suffix: ' days left' })
   }
   return tags
+})
+
+const remainingTimeTagClass = computed(() => {
+  if (props.node.price === 0)
+    return ''
+  return getExpireTextClass(props.node.expired_at)
 })
 
 const customTags = computed(() => parseTags(props.node.tags).map(t => t.text))
@@ -262,7 +278,14 @@ function openPingDialog() {
           >
             <div class="text-[11px] text-muted-foreground flex flex-col">
               <div v-for="(tag, index) in priceTags" :key="index" class="flex flex-row items-center gap-1">
-                {{ tag }}
+                <template v-if="tag.highlightValue">
+                  <span>{{ tag.prefix }}</span>
+                  <span :class="remainingTimeTagClass">{{ tag.highlightValue }}</span>
+                  <span>{{ tag.suffix }}</span>
+                </template>
+                <template v-else>
+                  {{ tag.text }}
+                </template>
               </div>
             </div>
           </div>
