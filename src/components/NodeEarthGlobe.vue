@@ -30,7 +30,7 @@ const { width: containerWidth, height: containerHeight } = useElementSize(contai
 const documentVisibility = useDocumentVisibility()
 const elementVisible = useElementVisibility(containerRef)
 const shouldRender = computed(() => documentVisibility.value === 'visible' && elementVisible.value)
-const shouldAutoRotate = computed(() => !appStore.stopEarth)
+const shouldAutoRotate = computed(() => appStore.earthViewMode !== 'earth-stop')
 
 let globe: Globe | null = null
 const INITIAL_THETA = 0.22
@@ -400,7 +400,7 @@ const { pause: pauseRaf, resume: resumeRaf } = useRafFn(
 function startGlobe() {
   if (!canvasRef.value)
     return
-  if (appStore.stopEarth) {
+  if (appStore.earthViewMode === 'earth-stop') {
     resetStoppedView()
     triggerStaticRedrawWindow()
   }
@@ -469,9 +469,9 @@ watch(
 )
 
 watch(
-  () => appStore.stopEarth,
-  (stopped) => {
-    if (stopped)
+  () => appStore.earthViewMode,
+  (mode) => {
+    if (mode === 'earth-stop')
       resetStoppedView()
     triggerStaticRedrawWindow()
     updateGlobeFrame(true)

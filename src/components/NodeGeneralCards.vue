@@ -189,7 +189,7 @@ onMounted(async () => {
       <CardX
         hoverable
         class="group h-full bg-background/50 border-none hover:bg-background backdrop-blur-xs transition-all"
-        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-1 row-start-1' : 'col-span-1 min-h-18 md:min-h-28'"
+        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-1 row-start-1' : 'col-span-1 row-start-1 col-start-1 min-h-18 md:min-h-28 md:row-start-1 md:col-start-1'"
         content-class="h-full !p-3"
       >
         <div class="flex h-full flex-col justify-between gap-1">
@@ -218,7 +218,7 @@ onMounted(async () => {
       <CardX
         hoverable
         class="group h-full bg-background/50 border-none hover:bg-background backdrop-blur-xs transition-all"
-        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-1 row-start-2' : 'col-span-1 min-h-18 md:min-h-28'"
+        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-1 row-start-2' : 'col-span-1 row-start-2 col-start-1 min-h-18 md:min-h-28 md:row-start-1 md:col-start-2'"
         content-class="h-full !p-3"
       >
         <div class="flex h-full flex-col justify-between gap-1">
@@ -245,7 +245,7 @@ onMounted(async () => {
       </CardX>
       <div
         class="relative w-full h-full"
-        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-5 row-start-1' : 'col-span-1 min-h-18 md:min-h-28'"
+        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-5 row-start-1' : 'col-span-1 row-start-1 col-start-2 min-h-18 md:min-h-28 md:row-start-1 md:col-start-3'"
       >
         <CardX
           hoverable
@@ -343,7 +343,7 @@ onMounted(async () => {
       <CardX
         hoverable
         class="group bg-background/50 border-none hover:bg-background backdrop-blur-xs transition-all"
-        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-5 row-start-2' : 'col-span-1 min-h-18 md:min-h-28'"
+        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-5 row-start-2' : 'col-span-1 row-start-2 col-start-2 min-h-18 md:min-h-28 md:row-start-1 md:col-start-4'"
         content-class="h-full !p-3"
       >
         <div class="flex h-full flex-col justify-between gap-1">
@@ -379,7 +379,7 @@ onMounted(async () => {
       <CardX
         hoverable
         class="group bg-background/50 border-none hover:bg-background backdrop-blur-xs transition-all"
-        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-9 row-start-1' : 'col-span-1 min-h-18 md:min-h-28'"
+        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-9 row-start-1' : 'col-span-1 row-start-1 col-start-3 min-h-18 md:min-h-28 md:row-start-1 md:col-start-5'"
         content-class="h-full !p-3"
       >
         <div class="flex h-full flex-col justify-between gap-1">
@@ -405,7 +405,7 @@ onMounted(async () => {
       <CardX
         hoverable
         class="group bg-background/50 border-none hover:bg-background backdrop-blur-xs transition-all"
-        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-9 row-start-2' : 'col-span-1 min-h-18 md:min-h-28'"
+        :class="showVisualPanel ? 'col-span-4 row-span-1 col-start-9 row-start-2' : 'col-span-1 row-start-2 col-start-3 min-h-18 md:min-h-28 md:row-start-1 md:col-start-6'"
         content-class="h-full !p-3"
       >
         <div class="flex h-full flex-col justify-between gap-1">
