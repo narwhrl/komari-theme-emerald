@@ -164,7 +164,7 @@ function getNodeItemTransitionStyle(index: number): Record<string, string> {
     <div class="node-info p-4 pt-0 flex flex-col gap-4 relative z-1 md:pointer-events-none" :class="appStore.earthViewMode === 'hide' && 'pt-4'">
       <div class="nodes">
         <Tabs v-model="appStore.nodeSelectedGroup" class="w-full flex-col gap-4">
-          <div class="flex gap-2 items-center flex-nowrap">
+          <div class="flex gap-2 items-start flex-nowrap">
             <div class="overflow-x-auto rounded-sm md:pointer-events-auto">
               <TabsList class="w-max h-8 bg-background/50 backdrop-blur-xl rounded-md">
                 <TabsTrigger
