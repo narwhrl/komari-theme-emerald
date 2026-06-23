@@ -35,9 +35,12 @@ class InitManager {
   private appStore: ReturnType<typeof useAppStore>
   private nodesStore: ReturnType<typeof useNodesStore>
   private pollTimer: ReturnType<typeof setInterval> | null = null
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private isPolling = false
   private isInitialized = false
   private useWebSocket: boolean | null = null // 根据主题配置决定
+  private wsCloseUnsubscribe: (() => void) | null = null
+  private wsErrorUnsubscribe: (() => void) | null = null
   constructor(config: InitConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config }
     this.rpc = getSharedRpc()
@@ -179,6 +182,7 @@ class InitManager {
     // 根据主题配置决定初始连接模式
     const configuredMode = this.appStore.rpcTransportMode
     this.useWebSocket = configuredMode === 'websocket'
+    this.clearReconnectTimer()
 
     if (this.useWebSocket) {
       // 尝试建立 WebSocket 连接
@@ -214,6 +218,7 @@ class InitManager {
       // 使用 ping 验证连接，10 秒超时
       await client.ensureWebSocketConnectedWithPing(10000)
       this.nodesStore.updateWsState('connected', 0)
+      this.clearReconnectTimer()
 
       // 连接成功，重置错误状态
       this.appStore.connectionError = false
@@ -233,29 +238,43 @@ class InitManager {
    */
   private monitorWebSocketConnection(): void {
     const client = this.rpc.getClient()
-    const ws = client.getWebSocket()
+    this.wsCloseUnsubscribe?.()
+    this.wsErrorUnsubscribe?.()
 
-    if (!ws) {
-      return
-    }
+    this.wsCloseUnsubscribe = client.onWebSocketClose(({ event, manuallyClosed, url }) => {
+      console.warn('[InitManager] WebSocket closed:', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+        manuallyClosed,
+        url,
+      })
 
-    ws.onclose = () => {
-      // 如果当前是已连接状态且还在使用 WebSocket 模式，触发重连
-      if (this.useWebSocket === true && this.nodesStore.wsConnectionState === 'connected') {
-        this.nodesStore.updateWsState('disconnected')
-        this.scheduleReconnect()
+      if (this.useWebSocket !== true || manuallyClosed) {
+        return
       }
-    }
 
-    ws.onerror = () => {
-      console.error('[InitManager] WebSocket error')
-    }
+      this.nodesStore.updateWsState('disconnected')
+      this.scheduleReconnect()
+    })
+
+    this.wsErrorUnsubscribe = client.onWebSocketError(({ url }) => {
+      console.error('[InitManager] WebSocket error:', url)
+    })
   }
 
   /**
    * 安排重连
    */
   private scheduleReconnect(): void {
+    if (this.useWebSocket !== true) {
+      return
+    }
+
+    if (this.reconnectTimer) {
+      return
+    }
+
     const attempts = this.nodesStore.wsReconnectAttempts
 
     // 达到最大重连次数，回落到 POST 模式
@@ -272,7 +291,13 @@ class InitManager {
 
     this.nodesStore.updateWsState('reconnecting', attempts + 1)
 
-    setTimeout(async () => {
+    this.reconnectTimer = setTimeout(async () => {
+      this.reconnectTimer = null
+
+      if (this.useWebSocket !== true) {
+        return
+      }
+
       try {
         const client = this.rpc.getClient()
         client.close()
@@ -290,6 +315,7 @@ class InitManager {
    */
   private fallbackToPostMode(): void {
     this.useWebSocket = false
+    this.clearReconnectTimer()
     this.nodesStore.updateWsState('disconnected', this.config.wsMaxReconnectAttempts)
 
     // 关闭 WebSocket 连接
@@ -299,6 +325,13 @@ class InitManager {
 
     // 显示提示
     window.$message?.warning('WebSocket 无法连接，尝试回落 POST 模式。')
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
   }
 
   /**
@@ -375,6 +408,11 @@ class InitManager {
    */
   destroy(): void {
     this.stopPolling()
+    this.clearReconnectTimer()
+    this.wsCloseUnsubscribe?.()
+    this.wsErrorUnsubscribe?.()
+    this.wsCloseUnsubscribe = null
+    this.wsErrorUnsubscribe = null
     this.rpc.close()
     this.nodesStore.clearNodes()
     this.isInitialized = false

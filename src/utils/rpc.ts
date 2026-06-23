@@ -38,6 +38,53 @@ const HTTP_PROTOCOL_PREFIX = 'http://'
 const HTTPS_PROTOCOL_PREFIX = 'https://'
 const WS_PROTOCOL_PREFIX = 'ws://'
 const WSS_PROTOCOL_PREFIX = 'wss://'
+const DEFAULT_RPC_API_BASE = '/api'
+const DEFAULT_RPC_ENDPOINT = `${DEFAULT_RPC_API_BASE}/rpc2`
+
+function normalizeHttpBaseUrl(baseUrl: string): string {
+  const trimmedBaseUrl = baseUrl.trim()
+
+  if (!trimmedBaseUrl) {
+    return DEFAULT_RPC_ENDPOINT
+  }
+
+  if (trimmedBaseUrl.startsWith(WS_PROTOCOL_PREFIX)) {
+    return `${HTTP_PROTOCOL_PREFIX}${trimmedBaseUrl.slice(WS_PROTOCOL_PREFIX.length)}`
+  }
+
+  if (trimmedBaseUrl.startsWith(WSS_PROTOCOL_PREFIX)) {
+    return `${HTTPS_PROTOCOL_PREFIX}${trimmedBaseUrl.slice(WSS_PROTOCOL_PREFIX.length)}`
+  }
+
+  return trimmedBaseUrl
+}
+
+function getBrowserOrigin(): string {
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+
+  return 'http://localhost'
+}
+
+/**
+ * Safari/iOS 对 WebSocket URL 更严格，必须显式使用 ws:// 或 wss://。
+ */
+function buildWebSocketUrl(baseUrl: string): string {
+  const resolvedUrl = new URL(normalizeHttpBaseUrl(baseUrl), getBrowserOrigin())
+
+  if (resolvedUrl.protocol === 'http:') {
+    resolvedUrl.protocol = 'ws:'
+  }
+  else if (resolvedUrl.protocol === 'https:') {
+    resolvedUrl.protocol = 'wss:'
+  }
+  else if (resolvedUrl.protocol !== 'ws:' && resolvedUrl.protocol !== 'wss:') {
+    throw new RpcError(-32000, `Unsupported WebSocket protocol: ${resolvedUrl.protocol}`)
+  }
+
+  return resolvedUrl.toString()
+}
 
 /** RPC 方法元数据 */
 export interface MethodMeta {
@@ -214,6 +261,17 @@ interface RpcClientOptions {
   useWebSocket?: boolean
 }
 
+export interface RpcWebSocketCloseInfo {
+  event: CloseEvent
+  manuallyClosed: boolean
+  url: string
+}
+
+export interface RpcWebSocketErrorInfo {
+  event: Event
+  url: string
+}
+
 /** JSON-RPC 2.0 客户端 */
 export class RpcClient {
   private baseUrl: string
@@ -229,12 +287,31 @@ export class RpcClient {
   private requestId = 0
   /** WebSocket 连接 Promise（用于等待正在进行的连接） */
   private wsConnectPromise: Promise<void> | null = null
+  private manualCloseRequested = false
+  private wsCloseListeners: Set<(info: RpcWebSocketCloseInfo) => void> = new Set()
+  private wsErrorListeners: Set<(info: RpcWebSocketErrorInfo) => void> = new Set()
 
   constructor(options: RpcClientOptions = {}) {
-    const apiBase = import.meta.env.VITE_API_BASE || ''
-    this.baseUrl = options.baseUrl || `${apiBase}/rpc2`
+    const apiBase = import.meta.env.VITE_API_BASE || DEFAULT_RPC_API_BASE
+    this.baseUrl = normalizeHttpBaseUrl(options.baseUrl || `${apiBase}/rpc2`)
     this.timeout = options.timeout || 30000
     this.useWebSocket = options.useWebSocket || false
+  }
+
+  private rejectPendingRequests(error: RpcError): void {
+    this.pendingRequests.forEach((pending, id) => {
+      clearTimeout(pending.timer)
+      pending.reject(error)
+      this.pendingRequests.delete(id)
+    })
+  }
+
+  private notifyWebSocketClose(info: RpcWebSocketCloseInfo): void {
+    this.wsCloseListeners.forEach(listener => listener(info))
+  }
+
+  private notifyWebSocketError(info: RpcWebSocketErrorInfo): void {
+    this.wsErrorListeners.forEach(listener => listener(info))
   }
 
   /**
@@ -307,9 +384,21 @@ export class RpcClient {
    */
   private initWebSocket(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const wsUrl = this.baseUrl.startsWith(HTTPS_PROTOCOL_PREFIX)
-        ? this.baseUrl.replace(HTTPS_PROTOCOL_PREFIX, WSS_PROTOCOL_PREFIX)
-        : this.baseUrl.replace(HTTP_PROTOCOL_PREFIX, WS_PROTOCOL_PREFIX)
+      const wsUrl = buildWebSocketUrl(this.baseUrl)
+      let isSettled = false
+      let connectTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+      const settle = (callback: () => void) => {
+        if (isSettled) {
+          return
+        }
+
+        isSettled = true
+        if (connectTimeoutId) {
+          clearTimeout(connectTimeoutId)
+        }
+        callback()
+      }
 
       // 关闭现有连接（如果有）
       if (this.ws) {
@@ -322,17 +411,50 @@ export class RpcClient {
         }
       }
 
-      this.ws = new WebSocket(wsUrl)
+      this.manualCloseRequested = false
 
-      this.ws.onopen = () => {
-        resolve()
+      let socket: WebSocket
+
+      try {
+        socket = new WebSocket(wsUrl)
+      }
+      catch (error) {
+        reject(new RpcError(-32000, `WebSocket connection failed: ${error instanceof Error ? error.message : String(error)}`))
+        return
       }
 
-      this.ws.onerror = () => {
-        reject(new RpcError(-32000, 'WebSocket connection error'))
+      this.ws = socket
+
+      connectTimeoutId = setTimeout(() => {
+        if (this.ws === socket && socket.readyState !== WebSocket.OPEN) {
+          this.manualCloseRequested = true
+          socket.close()
+        }
+
+        settle(() => {
+          reject(new RpcError(-32001, `WebSocket connection timeout after ${this.timeout}ms`))
+        })
+      }, this.timeout)
+
+      socket.onopen = () => {
+        if (this.ws !== socket) {
+          this.manualCloseRequested = true
+          socket.close()
+          return
+        }
+
+        settle(() => resolve())
       }
 
-      this.ws.onmessage = (event) => {
+      socket.onerror = (event) => {
+        this.notifyWebSocketError({ event, url: wsUrl })
+
+        settle(() => {
+          reject(new RpcError(-32000, 'WebSocket connection error'))
+        })
+      }
+
+      socket.onmessage = (event) => {
         try {
           const data: JsonRpcResponse = JSON.parse(event.data)
           if (data.id === null)
@@ -354,14 +476,31 @@ export class RpcClient {
         }
       }
 
-      this.ws.onclose = () => {
-        this.ws = null
-        // Reject all pending requests
-        this.pendingRequests.forEach((pending, id) => {
-          clearTimeout(pending.timer)
-          pending.reject(new RpcError(-32000, 'WebSocket closed'))
-          this.pendingRequests.delete(id)
-        })
+      socket.onclose = (event) => {
+        const isCurrentSocket = this.ws === socket
+        const closeReason = event.reason || `WebSocket closed (code ${event.code})`
+        const closeInfo: RpcWebSocketCloseInfo = {
+          event,
+          manuallyClosed: this.manualCloseRequested,
+          url: wsUrl,
+        }
+
+        if (isCurrentSocket) {
+          this.ws = null
+        }
+
+        this.rejectPendingRequests(new RpcError(-32000, closeReason))
+        this.notifyWebSocketClose(closeInfo)
+
+        if (!isSettled) {
+          settle(() => {
+            reject(new RpcError(-32000, closeReason))
+          })
+        }
+
+        if (isCurrentSocket) {
+          this.manualCloseRequested = false
+        }
       }
     })
   }
@@ -369,7 +508,7 @@ export class RpcClient {
   /**
    * 调用 RPC 方法（WebSocket）
    */
-  private async callWebSocket<T>(method: string, params?: Record<string, unknown> | unknown[]): Promise<T> {
+  private async callWebSocket<T>(method: string, params?: Record<string, unknown> | unknown[], timeoutMs = this.timeout): Promise<T> {
     await this.ensureWebSocketReady()
 
     return new Promise((resolve, reject) => {
@@ -384,7 +523,7 @@ export class RpcClient {
       const timer = setTimeout(() => {
         this.pendingRequests.delete(id)
         reject(new RpcError(-32001, 'Request timeout'))
-      }, this.timeout)
+      }, timeoutMs)
 
       this.pendingRequests.set(id, {
         resolve: resolve as (value: unknown) => void,
@@ -450,19 +589,7 @@ export class RpcClient {
    */
   async ensureWebSocketConnectedWithPing(timeoutMs = 10000): Promise<void> {
     await this.ensureWebSocketReady()
-
-    // 使用 AbortController 实现超时
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-
-    try {
-      await this.callWebSocket<string>('rpc.ping')
-      clearTimeout(timeoutId)
-    }
-    catch (error) {
-      clearTimeout(timeoutId)
-      throw error
-    }
+    await this.callWebSocket<string>('rpc.ping', undefined, timeoutMs)
   }
 
   /**
@@ -470,8 +597,9 @@ export class RpcClient {
    */
   close(): void {
     if (this.ws) {
+      this.manualCloseRequested = true
+      this.rejectPendingRequests(new RpcError(-32000, 'WebSocket closed by client'))
       this.ws.close()
-      this.ws = null
     }
   }
 
@@ -487,6 +615,20 @@ export class RpcClient {
    */
   getWebSocket(): WebSocket | null {
     return this.ws
+  }
+
+  onWebSocketClose(listener: (info: RpcWebSocketCloseInfo) => void): () => void {
+    this.wsCloseListeners.add(listener)
+    return () => {
+      this.wsCloseListeners.delete(listener)
+    }
+  }
+
+  onWebSocketError(listener: (info: RpcWebSocketErrorInfo) => void): () => void {
+    this.wsErrorListeners.add(listener)
+    return () => {
+      this.wsErrorListeners.delete(listener)
+    }
   }
 }
 
