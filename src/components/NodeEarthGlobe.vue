@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Arc, COBEOptions, Globe, Marker } from 'cobe'
+import type { COBEOptions, Globe, Marker } from 'cobe'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/vue'
 import {
@@ -227,20 +227,6 @@ const markers = computed<Marker[]>(() => {
   }))
 })
 
-// 以服务器数最多的地区为中心，向其余地区连线，形成 CDN 拓扑
-const arcs = computed<Arc[]>(() => {
-  const clusters = regionClusters.value
-  if (clusters.length < 2)
-    return []
-  const hub = clusters[0]
-  if (!hub)
-    return []
-  return clusters.slice(1).map(cluster => ({
-    from: hub.coord,
-    to: cluster.coord,
-  }))
-})
-
 const themeColors = computed(() => {
   if (appStore.isDark) {
     return {
@@ -249,7 +235,6 @@ const themeColors = computed(() => {
       baseColor: [0.32, 0.33, 0.4] as [number, number, number],
       markerColor: [0.4, 0.7, 1.0] as [number, number, number],
       glowColor: [0.2, 0.25, 0.45] as [number, number, number],
-      arcColor: [0.45, 0.75, 1.0] as [number, number, number],
     }
   }
   return {
@@ -258,7 +243,6 @@ const themeColors = computed(() => {
     baseColor: [1, 1, 1] as [number, number, number],
     markerColor: [0.21, 0.51, 0.93] as [number, number, number],
     glowColor: [1, 1, 1] as [number, number, number],
-    arcColor: [0.21, 0.51, 0.93] as [number, number, number],
   }
 })
 
@@ -279,10 +263,6 @@ function buildInitialOptions(): COBEOptions {
     markerColor: colors.markerColor,
     glowColor: colors.glowColor,
     markers: markers.value,
-    arcs: arcs.value,
-    arcColor: colors.arcColor,
-    arcWidth: 0.75,
-    arcHeight: 0.3,
     markerElevation: MARKER_ELEVATION,
   }
 }
@@ -392,13 +372,13 @@ watch(
   },
 )
 
-// 仅地区集合或在线状态变化时才推送 markers/arcs；速率推送不触发
+// 仅地区集合或在线状态变化时才推送 markers；速率推送不触发
 watch(
   () => regionClusters.value.map(clusterKey).join(','),
   async () => {
     if (!globe)
       return
-    globe.update({ markers: markers.value, arcs: arcs.value })
+    globe.update({ markers: markers.value })
     await nextTick()
     syncClusterOverlayPositions()
     if (!shouldAutoRotate.value)
