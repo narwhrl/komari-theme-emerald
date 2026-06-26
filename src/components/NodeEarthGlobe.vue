@@ -2,7 +2,6 @@
 import type { COBEOptions, Globe, Marker } from 'cobe'
 import type { ComponentPublicInstance } from 'vue'
 import type { NodeData } from '@/stores/nodes'
-import { Icon } from '@iconify/vue'
 import {
   useDocumentVisibility,
   useElementSize,
@@ -14,15 +13,15 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { getCoordByCode, getCountryCodeFromRegion } from '@/utils/geoHelper'
-import { formatBytesPerSecondSplit } from '@/utils/helper'
 
 const props = defineProps<{
   nodes?: NodeData[]
 }>()
+
 const appStore = useAppStore()
 const nodesStore = useNodesStore()
 
-const displayNodes = computed(() => props.nodes ?? nodesStore.nodes)
+const displayNodes = computed(() => props.nodes ?? nodesStore.earthNodes)
 
 const containerRef = ref<HTMLDivElement>()
 const canvasRef = ref<HTMLCanvasElement>()
@@ -124,30 +123,6 @@ const regionClusters = computed<RegionCluster[]>(() => {
       entry.onlineServers += 1
   }
   return Array.from(map.values()).sort((a, b) => b.servers - a.servers)
-})
-
-interface RegionRate {
-  up: number
-  down: number
-}
-
-const regionRates = computed<Map<string, RegionRate>>(() => {
-  const map = new Map<string, RegionRate>()
-  for (const node of displayNodes.value) {
-    if (!node.online)
-      continue
-    const code = getCountryCodeFromRegion(node.region)
-    if (!code)
-      continue
-    let entry = map.get(code)
-    if (!entry) {
-      entry = { up: 0, down: 0 }
-      map.set(code, entry)
-    }
-    entry.up += node.net_out || 0
-    entry.down += node.net_in || 0
-  }
-  return map
 })
 
 const clusterOverlayEls = new Map<string, HTMLDivElement>()
@@ -447,15 +422,6 @@ function onPointerUp(e: PointerEvent) {
 const totalServers = computed(() => displayNodes.value.length)
 const onlineServers = computed(() => displayNodes.value.filter(node => node.online).length)
 const offlineServers = computed(() => totalServers.value - onlineServers.value)
-
-function rateFor(code: string): RegionRate {
-  return regionRates.value.get(code) ?? { up: 0, down: 0 }
-}
-
-function formatRate(bytesPerSec: number): string {
-  const { value, unit } = formatBytesPerSecondSplit(bytesPerSec, appStore.byteDecimals)
-  return `${value} ${unit}`
-}
 </script>
 
 <template>
@@ -469,20 +435,20 @@ function formatRate(bytesPerSec: number): string {
     <template v-for="cluster in regionClusters" :key="cluster.code">
       <div
         :ref="bindClusterOverlayRef(cluster.code)"
-        class="absolute -top-7.5 left-0 pointer-events-none rounded backdrop-blur-sm transition-[opacity,filter] duration-500"
+        class="absolute -top-3.5 left-0 pointer-events-none rounded backdrop-blur-sm transition-[opacity,filter] duration-500"
       >
         <img
           :src="`/images/flags/${cluster.code}.svg`" :alt="cluster.code"
           class="size-4 block absolute -bottom-2 -left-2 z-1"
         >
-        <div
-          class="relative z-2 bg-background/60 rounded py-0.5 px-1 text-xs zoom-80 items-start justify-center text-nowrap"
-        >
-          <div class="text-green-600 flex flex-row items-center gap-0.5">
-            <Icon icon="tabler:chevron-up" width="12" height="12" /> {{ formatRate(rateFor(cluster.code).up) }}
+        <div class="relative z-2 bg-background/60 rounded py-0.5 px-2 text-xs zoom-80 items-start justify-center text-nowrap">
+          <div v-if="cluster.onlineServers > 0" class="flex items-center gap-1">
+            <span class="inline-block size-1.5 rounded-full bg-green-600" />
+            <span class="text-green-600">{{ cluster.onlineServers }}</span>
           </div>
-          <div class="text-blue-600 flex flex-row items-center gap-0.5">
-            <Icon icon="tabler:chevron-down" width="12" height="12" /> {{ formatRate(rateFor(cluster.code).down) }}
+          <div v-if="(cluster.servers - cluster.onlineServers) > 0" class="flex items-center gap-1">
+            <span class="inline-block size-1.5 rounded-full bg-yellow-600" />
+            <span class="text-yellow-600">{{ cluster.servers - cluster.onlineServers }}</span>
           </div>
         </div>
       </div>

@@ -93,6 +93,10 @@ const groupNodeList = computed(() => {
   return nodesStore.nodes.filter(node => isNodeInGroup(node.group, appStore.nodeSelectedGroup))
 })
 
+const sampledGroupNodeList = computed(() => {
+  return nodesStore.earthNodes.filter(node => isNodeInGroup(node.group, appStore.nodeSelectedGroup))
+})
+
 const nodeList = computed(() => {
   let filtered = groupNodeList.value
   if (debouncedSearchText.value.trim()) {
@@ -157,7 +161,7 @@ function getNodeItemTransitionStyle(index: number): Record<string, string> {
     <NodeGeneralCards
       v-if="appStore.earthViewMode !== 'hide'"
       :nodes="groupNodeList"
-      :globe-nodes="groupNodeList"
+      :globe-nodes="sampledGroupNodeList"
       :transition-key="appStore.nodeSelectedGroup"
     />
 

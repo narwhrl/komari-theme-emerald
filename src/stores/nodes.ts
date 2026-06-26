@@ -90,11 +90,15 @@ interface StatusData {
   ping?: Record<string, NodeStatusPing>
 }
 
+const EARTH_SNAPSHOT_INTERVAL_MS = 60_000
+
 const useNodesStore = defineStore('nodes', () => {
   // ===== 状态 =====
   const nodes = ref<NodeData[]>([])
+  const earthNodes = ref<NodeData[]>([])
   const wsConnectionState = ref<WsConnectionState>('disconnected')
   const wsReconnectAttempts = ref<number>(0)
+  let lastEarthSnapshotAt = 0
 
   // ===== 计算属性 =====
   /** 在线节点数量 */
@@ -240,6 +244,18 @@ const useNodesStore = defineStore('nodes', () => {
   }
 
   /**
+   * Earth 视图共享采样快照，避免 globe / maps 各自维护定时器。
+   */
+  function refreshEarthNodes(force = false): void {
+    const now = Date.now()
+    if (!force && now - lastEarthSnapshotAt < EARTH_SNAPSHOT_INTERVAL_MS)
+      return
+
+    earthNodes.value = [...nodes.value]
+    lastEarthSnapshotAt = now
+  }
+
+  /**
    * 初始化节点数据（首次加载）
    */
   function initNodes(clients: Record<string, Client>, statuses: Record<string, NodeStatus>): void {
@@ -283,6 +299,7 @@ const useNodesStore = defineStore('nodes', () => {
 
     // 按 weight 降序排序（weight 越大越靠前）
     sortNodesByWeight()
+    refreshEarthNodes(true)
   }
 
   /**
@@ -296,6 +313,8 @@ const useNodesStore = defineStore('nodes', () => {
    * 更新节点状态（实时更新）
    */
   function updateNodeStatuses(statuses: Record<string, NodeStatus>): void {
+    let hasChanges = false
+
     Object.entries(statuses).forEach(([uuid, status]) => {
       const index = nodes.value.findIndex(n => n.uuid === uuid)
       if (index === -1)
@@ -306,7 +325,11 @@ const useNodesStore = defineStore('nodes', () => {
         return
 
       nodes.value[index] = updateNodeStatus(node, extractStatusData(status))
+      hasChanges = true
     })
+
+    if (hasChanges)
+      refreshEarthNodes()
   }
 
   /**
@@ -365,6 +388,7 @@ const useNodesStore = defineStore('nodes', () => {
 
     // 按 weight 降序排序
     sortNodesByWeight()
+    refreshEarthNodes(true)
   }
 
   /**
@@ -382,11 +406,13 @@ const useNodesStore = defineStore('nodes', () => {
    */
   function clearNodes(): void {
     nodes.value = []
+    refreshEarthNodes(true)
   }
 
   return {
     // 状态
     nodes,
+    earthNodes,
     wsConnectionState,
     wsReconnectAttempts,
     // 计算属性

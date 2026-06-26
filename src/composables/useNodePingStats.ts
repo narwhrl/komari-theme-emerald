@@ -504,7 +504,7 @@ export function useNodePingStats(
     (nodeUuid: string, hours: number, value: NodePingStatsState) => {
       writeStatsCache(nodeUuid, hours, value)
     },
-    30_000,
+    PING_RECORD_REFRESH_INTERVAL_MS,
     true,
     true,
   )
