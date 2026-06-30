@@ -1,11 +1,8 @@
-import type { MessageApi } from '@/utils/message'
-
-declare const __BUILD_VERSION__: string
-declare const __BUILD_GIT_HASH__: string
+import type { message } from '@/utils/message'
 
 declare global {
   interface Window {
-    $message: MessageApi
+    $message?: typeof message
   }
 }
 

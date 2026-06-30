@@ -1,6 +1,6 @@
 <h3 align="center"> Komari Emerald </h3>
 <p align="center">
-基于 Vue 3 + Vite + reka-ui + Tailwind CSS v4 构建的 Komari Monitor 主题
+基于 Next.js + React + coss-ui/Base UI + Tailwind CSS v4 构建的 Komari Monitor 主题
 </p>
 
 ![preview](/docs/preview.png)
@@ -42,29 +42,30 @@ bun run preview
 
 ## 技术栈
 
-| 类别     | 技术                             |
-| -------- | -------------------------------- |
-| 框架     | Vue 3                            |
-| 构建工具 | Vite 7                           |
-| UI 组件  | reka-ui（shadcn-vue 风格组件）   |
-| 样式方案 | Tailwind CSS v4 + tw-animate-css |
-| 状态管理 | Pinia 3                          |
-| 路由     | Vue Router 5                     |
-| 提示系统 | vue-sonner（Toaster）            |
-| 图标     | @iconify/vue                     |
-| 图表     | vue-echarts                      |
-| 3D 地球  | cobe                             |
-| 实用工具 | @vueuse/core, dayjs              |
-| 代码规范 | ESLint (@antfu/eslint-config)    |
+| 类别     | 技术                           |
+| -------- | ------------------------------ |
+| 框架     | Next.js 16 + React 19          |
+| 构建工具 | Next static export             |
+| UI 组件  | coss-ui 风格本地组件 + Base UI |
+| 样式方案 | Tailwind CSS v4                |
+| 状态管理 | Zustand                        |
+| 路由     | Next App Router + 客户端导航   |
+| 提示系统 | sonner（Toaster）              |
+| 图标     | @iconify/react                 |
+| 图表     | ECharts                        |
+| 3D 地球  | cobe                           |
+| 实用工具 | dayjs                          |
+| 代码规范 | ESLint (@antfu/eslint-config)  |
 
 ## 鸣谢
 
 - [Komari](https://github.com/komari-monitor/komari)
 - [Komari Next](https://github.com/tonyliuzj/komari-next)
 - [Komari Naive](https://github.com/lyimoexiao/komari-theme-naive)
-- [Vue 3](https://vuejs.org/)
-- [Vite](https://vitejs.dev/)
-- [reka-ui](https://reka-ui.com/)
+- [Next.js](https://nextjs.org/)
+- [React](https://react.dev/)
+- [coss ui](https://coss.com/ui)
+- [Base UI](https://base-ui.com/)
 - [Tailwind CSS](https://tailwindcss.com/)
 
 本主题基座基于 [Komari Naive](https://github.com/lyimoexiao/komari-theme-naive)，特此感谢

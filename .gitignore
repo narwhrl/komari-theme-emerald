@@ -11,6 +11,8 @@ node_modules
 .DS_Store
 dist
 dist-ssr
+out
+.next
 coverage
 *.local
 
@@ -42,4 +44,3 @@ __screenshots__/
 
 # Theme build output
 komari-theme-*.zip
-bun.lock

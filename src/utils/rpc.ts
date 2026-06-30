@@ -3,6 +3,8 @@
  * @see https://www.komari.wiki/dev/rpc.html
  */
 
+/* eslint-disable node/prefer-global/process */
+
 // ==================== 类型定义 ====================
 
 /** JSON-RPC 2.0 请求结构 */
@@ -292,7 +294,7 @@ export class RpcClient {
   private wsErrorListeners: Set<(info: RpcWebSocketErrorInfo) => void> = new Set()
 
   constructor(options: RpcClientOptions = {}) {
-    const apiBase = import.meta.env.VITE_API_BASE || DEFAULT_RPC_API_BASE
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE || DEFAULT_RPC_API_BASE
     this.baseUrl = normalizeHttpBaseUrl(options.baseUrl || `${apiBase}/rpc2`)
     this.timeout = options.timeout || 30000
     this.useWebSocket = options.useWebSocket || false

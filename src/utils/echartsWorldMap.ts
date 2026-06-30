@@ -1,15 +1,17 @@
 import { registerMap } from 'echarts/core'
 import { emojiToRegionMap } from '@/utils/regionHelper'
 
+/* eslint-disable node/prefer-global/process */
+
 type WorldGeoJson = Exclude<
   Parameters<typeof registerMap>[1],
   string | { geoJSON: unknown } | { svg: unknown }
 >
 
 const WORLD_MAP_NAME = 'komari-world'
-const WORLD_MAP_ASSET_URL = `${import.meta.env.BASE_URL}maps/world.json`
+const WORLD_MAP_ASSET_URL = '/maps/world.json'
 const WORLD_MAP_CACHE_KEY_PREFIX = 'komari-theme-emerald:world-map'
-const WORLD_MAP_CACHE_KEY = `${WORLD_MAP_CACHE_KEY_PREFIX}` // :${__BUILD_GIT_HASH__}
+const WORLD_MAP_CACHE_KEY = WORLD_MAP_CACHE_KEY_PREFIX
 
 const ECHARTS_WORLD_NAME_TO_CODE: Record<string, string> = {
   'aland': 'AX',
@@ -109,7 +111,7 @@ function writeCachedWorldGeoJson(worldGeoJson: WorldGeoJson): void {
     window.localStorage.setItem(
       WORLD_MAP_CACHE_KEY,
       JSON.stringify({
-        buildHash: __BUILD_GIT_HASH__,
+        buildHash: process.env.NEXT_PUBLIC_BUILD_GIT_HASH ?? 'unknown',
         data: worldGeoJson,
       }),
     )

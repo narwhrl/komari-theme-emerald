@@ -6,7 +6,7 @@ Repo guide for `komari-theme-emerald`.
 
 - Generated: Wed May 27 2026, Asia/Shanghai
 - Branch: `master`
-- App: Vue 3 + Vite + reka-ui + Tailwind CSS v4 theme for Komari Monitor
+- App: Next.js + React + coss-ui/Base UI + Tailwind CSS v4 theme for Komari Monitor
 - Package manager: `bun` (>= 1.2)
 - Theme manifest: `komari-theme.json`
 
@@ -22,10 +22,11 @@ Repo guide for `komari-theme-emerald`.
 
 - `src/` app source
 - `public/images/` runtime image contract, especially flags and logos
-- `.github/` CI workflow and issue templates
+- `.github/` release workflow
 - `docs/preview.png` release preview image
 - `komari-theme.json` theme manifest consumed by the zip build
-- `vite.config.ts` build, chunking, zip packaging
+- `next.config.ts` Next static export configuration
+- `scripts/build-theme.ts` zip packaging
 - `package.json` root commands and pinned dependency versions
 - `bun.lock` resolved lockfile (managed by bun)
 
@@ -49,7 +50,7 @@ Notes:
 
 ## Build and release contract
 
-`bun run build` must preserve the Komari packaging flow defined in `vite.config.ts`.
+`bun run build` must preserve the Komari packaging flow defined in `scripts/build-theme.ts`.
 
 Expected output:
 
@@ -71,24 +72,26 @@ Do not change zip naming, manifest filename, or preview filename without updatin
 
 ## CI facts
 
-Source of truth: `.github/workflows/build-ci.yml`
+Source of truth: `.github/workflows/release-on-version-bump.yml`
 
-CI does only:
+Release workflow does:
 
 1. `bun install --frozen-lockfile`
-2. `bun run build`
+2. Detect whether `package.json` / `komari-theme.json` version changed
+3. `bun run build`
+4. Create/update the GitHub release with `komari-theme-emerald-build*.zip`
 
-CI does not run tests, because there is no test suite.
+It does not run tests, because there is no test suite.
 
 ## Where to look
 
 - Start at `package.json` for root commands
-- Check `vite.config.ts` for build behavior, global constants, and zip packaging
+- Check `next.config.ts` for Next static export behavior and global env values
+- Check `scripts/build-theme.ts` for zip packaging
 - Check `komari-theme.json` for theme metadata and managed configuration schema
 - Check `src/` for app behavior
 - Check `public/images/` when code references image filenames directly
-- Check `.github/workflows/build-ci.yml` for CI expectations
-- Check `.github/ISSUE_TEMPLATE/` for issue intake shape
+- Check `.github/workflows/release-on-version-bump.yml` for release expectations
 
 Contributor density, useful for triage:
 
@@ -101,12 +104,12 @@ Contributor density, useful for triage:
 - Use `bun`, not pnpm/npm/yarn
 - Dependency versions are declared directly in `package.json`; add new ones with `bun add` / `bun add -d`
 - Keep root guidance focused on build, packaging, manifest, and repo structure
-- Preserve the `@` alias to `src` defined in `vite.config.ts`
+- Preserve the `@` alias to `src` defined in `tsconfig.json`
 - Treat `komari-theme.json` as release input, not optional metadata
 - Treat `docs/preview.png` as release input, not just documentation art
 - Respect existing generated outputs and naming patterns, especially `komari-theme-emerald-build-<sha>.zip`
 - Root verification is lint plus build, not tests
-- UI is built on `reka-ui` + Tailwind CSS v4 (shadcn-vue style under `src/components/ui/`). Do **not** reintroduce Naive UI, UnoCSS, or SCSS — they have been removed.
+- UI is built on coss-ui-style local React components, `@base-ui/react`, and Tailwind CSS v4 under `src/components/ui/`. Do **not** reintroduce Naive UI, reka-ui, Vue component libraries, UnoCSS, or SCSS.
 
 ## Repo grounded anti-patterns
 
@@ -115,14 +118,13 @@ Contributor density, useful for triage:
 - Do not rename files under `public/images/flags/` or `public/images/logo/` without checking code references in `src`
 - Do not change asset path conventions like `/images/flags/<code>.svg` or `/images/logo/...` blindly
 - Do not add generic framework advice here that belongs in `src/AGENTS.md`
-- Do not duplicate workflow specifics from `.github/AGENTS.md` or asset naming specifics from `public/images/AGENTS.md`
+- Do not duplicate asset naming specifics from `public/images/AGENTS.md`
 
 ## Child guides
 
 For local rules, defer to the nearest child guide:
 
 - `src/AGENTS.md` for app code, component, store, router, and utility changes
-- `.github/AGENTS.md` for workflow and issue template changes
 - `public/images/AGENTS.md` for runtime image asset naming and compatibility rules
 
 If a child guide exists, it overrides this root file for its subtree.
