@@ -215,10 +215,10 @@ export default function VisitorInfoCard() {
     <div className="pointer-events-none fixed inset-x-0 bottom-2.5 z-30 flex justify-center">
       <button
         type="button"
-        className={`pointer-events-auto cursor-default bg-background/30 p-1.5 px-3 shadow-[-1px_-1px_0_background,0_0_16px_rgba(0,0,0,0.05)] backdrop-blur-sm transition-[border-radius,transform,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${expand ? 'rounded-lg -translate-y-1 bg-background/38 shadow-[-1px_-1px_0_background,0_10px_28px_rgba(0,0,0,0.08)]' : 'rounded-xl'}`}
+        className={`pointer-events-auto cursor-default border border-border bg-background/90 p-1.5 px-3 shadow-lg backdrop-blur-md transition-[border-radius,transform,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:outline-none ${expand ? 'rounded-lg -translate-y-1 shadow-xl' : 'rounded-xl'}`}
         onClick={() => setExpand(value => !value)}
       >
-        <div className={`transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${expand ? 'grid grid-cols-2 items-start justify-start gap-x-3 gap-y-2' : 'flex flex-nowrap items-center justify-center gap-x-3 gap-y-1'}`}>
+        <div className={`transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${expand ? 'grid grid-cols-2 items-start justify-start gap-x-3 gap-y-2' : 'flex flex-nowrap items-center justify-center gap-x-3 gap-y-1'}`}>
           {visibleRows.map((item, index) => (
             <div key={item.icon} className="flex min-w-0 items-center gap-1 rounded-full transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]" style={{ transitionDelay: `${index * 28}ms` }}>
               {item.icon === 'tabler:world-pin' && flagSrc && flagVisible
@@ -226,7 +226,7 @@ export default function VisitorInfoCard() {
                     <img src={flagSrc} alt={countryCode} className="h-4 w-4 object-cover" onError={() => setFlagVisible(false)} />
                   )
                 : (
-                    <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-emerald-500/10 text-emerald-600">
+                    <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
                       <Icon icon={item.icon} width={14} height={14} />
                     </div>
                   )}

@@ -83,6 +83,7 @@ export interface AppStoreState {
   isLoggedIn: boolean
   connectionError: boolean
   homeScrollPosition: number
+  homeSearchText: string
   byteDecimals: ByteDecimalsConfig
 }
 
@@ -94,6 +95,7 @@ export interface AppStoreActions {
   setNodeViewMode: (mode: NodeViewMode) => void
   setConnectionError: (connectionError: boolean) => void
   setHomeScrollPosition: (position: number) => void
+  setHomeSearchText: (text: string) => void
   updateThemeMode: (mode?: ThemeMode) => void
   updateLoginState: (loggedIn: boolean) => void
 }
@@ -111,6 +113,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   isLoggedIn: false,
   connectionError: false,
   homeScrollPosition: 0,
+  homeSearchText: '',
   byteDecimals: { ...BYTE_DECIMALS },
 
   hydrateFromBrowser: () => {
@@ -146,6 +149,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   setConnectionError: connectionError => set({ connectionError }),
   setHomeScrollPosition: position => set({ homeScrollPosition: position }),
+  setHomeSearchText: homeSearchText => set({ homeSearchText }),
   updateThemeMode: (mode) => {
     const currentMode = isValidThemeMode(get().themeMode) ? get().themeMode : 'auto'
     const nextMode = mode && isValidThemeMode(mode)

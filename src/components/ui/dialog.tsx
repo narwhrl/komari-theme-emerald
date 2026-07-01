@@ -27,19 +27,19 @@ export function DialogContent({
     <DialogPrimitive.Portal>
       <DialogPrimitive.Backdrop
         className={cn(
-          'fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px] transition-opacity',
+          'fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px] transition-[opacity,backdrop-filter] duration-200 ease-out data-[ending-style]:opacity-0 data-[starting-style]:opacity-0',
           overlayClass,
         )}
       />
       <DialogPrimitive.Popup
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border bg-background p-6 shadow-lg outline-none',
+          'fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border bg-background p-6 shadow-lg outline-none transition-[opacity,transform] duration-200 ease-out data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0',
           className,
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-md opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50">
+        <DialogPrimitive.Close className="absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-md opacity-70 transition-[background-color,opacity,box-shadow,transform] duration-150 ease-out hover:bg-accent hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-95">
           <Icon icon="lucide:x" width={16} height={16} />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>

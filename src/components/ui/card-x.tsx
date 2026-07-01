@@ -16,8 +16,8 @@ export function CardX({
   return (
     <div
       className={cn(
-        'rounded-lg border bg-card text-card-foreground shadow-sm',
-        hoverable && 'transition-all hover:bg-card/80',
+        'vercel-card rounded-lg text-card-foreground',
+        hoverable && 'motion-card hover:border-foreground/15 hover:bg-card hover:shadow-md',
         className,
       )}
       {...props}

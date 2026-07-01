@@ -143,7 +143,7 @@ export default function InstanceDetail({ id }: { id: string }) {
     return (
       <div className="instance-detail space-y-4">
         <div className="p-4">
-          <CardX className="rounded-md border-none bg-background/50 backdrop-blur-xs transition-all hover:bg-background">
+          <CardX className="rounded-md bg-card/95">
             <Empty description="节点不存在或已被删除">
               <Button onClick={() => navigateTo('/')}>返回首页</Button>
             </Empty>
@@ -243,7 +243,7 @@ export default function InstanceDetail({ id }: { id: string }) {
   return (
     <div className="instance-detail space-y-4">
       <div className="flex items-center gap-4 px-4">
-        <Button variant="ghost" size="icon-sm" className="bg-background/50 hover:bg-background" onClick={() => navigateTo('/')}>
+        <Button variant="ghost" size="icon-sm" aria-label="返回首页" className="bg-background hover:bg-accent" onClick={() => navigateTo('/')}>
           <Icon icon="tabler:arrow-left" width={16} height={16} />
         </Button>
         <div className="flex items-center gap-2 text-lg font-bold">
@@ -263,15 +263,15 @@ export default function InstanceDetail({ id }: { id: string }) {
 
       <div className="grid grid-cols-2 gap-4 px-4 lg:grid-cols-4">
         {financeCards.map(item => (
-          <CardX key={item.label} hoverable className="group h-full rounded-md border-none bg-background/50 backdrop-blur-xs transition-all hover:bg-background">
+          <CardX key={item.label} hoverable className="group h-full rounded-md bg-card/95">
             <div className="flex h-full min-h-10 flex-col justify-between gap-3 md:min-h-18">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-medium tracking-wider text-muted-foreground">{item.label}</span>
-                <Icon icon={item.icon} width={20} height={20} className="text-slate-500/25 transition-colors group-hover:text-slate-500" />
+                <Icon icon={item.icon} width={20} height={20} className="text-muted-foreground/40 transition-colors group-hover:text-foreground/70" />
               </div>
               <div className="min-w-0 space-y-1">
                 <div className={`flex min-w-0 items-baseline gap-1 truncate leading-none font-semibold ${item.valueClass ?? ''}`}>
-                  <span className="truncate text-base sm:text-2xl">{item.value}</span>
+                  <span className="vercel-number truncate text-base sm:text-2xl">{item.value}</span>
                   {item.unit ? <span className="shrink-0 text-[11px] font-medium text-muted-foreground sm:text-xs">{item.unit}</span> : null}
                 </div>
               </div>
@@ -284,11 +284,11 @@ export default function InstanceDetail({ id }: { id: string }) {
         <InfoCard title="硬件信息" items={hardwareInfo} firstWide />
         <InfoCard title="系统信息" items={systemInfo} data={data} />
         <InfoCard title="存储信息" items={storageInfo} columns="grid-cols-3" />
-        <CardX className="group h-full rounded-md border-none bg-background/50 backdrop-blur-xs transition-all hover:bg-background">
+        <CardX className="group h-full rounded-md bg-card/95">
           <div className="mb-3 text-sm font-semibold">网络信息</div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="relative min-w-0 overflow-hidden rounded-sm bg-slate-500/5 p-2">
-              {hasTrafficLimit ? <div className="pointer-events-none absolute inset-y-0 left-0 rounded-sm bg-primary/10 transition-[width] duration-300 ease-out" style={{ width: `${trafficUsedPercentage}%` }} /> : null}
+            <div className="vercel-subtle relative min-w-0 overflow-hidden rounded-sm border border-transparent p-2">
+              {hasTrafficLimit ? <div className="pointer-events-none absolute inset-y-0 left-0 w-full origin-left rounded-sm bg-primary/10 transition-transform duration-300 ease-out" style={{ transform: `scaleX(${trafficUsedPercentage / 100})` }} /> : null}
               <div className="relative flex flex-col gap-1.5">
                 <div className="flex items-center gap-1 text-muted-foreground">
                   <Icon icon="icon-park-outline:transfer-data" width={14} height={14} />
@@ -305,7 +305,7 @@ export default function InstanceDetail({ id }: { id: string }) {
                 <span className="break-all text-xs sm:text-sm">{trafficUsageText}</span>
               </div>
             </div>
-            <div className="flex min-w-0 flex-col gap-1 rounded-sm bg-slate-500/5 p-2">
+            <div className="vercel-subtle flex min-w-0 flex-col gap-1 rounded-sm border border-transparent p-2">
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Icon icon="icon-park-outline:dashboard-one" width={14} height={14} />
                 <span className="text-xs sm:text-sm">网络速率</span>
@@ -332,15 +332,15 @@ function StatusMetricCard({ item }: { item: StatusCard }) {
   const hasProgress = typeof item.percentage === 'number'
 
   return (
-    <CardX hoverable className="group h-full rounded-md border-none bg-background/50 backdrop-blur-xs transition-all hover:bg-background">
+    <CardX hoverable className="group h-full rounded-md bg-card/95">
       <div className="flex h-full min-h-26 flex-col justify-between gap-3">
         <div className="flex items-center justify-between gap-2">
           <span className="min-w-0 truncate text-xs font-medium tracking-wider text-muted-foreground">{item.label}</span>
-          <Icon icon={item.icon} width={20} height={20} className="shrink-0 text-slate-500/25 transition-colors group-hover:text-slate-500" />
+          <Icon icon={item.icon} width={20} height={20} className="shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground/70" />
         </div>
         <div className="min-w-0 space-y-2">
           <div className="flex min-w-0 items-baseline gap-1 leading-none font-semibold">
-            <span className="min-w-0 truncate text-base sm:text-2xl">{item.value}</span>
+            <span className="vercel-number min-w-0 truncate text-base sm:text-2xl">{item.value}</span>
             {item.unit ? <span className="min-w-0 truncate text-[11px] font-medium text-muted-foreground sm:text-xs">{item.unit}</span> : null}
           </div>
           {item.subtitle ? <div className="truncate text-[11px] font-medium text-muted-foreground sm:text-xs">{item.subtitle}</div> : null}
@@ -353,11 +353,11 @@ function StatusMetricCard({ item }: { item: StatusCard }) {
 
 function InfoCard({ title, items, firstWide, columns = 'grid-cols-1 sm:grid-cols-2', data }: { title: string, items: InfoItem[], firstWide?: boolean, columns?: string, data?: NodeData }) {
   return (
-    <CardX className="group h-full rounded-md border-none bg-background/50 backdrop-blur-xs transition-all hover:bg-background">
+    <CardX className="group h-full rounded-md bg-card/95">
       <div className="mb-3 text-sm font-semibold">{title}</div>
       <div className={`grid gap-3 ${columns}`}>
         {items.map((item, index) => (
-          <div key={item.label} className={`flex min-w-0 flex-col gap-1 rounded-sm bg-slate-500/5 p-2 ${firstWide && index === 0 ? 'col-span-full' : ''}`}>
+          <div key={item.label} className={`vercel-subtle flex min-w-0 flex-col gap-1 rounded-sm border border-transparent p-2 ${firstWide && index === 0 ? 'col-span-full' : ''}`}>
             <div className="flex items-center gap-1 text-muted-foreground">
               {item.icon ? <Icon icon={item.icon} width={14} height={14} /> : null}
               <span className="text-xs sm:text-sm">{item.label}</span>

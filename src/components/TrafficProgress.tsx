@@ -31,21 +31,24 @@ export default function TrafficProgress({
   const totalPercentage = trafficLimit <= 0 ? 0 : Math.min((usedTraffic / trafficLimit) * 100, 100)
   const uploadPercentage = trafficLimit <= 0 ? 0 : Math.min((upload / trafficLimit) * 100, 100)
   const downloadPercentage = trafficLimit <= 0 ? 0 : Math.min((download / trafficLimit) * 100, 100)
+  const totalScale = totalPercentage / 100
+  const uploadScale = uploadPercentage / 100
+  const downloadScale = downloadPercentage / 100
   const isDualColorMode = trafficLimitType === 'sum'
   const progressHeight = height === undefined ? undefined : typeof height === 'number' ? `${height}px` : height
 
   return (
     <div className="flex w-full flex-col gap-1">
-      <div className="relative flex overflow-hidden rounded-[5px] bg-muted transition-colors" style={{ height: progressHeight ?? '8px' }}>
+      <div className="relative overflow-hidden rounded-[5px] bg-muted transition-colors" style={{ height: progressHeight ?? '8px' }}>
         {isDualColorMode
           ? (
               <>
-                <div className="h-full bg-green-600 transition-all" style={{ width: `${uploadPercentage}%` }} />
-                <div className="h-full rounded-r-[5px] bg-blue-600 transition-all" style={{ width: `${downloadPercentage}%` }} />
+                <div className="absolute inset-y-0 left-0 w-full origin-left bg-emerald-600 transition-transform duration-300 ease-out dark:bg-emerald-500" style={{ transform: `scaleX(${uploadScale})` }} />
+                <div className="absolute inset-y-0 left-0 w-full origin-left rounded-r-[5px] bg-blue-600 transition-transform duration-300 ease-out dark:bg-blue-500" style={{ transform: `translateX(${uploadPercentage}%) scaleX(${downloadScale})` }} />
               </>
             )
           : (
-              <div className="h-full rounded-r-[5px] bg-green-600 transition-all" style={{ width: `${totalPercentage}%` }} />
+              <div className="absolute inset-y-0 left-0 w-full origin-left rounded-r-[5px] bg-emerald-600 transition-transform duration-300 ease-out dark:bg-emerald-500" style={{ transform: `scaleX(${totalScale})` }} />
             )}
       </div>
       {showIndicator && showProgress

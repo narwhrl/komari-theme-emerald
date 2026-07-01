@@ -22,7 +22,7 @@ export function BackTop() {
       variant="outline"
       size="icon"
       aria-label="返回顶部"
-      className="fixed right-4 bottom-4 z-30 border-none bg-background/70 shadow-lg backdrop-blur-md"
+      className="fixed right-4 bottom-4 z-30 bg-background shadow-lg"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
     >
       <Icon icon="lucide:arrow-up" width={16} height={16} />

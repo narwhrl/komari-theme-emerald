@@ -69,7 +69,7 @@ function PingPanel({
   return (
     <button
       type="button"
-      className={`group/panel relative col-span-3 flex h-10 cursor-pointer flex-col gap-1.5 rounded-sm bg-slate-500/5 p-1.5 text-left transition-colors hover:bg-slate-500/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${!node.online ? 'blur-xs opacity-60' : ''}`}
+      className={`group/panel vercel-subtle relative col-span-3 flex h-10 cursor-pointer flex-col gap-1.5 rounded-sm border border-transparent p-1.5 text-left transition-[background-color,border-color,transform] duration-150 ease-out hover:-translate-y-px hover:border-border focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none active:translate-y-0 active:scale-[0.99] ${!node.online ? 'blur-xs opacity-60' : ''}`}
       title={tooltip}
       aria-label={`${node.name} ${label}`}
       onClick={(event) => {
@@ -122,14 +122,14 @@ export default function NodeCard({
   return (
     <CardX
       hoverable
-      className={`node-card h-full w-full cursor-pointer rounded-md border-none bg-background/50 shadow-[0_0_0_3px] shadow-transparent backdrop-blur-sm transition-all duration-200 hover:bg-background hover:shadow-slate-500/10 ${!node.online ? '!shadow-red-600/20' : ''}`}
+      className={`node-card h-full w-full cursor-pointer rounded-md bg-card/95 ${!node.online ? '!border-destructive/25' : ''}`}
       onClick={onClick}
       header={(
         <div className="flex min-w-0 items-center gap-2">
-          <DataTooltip placement="right" content={formatUptime(node.uptime ?? 0)} className={`relative size-2 rounded-full ${node.online ? 'bg-green-600' : 'bg-red-600'}`} contentClass="whitespace-nowrap">
-            <div className={`absolute inset-0 animate-ping rounded-full opacity-50 ${node.online ? 'bg-green-600' : 'bg-red-600'}`} />
+          <DataTooltip placement="right" content={formatUptime(node.uptime ?? 0)} className={`status-pulse relative size-2 rounded-full ${node.online ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`} contentClass="whitespace-nowrap">
+            <span className="block size-full rounded-full bg-current" />
           </DataTooltip>
-          <span className="text-md min-w-0 flex-1 truncate font-bold">{node.name}</span>
+          <span className="text-md min-w-0 flex-1 truncate font-semibold tracking-tight">{node.name}</span>
         </div>
       )}
       headerExtra={(
@@ -157,11 +157,11 @@ export default function NodeCard({
               )
             : null}
           <InfoBlock className={priceTags.length ? 'col-span-2' : 'col-span-3'} muted={!node.online}>
-            <span className="flex flex-row items-center gap-1 text-green-600">
+            <span className="flex flex-row items-center gap-1 text-emerald-600 dark:text-emerald-400">
               <Icon icon="tabler:chevron-up" width={12} height={12} />
               {formatBytesPerSecond(node.net_out ?? 0)}
             </span>
-            <span className="flex flex-row items-center gap-1 text-blue-600">
+            <span className="flex flex-row items-center gap-1 text-blue-600 dark:text-blue-400">
               <Icon icon="tabler:chevron-down" width={12} height={12} />
               {formatBytesPerSecond(node.net_in ?? 0)}
             </span>
@@ -214,10 +214,10 @@ export default function NodeCard({
 
 function Metric({ label, value, sub, percentage, status }: { label: string, value: string, sub: string, percentage: number, status: 'success' | 'warning' | 'danger' | 'error' | 'normal' }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1">
       <div className="flex w-full flex-row justify-between text-xs">
         <span className="text-muted-foreground">{label}</span>
-        <span>{value}</span>
+        <span className="vercel-number font-medium">{value}</span>
       </div>
       <ProgressThin percentage={percentage} status={status} height={4} />
       <div className="truncate text-[11px] text-muted-foreground">{sub}</div>
@@ -227,7 +227,7 @@ function Metric({ label, value, sub, percentage, status }: { label: string, valu
 
 function InfoBlock({ children, className, muted }: { children: React.ReactNode, className?: string, muted?: boolean }) {
   return (
-    <div className={`flex flex-col gap-0.5 rounded-sm bg-slate-500/5 p-1 pl-2 text-[11px] text-muted-foreground ${className ?? ''} ${muted ? 'blur-xs opacity-60' : ''}`}>
+    <div className={`vercel-subtle flex flex-col gap-0.5 rounded-sm border border-transparent p-1 pl-2 text-[11px] text-muted-foreground ${className ?? ''} ${muted ? 'blur-xs opacity-60' : ''}`}>
       {children}
     </div>
   )

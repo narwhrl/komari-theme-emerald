@@ -68,12 +68,15 @@ export default function Background() {
     <div className="fixed inset-0 -z-10 overflow-hidden" style={containerStyle}>
       {showDefaultBackground
         ? (
-            <div className="absolute inset-0 mx-0 max-w-none overflow-hidden zoom-150 bg-slate-50 dark:bg-slate-900/50">
-              <div className="absolute top-0 left-1/2 -ml-152 h-100 w-325 dark:mask-[linear-gradient(white,transparent)]">
-                <div className="absolute inset-0 bg-linear-to-r from-emerald-500 to-lime-300 opacity-40 mask-[radial-gradient(farthest-side_at_top,white,transparent)] dark:from-emerald-500/30 dark:to-lime-300/30 dark:opacity-100">
+            <div className="absolute inset-0 mx-0 max-w-none overflow-hidden bg-background">
+              <div className="absolute inset-0 opacity-[0.55] dark:opacity-[0.32]">
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,color-mix(in_oklab,var(--color-border)_70%,transparent)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklab,var(--color-border)_70%,transparent)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:linear-gradient(to_bottom,black,transparent_70%)]" />
+              </div>
+              <div className="absolute top-0 left-1/2 -ml-152 h-86 w-325 opacity-70 dark:opacity-60">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,color-mix(in_oklab,var(--color-muted)_68%,transparent),transparent_68%)]">
                   <svg
                     aria-hidden="true"
-                    className="absolute inset-x-0 inset-y-[-50%] h-[200%] w-full skew-y-[-18deg] fill-black/40 stroke-black/50 mix-blend-overlay dark:fill-white/2.5 dark:stroke-white/5"
+                    className="absolute inset-x-0 inset-y-[-50%] h-[200%] w-full skew-y-[-18deg] fill-black/[0.03] stroke-black/[0.06] dark:fill-white/[0.03] dark:stroke-white/[0.06]"
                   >
                     <defs>
                       <pattern id="_S_1_" width="72" height="56" patternUnits="userSpaceOnUse" x="-12" y="4">
@@ -96,7 +99,7 @@ export default function Background() {
       {showLoadingBackground || showFallbackBackground ? <div className="absolute inset-0 bg-background" /> : null}
       {showMediaBackground
         ? (
-            <div className="absolute inset-0 scale-110 transition-opacity duration-700" style={backgroundStyle}>
+            <div className="absolute inset-0 scale-110 transition-opacity duration-300 ease-out" style={backgroundStyle}>
               {derived.backgroundType === 'image'
                 ? (
                     <div

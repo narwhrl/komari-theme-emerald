@@ -121,11 +121,11 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
   }, [option])
 
   return (
-    <div className={`relative h-full border-none ${className ?? ''}`}>
+    <div className={`relative h-full ${className ?? ''}`}>
       <div className="relative flex h-88 flex-col items-center">
         {totalServers > 0
           ? (
-              <div className="pointer-events-none absolute top-0 right-0 z-2 flex items-center gap-2 rounded bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground backdrop-blur-lg">
+              <div className="pointer-events-none absolute top-0 right-0 z-2 flex items-center gap-2 rounded border border-border bg-background/90 px-2 py-0.5 text-[10px] text-muted-foreground shadow-xs">
                 {onlineServers > 0 ? <LegendDot color="green" value={onlineServers} /> : null}
                 {offlineServers > 0 ? <LegendDot color="yellow" value={offlineServers} /> : null}
               </div>
@@ -152,11 +152,12 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
 }
 
 function LegendDot({ color, value }: { color: 'green' | 'yellow', value: number }) {
-  const classes = color === 'green' ? 'bg-green-600 text-green-600' : 'bg-yellow-600 text-yellow-600'
+  const dot = color === 'green' ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-yellow-600'
+  const text = color === 'green' ? 'text-emerald-600 dark:text-emerald-400' : 'text-yellow-600'
   return (
     <div className="flex items-center gap-1">
-      <span className={`inline-block size-1.5 animate-pulse rounded-full ${classes.split(' ')[0]}`} />
-      <span className={classes.split(' ')[1]}>{value}</span>
+      <span className={`inline-block size-1.5 animate-pulse rounded-full ${dot}`} />
+      <span className={text}>{value}</span>
     </div>
   )
 }

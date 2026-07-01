@@ -53,12 +53,12 @@ export default function AppPage() {
     <Provider>
       <Background />
       {loading ? <LoadingCover /> : null}
-      <Header />
+      <Header route={route} />
       {!loading
         ? (
             <main className="flex-1">
               <div className="mx-auto max-w-[1280px]">
-                <div className={disablePageAnimation ? undefined : 'animate-in fade-in slide-in-from-bottom-2 duration-200'}>
+                <div key={route} className={disablePageAnimation ? undefined : 'animate-in fade-in slide-in-from-bottom-2 duration-200'}>
                   {match ? <InstanceDetail id={decodeURIComponent(match[1] ?? '')} /> : <HomeView />}
                 </div>
               </div>

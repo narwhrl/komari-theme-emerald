@@ -135,7 +135,7 @@ export default function NodeList({
   return (
     <div className="min-w-0 overflow-x-auto overflow-y-hidden p-1 -m-1">
       <div className="flex w-full min-w-fit flex-col gap-1">
-        <div className="grid gap-2 rounded-lg bg-background/60 p-2 backdrop-blur-sm" style={{ gridTemplateColumns }}>
+        <div className="grid gap-2 rounded-lg border border-border bg-muted/60 p-2 shadow-xs" style={{ gridTemplateColumns }}>
           {columns.map(col => (
             <button
               type="button"
@@ -155,7 +155,7 @@ export default function NodeList({
           {sortedNodes.map((node, index) => (
             <div
               key={transitionKey ? `${transitionKey}-${node.uuid}` : node.uuid}
-              className={`relative flex h-16 cursor-pointer flex-col justify-center rounded-lg bg-background/30 px-2 shadow-[0_0_0_2px] shadow-transparent backdrop-blur-sm transition-all hover:bg-background hover:shadow-slate-500/10 ${!node.online ? '!shadow-red-600/10' : ''}`}
+              className={`motion-card motion-stagger-item relative flex h-16 cursor-pointer flex-col justify-center rounded-lg border border-border bg-card/95 px-2 shadow-xs hover:border-foreground/15 hover:bg-background hover:shadow-md ${!node.online ? '!border-red-600/20' : ''}`}
               style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
               onClick={() => onClick(node)}
             >
@@ -192,8 +192,8 @@ export default function NodeList({
       case 'status':
         return (
           <div key={key} className="flex justify-center">
-            <div className={`relative size-2 rounded-full ${node.online ? 'bg-green-600' : 'bg-red-600'}`}>
-              <div className={`absolute inset-0 animate-ping rounded-full opacity-50 ${node.online ? 'bg-green-600' : 'bg-red-600'}`} />
+            <div className={`status-pulse relative size-2 rounded-full ${node.online ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`}>
+              <span className="block size-full rounded-full bg-current" />
             </div>
           </div>
         )
@@ -245,7 +245,7 @@ export default function NodeList({
             <span className="truncate text-[10px] text-muted-foreground">{formatUptime(node.uptime ?? 0)}</span>
             <button
               type="button"
-              className="outline-none"
+              className="rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
               aria-label={`${node.name} 延迟 / 丢包`}
               onClick={(event) => {
                 event.stopPropagation()
@@ -390,7 +390,7 @@ export default function NodeList({
         return (
           <div key={key}>
             <div className="flex flex-col text-[10px]">
-              <span className="flex flex-row items-center gap-1 text-green-600">
+              <span className="flex flex-row items-center gap-1 text-emerald-600 dark:text-emerald-400">
                 <Icon icon="tabler:chevron-up" width={12} height={12} />
                 {formatBytesPerSecond(node.net_out ?? 0)}
               </span>

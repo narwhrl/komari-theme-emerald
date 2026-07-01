@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EChart from '@/components/EChart'
 import { Empty } from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { getSharedRpc } from '@/utils/rpc'
 
@@ -102,7 +102,13 @@ export default function PingChart({ uuid, className }: { uuid: string, className
     return Array.from(grouped.values()).sort((a, b) => dayjs(a.time as string).valueOf() - dayjs(b.time as string).valueOf())
   }, [records])
 
+  const allTaskIds = useMemo(() => tasks.map(task => task.id), [tasks])
   const selectedTasks = tasks.filter(task => selectedTaskIds.includes(task.id))
+  const taskSelectionView = selectedTaskIds.length === 0
+    ? 'none'
+    : selectedTaskIds.length === tasks.length
+      ? 'all'
+      : 'custom'
   const theme = {
     text: isDark ? 'rgba(255,255,255,.85)' : 'rgba(0,0,0,.85)',
     textSecondary: isDark ? 'rgba(255,255,255,.55)' : 'rgba(0,0,0,.55)',
@@ -154,12 +160,19 @@ export default function PingChart({ uuid, className }: { uuid: string, className
     setSelectedTaskIds(current => current.includes(taskId) ? current.filter(id => id !== taskId) : [...current, taskId])
   }
 
+  function handleTaskSelectionChange(value: string | number | null) {
+    if (value === 'all')
+      setSelectedTaskIds(allTaskIds)
+    if (value === 'none')
+      setSelectedTaskIds([])
+  }
+
   return (
     <div className={`flex flex-col gap-4 ${className ?? ''}`}>
       <Tabs value={selectedView} onValueChange={value => setSelectedView(String(value))} className="w-full">
-        <div className="min-w-0 flex-1 overflow-x-auto rounded-sm">
-          <TabsList className="h-8 w-max rounded-md bg-background/50 backdrop-blur-xl">
-            {views.map(view => <TabsTrigger key={view.label} value={view.label} className="h-6.5 flex-none shrink-0 rounded-sm border-none text-xs shadow-none data-[selected]:text-green-600">{view.label}</TabsTrigger>)}
+        <div className="min-w-0 overflow-x-auto rounded-sm">
+          <TabsList aria-label="延迟历史时间段">
+            {views.map(view => <TabsTab key={view.label} value={view.label}>{view.label}</TabsTab>)}
           </TabsList>
         </div>
       </Tabs>
@@ -171,12 +184,29 @@ export default function PingChart({ uuid, className }: { uuid: string, className
             ? <Empty description="暂无延迟数据" />
             : (
                 <>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Tabs value={taskSelectionView} onValueChange={handleTaskSelectionChange}>
+                      <TabsList aria-label="延迟历史任务选择">
+                        <TabsTab value="all">全选</TabsTab>
+                        <TabsTab value="none">全不选</TabsTab>
+                      </TabsList>
+                    </Tabs>
+                    <div className="text-xs text-muted-foreground">
+                      已选择
+                      {' '}
+                      {selectedTaskIds.length}
+                      {' '}
+                      /
+                      {' '}
+                      {tasks.length}
+                    </div>
+                  </div>
                   <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
                     {tasks.map((task, index) => (
                       <button
                         key={task.id}
                         type="button"
-                        className={`flex cursor-pointer items-center gap-3 rounded-md bg-background/50 p-2 text-left transition-all hover:bg-background ${!selectedTaskIds.includes(task.id) ? 'opacity-30' : ''}`}
+                        className={`flex cursor-pointer items-center gap-3 rounded-md border border-border bg-card/95 p-2 text-left shadow-xs transition-[background-color,border-color,opacity,box-shadow] hover:border-foreground/15 hover:bg-background focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:outline-none ${!selectedTaskIds.includes(task.id) ? 'opacity-30' : ''}`}
                         onClick={() => toggleTask(task.id)}
                       >
                         <div className="h-4 w-1 rounded" style={{ backgroundColor: chartColors[index % chartColors.length] }} />
@@ -194,7 +224,7 @@ export default function PingChart({ uuid, className }: { uuid: string, className
                       </button>
                     ))}
                   </div>
-                  <div className="h-80 rounded-md bg-background/50 p-4 backdrop-blur-xl transition-all hover:bg-background">
+                  <div className="vercel-card h-80 rounded-md bg-card/95 p-4">
                     <EChart option={option} />
                   </div>
                 </>

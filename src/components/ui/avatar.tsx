@@ -26,7 +26,7 @@ export function AvatarGroup({ className, ...props }: ComponentProps<'div'>) {
 }
 
 export function AvatarBadge({ className, ...props }: ComponentProps<'span'>) {
-  return <span className={cn('absolute right-0 bottom-0 size-2 rounded-full bg-green-600 ring-2 ring-background', className)} {...props} />
+  return <span className={cn('absolute right-0 bottom-0 size-2 rounded-full bg-emerald-600 ring-2 ring-background dark:bg-emerald-400', className)} {...props} />
 }
 
 export function AvatarGroupCount({ className, ...props }: ComponentProps<'span'>) {

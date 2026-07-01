@@ -130,14 +130,14 @@ export default function NodeGeneralCards({
         <SummaryCard title="硬盘用量" icon="tabler:server-2" value={formattedDiskUsed.value} unit={`${formattedDiskUsed.unit} / ${formattedDiskTotal.value} ${formattedDiskTotal.unit}`} visual={showVisualPanel} index={1} />
 
         <div className={showVisualPanel ? 'relative col-span-4 row-span-1 col-start-5 row-start-1 h-full w-full' : 'relative col-span-1 col-start-2 row-start-1 min-h-18 md:col-start-3 md:row-start-1 md:min-h-28'}>
-          <CardX hoverable className="group h-full rounded-md border-none bg-background/50 backdrop-blur-xs transition-all hover:bg-background" onClick={() => setOpenFinanceCard(value => !value)}>
+          <CardX hoverable className="motion-stagger-item group h-full rounded-md bg-card/95" style={{ animationDelay: `${2 * 45}ms` }} onClick={() => setOpenFinanceCard(value => !value)}>
             <div className="flex h-full flex-col justify-between gap-1">
               <div className="flex items-start justify-between">
                 <span className="text-xs font-medium tracking-wider text-muted-foreground">剩余价值</span>
-                <Icon icon="tabler:cash" width={20} height={20} className="text-slate-500/20 transition-colors group-hover:text-slate-500" />
+                <Icon icon="tabler:cash" width={20} height={20} className="text-muted-foreground/40 transition-colors group-hover:text-foreground/70" />
               </div>
               <div key={`remaining-${transitionKey}`} className="flex min-w-0 items-baseline gap-1">
-                <span className="text-md leading-none font-bold tracking-tight md:text-2xl">
+                <span className="vercel-number text-md leading-none font-semibold tracking-tight md:text-2xl">
                   {formattedRemainingValue.symbol}
                   {formattedRemainingValue.value}
                 </span>
@@ -147,7 +147,7 @@ export default function NodeGeneralCards({
           </CardX>
           <CardX
             hoverable
-            className={`absolute top-0 left-1/2 z-20 h-42 w-[260%] max-w-88 -translate-x-[50%] rounded-lg border-none bg-background/50 shadow-xl backdrop-blur-lg transition-all ${openFinanceCard ? 'scale-100 opacity-100 -translate-y-[5%]' : 'pointer-events-none scale-50 opacity-0 -translate-y-[25%]'}`}
+            className={`absolute top-0 left-1/2 z-20 h-42 w-[260%] max-w-88 -translate-x-[50%] rounded-lg bg-background shadow-xl transition-[opacity,transform] duration-200 ease-out ${openFinanceCard ? 'scale-100 opacity-100 -translate-y-[5%]' : 'pointer-events-none scale-95 opacity-0 -translate-y-[12%]'}`}
             onClick={() => setOpenFinanceCard(false)}
           >
             <div className="flex h-full min-w-0 flex-col overflow-hidden">
@@ -157,7 +157,7 @@ export default function NodeGeneralCards({
                     <div className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">{item.label}</div>
                     <div className="flex min-w-0 items-baseline truncate">
                       <span className="mr-0.5 shrink-0 text-xs leading-none font-semibold text-muted-foreground">{item.symbol}</span>
-                      <span className="text-sm leading-none font-bold tracking-tight md:text-lg">{item.value}</span>
+                      <span className="vercel-number text-sm leading-none font-semibold tracking-tight md:text-lg">{item.value}</span>
                     </div>
                   </div>
                 ))}
@@ -168,7 +168,7 @@ export default function NodeGeneralCards({
                   <div className="flex items-center gap-1 text-xs font-medium tracking-wider text-muted-foreground">今日汇率</div>
                   <select
                     value={exchangeRateBaseCurrency}
-                    className="shrink-0 rounded-sm border border-border/70 bg-background/70 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus:text-foreground"
+                    className="shrink-0 rounded-sm border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/30"
                     aria-label="切换汇率基准币种"
                     onClick={event => event.stopPropagation()}
                     onChange={event => updateBaseCurrency(event.target.value)}
@@ -234,17 +234,17 @@ function SummaryCard({ title, icon, value, unit, visual, index, tooltip }: { tit
     <div className="flex h-full flex-col justify-between gap-1">
       <div className="flex items-start justify-between">
         <span className="text-xs font-medium tracking-wider text-muted-foreground">{title}</span>
-        <Icon icon={icon} width={20} height={20} className="text-slate-500/20 transition-colors group-hover:text-slate-500" />
+        <Icon icon={icon} width={20} height={20} className="text-muted-foreground/40 transition-colors group-hover:text-foreground/70" />
       </div>
       <div className="flex min-w-0 items-baseline gap-1">
-        <span className="text-md leading-none font-bold tracking-tight md:text-2xl">{value}</span>
+        <span className="vercel-number text-md leading-none font-semibold tracking-tight md:text-2xl">{value}</span>
         <span className="truncate text-[11px] font-medium text-muted-foreground md:text-xs">{unit}</span>
       </div>
     </div>
   )
 
   return (
-    <CardX hoverable className={`group h-full rounded-md border-none bg-background/50 backdrop-blur-xs transition-all hover:bg-background ${positions[index]}`}>
+    <CardX hoverable className={`motion-stagger-item group h-full rounded-md bg-card/95 ${positions[index]}`} style={{ animationDelay: `${index * 45}ms` }}>
       {tooltip
         ? (
             <DataTooltip as="span" placement="top" content={tooltip} className="min-w-0" contentClass="whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal">

@@ -12,8 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Empty } from '@/components/ui/empty'
-import { Input } from '@/components/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { selectNodeGroups, useNodesStore } from '@/stores/nodes'
 import { isNodeInGroup, parseNodeGroups } from '@/utils/groupHelper'
@@ -51,16 +50,16 @@ export default function HomeView() {
   const setHomeScrollPosition = useAppStore(state => state.setHomeScrollPosition)
   const nodeSelectedGroup = useAppStore(state => state.nodeSelectedGroup)
   const setNodeSelectedGroup = useAppStore(state => state.setNodeSelectedGroup)
-  const setNodeViewMode = useAppStore(state => state.setNodeViewMode)
+  const homeSearchText = useAppStore(state => state.homeSearchText)
+  const setHomeSearchText = useAppStore(state => state.setHomeSearchText)
   const derived = useAppDerived()
-  const [searchText, setSearchText] = useState('')
   const [debouncedSearchText, setDebouncedSearchText] = useState('')
   const [selectedPingNodeUuid, setSelectedPingNodeUuid] = useState<string | null>(null)
 
   useEffect(() => {
-    const timer = setTimeout(setDebouncedSearchText, 300, searchText)
+    const timer = setTimeout(setDebouncedSearchText, 180, homeSearchText)
     return () => clearTimeout(timer)
-  }, [searchText])
+  }, [homeSearchText])
 
   useEffect(() => {
     if (homeScrollPosition > 0)
@@ -97,7 +96,7 @@ export default function HomeView() {
       {connectionError
         ? (
             <div className="alert px-4">
-              <Alert variant="destructive" className="rounded-md border-none bg-red-400/10 backdrop-blur-xs">
+              <Alert variant="destructive" className="rounded-md border border-destructive/20 bg-destructive/10">
                 <AlertTitle>RPC 服务错误</AlertTitle>
                 <AlertDescription>连接服务器失败，请检查网络设置或刷新页面后再试。</AlertDescription>
               </Alert>
@@ -108,7 +107,7 @@ export default function HomeView() {
       {derived.alertEnabled && derived.alertContent
         ? (
             <div className="alert px-4">
-              <Alert className="rounded-md border-none bg-background/60 backdrop-blur-xs">
+              <Alert className="rounded-md border border-border bg-card/95 shadow-xs">
                 {derived.alertTitle ? <AlertTitle>{derived.alertTitle}</AlertTitle> : null}
                 <AlertDescription>
                   <MarkdownRenderer content={derived.alertContent} />
@@ -132,59 +131,42 @@ export default function HomeView() {
         <div className="nodes">
           <Tabs value={nodeSelectedGroup} onValueChange={value => setNodeSelectedGroup(String(value))} className="flex w-full flex-col gap-4">
             <div className="flex flex-nowrap items-start gap-2">
-              <div className="overflow-x-auto rounded-sm md:pointer-events-auto">
-                <TabsList className="h-8 w-max rounded-md bg-background/50 backdrop-blur-xl">
+              <div className="min-w-0 flex-1 overflow-x-auto rounded-sm md:pointer-events-auto">
+                <TabsList aria-label="节点分组">
                   {groups.map(group => (
-                    <TabsTrigger
+                    <TabsTab
                       key={group.name}
                       value={group.name}
-                      className="h-6.5 flex-none shrink-0 rounded-sm border-none text-xs shadow-none data-[selected]:text-green-600"
                     >
                       {group.tab}
-                    </TabsTrigger>
+                    </TabsTab>
                   ))}
                 </TabsList>
               </div>
-              <div className="search pointer-events-auto ml-auto flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label="卡片视图"
-                  className={`h-8 w-8 rounded-md border-none bg-background/50 shadow-none backdrop-blur-xs hover:bg-background/60 ${derived.nodeViewMode === 'card' ? '!bg-background !text-green-600' : ''}`}
-                  onClick={() => setNodeViewMode('card')}
-                >
-                  <Icon icon="tabler:layout-grid" width={14} height={14} />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label="列表视图"
-                  className={`h-8 w-8 rounded-md border-none bg-background/50 shadow-none backdrop-blur-xs hover:bg-background/60 ${derived.nodeViewMode === 'list' ? '!bg-background !text-green-600' : ''}`}
-                  onClick={() => setNodeViewMode('list')}
-                >
-                  <Icon icon="tabler:table" width={14} height={14} />
-                </Button>
-                <div className="relative z-1 h-8 w-8">
-                  <div className="absolute top-0 right-0">
-                    <Input
-                      value={searchText}
-                      onChange={event => setSearchText(event.target.value)}
-                      placeholder="搜索节点名称、地区、系统"
-                      className="h-8 w-8 rounded-md border-none bg-background/50 shadow-none backdrop-blur-xs transition-all placeholder:text-transparent hover:!bg-background/60 focus:!w-60 focus:!bg-background/80 focus:!pl-7.5 focus:placeholder:!text-muted-foreground focus:!ring-slate-500/10"
-                    />
-                    <Icon icon="tabler:search" width={14} height={14} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2" />
-                  </div>
-                </div>
-              </div>
+              {homeSearchText.trim()
+                ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="motion-chip pointer-events-auto h-8 min-w-0 max-w-[45vw] gap-1.5 rounded-md bg-background px-2 text-xs shadow-xs"
+                      onClick={() => setHomeSearchText('')}
+                    >
+                      <Icon icon="tabler:search" width={13} height={13} className="shrink-0" />
+                      <span className="truncate">{homeSearchText.trim()}</span>
+                      <Icon icon="tabler:x" width={13} height={13} className="shrink-0 text-muted-foreground" />
+                    </Button>
+                  )
+                : null}
             </div>
-            <TabsContent value={nodeSelectedGroup} className="pointer-events-auto">
+            <TabsPanel value={nodeSelectedGroup} className="pointer-events-auto">
               {nodeList.length !== 0 && derived.nodeViewMode === 'card'
                 ? (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
                       {nodeList.map((node, index) => (
                         <div
                           key={`${nodeSelectedGroup}-${node.uuid}`}
-                          className="min-w-0"
+                          className="motion-stagger-item min-w-0"
                           style={{ animationDelay: `${Math.min(index, nodeItemStaggerLimit) * nodeItemStaggerMs}ms` }}
                         >
                           <NodeCard node={node} onClick={() => handleNodeClick(node)} onPingClick={node => setSelectedPingNodeUuid(node.uuid)} />
@@ -203,10 +185,10 @@ export default function HomeView() {
                     )
                   : (
                       <div className="py-8 text-center text-muted-foreground">
-                        <Empty description="暂无节点" />
+                        <Empty description={debouncedSearchText.trim() ? '没有匹配的节点' : '暂无节点'} />
                       </div>
                     )}
-            </TabsContent>
+            </TabsPanel>
           </Tabs>
         </div>
       </div>
@@ -215,7 +197,7 @@ export default function HomeView() {
         {selectedPingNode
           ? (
               <DialogContent
-                className="max-w-6xl gap-0 overflow-hidden bg-background/60 p-0 shadow-[0_0_2rem_rgba(0,0,0,0.1)]"
+                className="max-w-6xl gap-0 overflow-hidden border border-border bg-background p-0 shadow-2xl"
                 overlayClass="bg-background/30"
               >
                 <DialogHeader className="flex h-13 flex-row items-center px-4">

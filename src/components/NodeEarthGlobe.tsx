@@ -15,9 +15,40 @@ interface RegionCluster {
   onlineServers: number
 }
 
+const GLOBE_RADIUS = 0.8
 const INITIAL_THETA = 0.22
 const CHINA_COORD = getCoordByCode('CN') ?? [35.8617, 104.1954]
 const DEFAULT_PHI = -Math.PI / 2 - CHINA_COORD[1] * Math.PI / 180
+const MARKER_LABEL_ANCHOR = 'translate(-12px, -50%)'
+
+function locationToVector([lat, lng]: [number, number]): [number, number, number] {
+  const latitude = lat * Math.PI / 180
+  const longitude = lng * Math.PI / 180 - Math.PI
+  const radius = Math.cos(latitude)
+  return [
+    -radius * Math.cos(longitude),
+    Math.sin(latitude),
+    radius * Math.sin(longitude),
+  ]
+}
+
+function projectLocation(coord: [number, number], phi: number, theta: number, width: number, height: number) {
+  const point = locationToVector(coord).map(value => value * GLOBE_RADIUS) as [number, number, number]
+  const cosTheta = Math.cos(theta)
+  const sinTheta = Math.sin(theta)
+  const cosPhi = Math.cos(phi)
+  const sinPhi = Math.sin(phi)
+  const x = cosPhi * point[0] + sinPhi * point[2]
+  const y = sinPhi * sinTheta * point[0] + cosTheta * point[1] - cosPhi * sinTheta * point[2]
+  const z = -sinPhi * cosTheta * point[0] + sinTheta * point[1] + cosPhi * cosTheta * point[2]
+  const visible = z >= 0 || x * x + y * y >= GLOBE_RADIUS * GLOBE_RADIUS
+
+  return {
+    x: ((x / (width / height)) + 1) / 2 * width,
+    y: (-y + 1) / 2 * height,
+    visible,
+  }
+}
 
 export default function NodeEarthGlobe({
   nodes,
@@ -33,6 +64,7 @@ export default function NodeEarthGlobe({
   const { isDark } = useAppDerived()
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const globeRef = useRef<Globe | null>(null)
+  const labelMapRef = useRef(new Map<string, HTMLDivElement>())
   const phiRef = useRef(DEFAULT_PHI)
   const thetaRef = useRef(INITIAL_THETA)
   const pointerRef = useRef({ down: false, x: 0, y: 0 })
@@ -94,6 +126,20 @@ export default function NodeEarthGlobe({
       }
     }
     let currentSize = getSize()
+
+    const updateMarkerLabels = () => {
+      for (const cluster of clusters.slice(0, 8)) {
+        const label = labelMapRef.current.get(cluster.code)
+        if (!label)
+          continue
+
+        const position = projectLocation(cluster.coord, phiRef.current, thetaRef.current, currentSize.width, currentSize.height)
+        label.style.opacity = position.visible ? '1' : '0'
+        label.style.filter = position.visible ? 'blur(0)' : 'blur(4px)'
+        label.style.transform = `translate3d(${position.x}px, ${position.y}px, 0) ${MARKER_LABEL_ANCHOR}`
+      }
+    }
+
     const options: COBEOptions = {
       devicePixelRatio: dpr,
       width: currentSize.width,
@@ -119,6 +165,7 @@ export default function NodeEarthGlobe({
         phi: phiRef.current,
         theta: thetaRef.current,
       })
+      updateMarkerLabels()
       frame = requestAnimationFrame(tick)
     }
     const resize = () => {
@@ -127,6 +174,7 @@ export default function NodeEarthGlobe({
         return
       currentSize = nextSize
       globeRef.current?.update({ width: currentSize.width, height: currentSize.height })
+      updateMarkerLabels()
     }
     window.addEventListener('resize', resize)
     frame = requestAnimationFrame(tick)
@@ -137,7 +185,7 @@ export default function NodeEarthGlobe({
       globeRef.current?.destroy()
       globeRef.current = null
     }
-  }, [isDark, markers, spinning])
+  }, [clusters, isDark, markers, spinning])
 
   function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
     pointerRef.current = { down: true, x: event.clientX, y: event.clientY }
@@ -172,18 +220,28 @@ export default function NodeEarthGlobe({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       />
-      <div className="pointer-events-none absolute inset-x-6 bottom-10 flex flex-wrap justify-center gap-1">
+      <div className="pointer-events-none absolute inset-0 z-10">
         {clusters.slice(0, 8).map(cluster => (
-          <div key={cluster.code} className="flex items-center gap-1 rounded bg-background/60 px-1.5 py-0.5 text-[10px] backdrop-blur-sm">
+          <div
+            key={cluster.code}
+            ref={(element) => {
+              if (element)
+                labelMapRef.current.set(cluster.code, element)
+              else
+                labelMapRef.current.delete(cluster.code)
+            }}
+            className="absolute top-0 left-0 flex items-center gap-1 rounded border border-border bg-background/90 px-1.5 py-0.5 text-[10px] opacity-0 shadow-xs backdrop-blur-sm transition-[opacity,filter] duration-200 ease-out will-change-transform"
+            style={{ transform: `translate3d(-999px, -999px, 0) ${MARKER_LABEL_ANCHOR}` }}
+          >
             <img src={`/images/flags/${cluster.code}.svg`} alt={cluster.code} className="size-3" />
-            {cluster.onlineServers > 0 ? <span className="text-green-600">{cluster.onlineServers}</span> : null}
+            {cluster.onlineServers > 0 ? <span className="text-emerald-600 dark:text-emerald-400">{cluster.onlineServers}</span> : null}
             {cluster.servers - cluster.onlineServers > 0 ? <span className="text-yellow-600">{cluster.servers - cluster.onlineServers}</span> : null}
           </div>
         ))}
       </div>
       {totalServers > 0
         ? (
-            <div className="pointer-events-none absolute top-6 left-0 flex items-center gap-2 rounded bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground backdrop-blur-lg md:top-12">
+            <div className="pointer-events-none absolute top-6 left-0 flex items-center gap-2 rounded border border-border bg-background/90 px-2 py-0.5 text-[10px] text-muted-foreground shadow-xs md:top-12">
               {onlineServers > 0 ? <LegendDot color="green" value={onlineServers} /> : null}
               {offlineServers > 0 ? <LegendDot color="yellow" value={offlineServers} /> : null}
             </div>
@@ -194,8 +252,8 @@ export default function NodeEarthGlobe({
 }
 
 function LegendDot({ color, value }: { color: 'green' | 'yellow', value: number }) {
-  const dot = color === 'green' ? 'bg-green-600' : 'bg-yellow-600'
-  const text = color === 'green' ? 'text-green-600' : 'text-yellow-600'
+  const dot = color === 'green' ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-yellow-600'
+  const text = color === 'green' ? 'text-emerald-600 dark:text-emerald-400' : 'text-yellow-600'
   return (
     <div className="flex items-center gap-1">
       <span className={`inline-block size-1.5 animate-pulse rounded-full ${dot}`} />

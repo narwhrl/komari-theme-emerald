@@ -11,7 +11,7 @@ import EChart from '@/components/EChart'
 import { CardX } from '@/components/ui/card-x'
 import { Empty } from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { formatBytesSplit, formatBytesWithConfig } from '@/utils/helper'
@@ -176,16 +176,12 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
   }, [publicSettings?.theme_settings])
   const availableViews = useMemo(() => getAvailableViews(maxRecordPreserveTime), [maxRecordPreserveTime])
   const [selectedView, setSelectedView] = useState('实时')
-  const selectedHours = availableViews.find(view => view.label === selectedView)?.hours
+  const activeView = availableViews.some(view => view.label === selectedView) ? selectedView : availableViews[0]?.label ?? '实时'
+  const selectedHours = availableViews.find(view => view.label === activeView)?.hours
   const isRealtime = selectedHours === undefined
   const [remoteData, setRemoteData] = useState<StatusRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!availableViews.some(view => view.label === selectedView))
-      setSelectedView(availableViews[0]?.label ?? '实时')
-  }, [availableViews, selectedView])
 
   useEffect(() => {
     let cancelled = false
@@ -761,13 +757,13 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
 
   return (
     <div className={`flex flex-col gap-4 ${className ?? ''}`}>
-      <Tabs value={selectedView} onValueChange={value => setSelectedView(String(value))} className="w-full items-center">
+      <Tabs value={activeView} onValueChange={value => setSelectedView(String(value))} className="w-full items-center">
         <div className="min-w-0 flex-1 overflow-x-auto rounded-sm">
-          <TabsList className="h-8 w-max rounded-md bg-background/50 backdrop-blur-xl">
+          <TabsList aria-label="负载历史时间段">
             {availableViews.map(view => (
-              <TabsTrigger key={view.label} value={view.label} className="h-6.5 flex-none shrink-0 rounded-sm border-none text-xs shadow-none data-[selected]:text-green-600">
+              <TabsTab key={view.label} value={view.label}>
                 {view.label}
-              </TabsTrigger>
+              </TabsTab>
             ))}
           </TabsList>
         </div>
@@ -841,9 +837,15 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
                     title="连接"
                     headerValue={(
                       <span className="flex items-baseline gap-1">
-                        <span>TCP: {latestStatus?.connections ?? '-'}</span>
+                        <span>
+                          TCP:
+                          {latestStatus?.connections ?? '-'}
+                        </span>
                         <span>·</span>
-                        <span>UDP: {latestStatus?.connections_udp ?? '-'}</span>
+                        <span>
+                          UDP:
+                          {latestStatus?.connections_udp ?? '-'}
+                        </span>
                       </span>
                     )}
                     option={connectionsChartOption}
@@ -865,11 +867,11 @@ function ChartCard({ title, headerValue, option }: { title: string, headerValue:
     <CardX
       header={(
         <div className="flex items-center justify-between gap-3">
-          <span className="text-base font-bold">{title}</span>
-          <div className="min-w-0 text-right text-xs text-foreground/80">{headerValue}</div>
+          <span className="text-base font-semibold tracking-tight">{title}</span>
+          <div className="vercel-number min-w-0 text-right text-xs text-foreground/80">{headerValue}</div>
         </div>
       )}
-      className="rounded-md border-none bg-background/50 backdrop-blur-xs transition-all hover:bg-background"
+      className="rounded-md bg-card/95"
     >
       <div className="h-48">
         <EChart option={option} />
