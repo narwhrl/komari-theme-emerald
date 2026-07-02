@@ -13,11 +13,11 @@ import {
   TitleComponent,
   TooltipComponent,
 } from 'echarts/components'
-import { use } from 'echarts/core'
+import { use as registerECharts } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 
 // 一次性注册所有需要的 ECharts 组件
-use([
+registerECharts([
   LineChart,
   MapChart,
   GridComponent,

@@ -2,5 +2,10 @@ import antfu from '@antfu/eslint-config'
 
 export default antfu({
   formatters: true,
-  vue: true,
+  nextjs: true,
+  react: true,
+  rules: {
+    'next/no-img-element': 'off',
+  },
+  vue: false,
 })

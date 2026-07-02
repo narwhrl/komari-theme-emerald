@@ -1,6 +1,6 @@
-import type { MaybeRefOrGetter } from 'vue'
-import { useThrottleFn } from '@vueuse/core'
-import { computed, onScopeDispose, ref, shallowRef, toValue, watch } from 'vue'
+'use client'
+
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getSharedRpc } from '@/utils/rpc'
 
 export interface NodePingHistoryPoint {
@@ -33,12 +33,12 @@ interface SharedPingRecordsState {
 }
 
 interface SharedPingRecordsEntry {
-  data: ReturnType<typeof shallowRef<SharedPingRecordsState | null>>
-  loading: ReturnType<typeof ref<boolean>>
-  error: ReturnType<typeof ref<string | null>>
+  data: SharedPingRecordsState | null
+  loading: boolean
+  error: string | null
   promise: Promise<void> | null
   refreshTimer: ReturnType<typeof setInterval> | null
-  subscribers: number
+  subscribers: Set<() => void>
   lastFetchedAt: number
 }
 
@@ -80,9 +80,8 @@ function summarizeTaskRecords(records: PingRecord[]): Map<number, TaskRecordSumm
   for (const record of records) {
     const summary = summaries.get(record.task_id) ?? { total: 0, success: 0 }
     summary.total += 1
-    if (record.value >= 0) {
+    if (record.value >= 0)
       summary.success += 1
-    }
     summaries.set(record.task_id, summary)
   }
 
@@ -91,7 +90,6 @@ function summarizeTaskRecords(records: PingRecord[]): Map<number, TaskRecordSumm
 
 function getIncludedTaskIds(records: PingRecord[]): Set<number> {
   const recordSummaries = summarizeTaskRecords(records)
-
   return new Set(
     [...recordSummaries.entries()]
       .filter(([, summary]) => summary.total > 0 && summary.success > 0)
@@ -108,12 +106,9 @@ function isValidHistoryPoint(value: unknown): value is NodePingHistoryPoint {
     return false
 
   const point = value as Record<string, unknown>
-  const latency = point.latency
-  const loss = point.loss
-
   return typeof point.time === 'string'
-    && (latency === null || typeof latency === 'number')
-    && (loss === null || typeof loss === 'number')
+    && (point.latency === null || typeof point.latency === 'number')
+    && (point.loss === null || typeof point.loss === 'number')
 }
 
 function isValidStatsState(value: unknown): value is NodePingStatsState {
@@ -169,12 +164,12 @@ function writeStatsCache(uuid: string, hours: number, value: NodePingStatsState)
 
 function createSharedPingRecordsEntry(): SharedPingRecordsEntry {
   return {
-    data: shallowRef<SharedPingRecordsState | null>(null),
-    loading: ref(false),
-    error: ref<string | null>(null),
+    data: null,
+    loading: false,
+    error: null,
     promise: null,
     refreshTimer: null,
-    subscribers: 0,
+    subscribers: new Set(),
     lastFetchedAt: 0,
   }
 }
@@ -187,6 +182,10 @@ function getSharedPingRecordsEntry(hours: number): SharedPingRecordsEntry {
   const nextEntry = createSharedPingRecordsEntry()
   sharedPingRecordsCache.set(hours, nextEntry)
   return nextEntry
+}
+
+function notifySharedEntry(entry: SharedPingRecordsEntry): void {
+  entry.subscribers.forEach(listener => listener())
 }
 
 function buildRecordsByClient(records: PingRecord[]): Map<string, PingRecord[]> {
@@ -215,8 +214,9 @@ async function loadSharedPingRecords(entry: SharedPingRecordsEntry, hours: numbe
     return entry.promise
 
   const rpc = getSharedRpc()
-  entry.loading.value = true
-  entry.error.value = null
+  entry.loading = true
+  entry.error = null
+  notifySharedEntry(entry)
 
   entry.promise = (async () => {
     try {
@@ -225,18 +225,19 @@ async function loadSharedPingRecords(entry: SharedPingRecordsEntry, hours: numbe
         hours,
       })
 
-      entry.data.value = {
+      entry.data = {
         recordsByClient: buildRecordsByClient(result?.records ?? []),
       }
       entry.lastFetchedAt = Date.now()
     }
     catch (err) {
-      entry.error.value = err instanceof Error ? err.message : '获取 Ping 历史失败'
+      entry.error = err instanceof Error ? err.message : '获取 Ping 历史失败'
       throw err
     }
     finally {
-      entry.loading.value = false
+      entry.loading = false
       entry.promise = null
+      notifySharedEntry(entry)
     }
   })()
 
@@ -258,23 +259,6 @@ function stopSharedPingRecordsRefresh(entry: SharedPingRecordsEntry): void {
 
   clearInterval(entry.refreshTimer)
   entry.refreshTimer = null
-}
-
-function retainSharedPingRecordsEntry(hours: number): () => void {
-  const entry = getSharedPingRecordsEntry(hours)
-  entry.subscribers += 1
-  startSharedPingRecordsRefresh(entry, hours)
-
-  let released = false
-  return () => {
-    if (released)
-      return
-
-    released = true
-    entry.subscribers = Math.max(0, entry.subscribers - 1)
-    if (entry.subscribers === 0)
-      stopSharedPingRecordsRefresh(entry)
-  }
 }
 
 function buildPingHistory(records: PingRecord[]): NodePingHistoryPoint[] {
@@ -370,9 +354,8 @@ function buildStats(records: PingRecord[]): NodePingStatsState {
     if (validValues.length > 1) {
       const p50 = getPercentile(validValues, 0.5)
       const p99 = getPercentile(validValues, 0.99)
-      if (isFiniteNumber(p50) && isFiniteNumber(p99) && p50 > FULL_LOSS_EPSILON) {
+      if (isFiniteNumber(p50) && isFiniteNumber(p99) && p50 > FULL_LOSS_EPSILON)
         volatilityValues.push(p99 / p50)
-      }
     }
   }
 
@@ -398,133 +381,68 @@ function buildStats(records: PingRecord[]): NodePingStatsState {
 }
 
 export function useNodePingStats(
-  uuid: MaybeRefOrGetter<string>,
+  uuid: string,
   options?: {
-    hours?: MaybeRefOrGetter<number>
-    enabled?: MaybeRefOrGetter<boolean>
+    hours?: number
+    enabled?: boolean
   },
 ) {
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const hours = Math.max(1, Math.floor(options?.hours ?? 24))
+  const enabled = options?.enabled ?? true
+  const [, forceRender] = useState(0)
+  const lastPersistedAt = useRef(0)
+  const entry = getSharedPingRecordsEntry(hours)
 
-  const resolved = computed(() => ({
-    uuid: toValue(uuid),
-    hours: Math.max(1, Math.floor(toValue(options?.hours) ?? 24)),
-    enabled: toValue(options?.enabled) ?? true,
-  }))
+  useEffect(() => {
+    if (!enabled || !uuid.trim())
+      return undefined
 
-  let activeHours: number | null = null
-  let releaseSharedRecords: (() => void) | null = null
+    const listener = () => forceRender(value => value + 1)
+    entry.subscribers.add(listener)
+    startSharedPingRecordsRefresh(entry, hours)
 
-  function syncSharedRecordsSubscription(hours: number | null): void {
-    if (activeHours === hours)
-      return
+    const shouldLoadRecords = !entry.data || Date.now() - entry.lastFetchedAt >= PING_RECORD_REFRESH_INTERVAL_MS
+    if (shouldLoadRecords)
+      void loadSharedPingRecords(entry, hours).catch(() => {})
 
-    releaseSharedRecords?.()
-    releaseSharedRecords = null
-    activeHours = null
+    return () => {
+      entry.subscribers.delete(listener)
+      if (entry.subscribers.size === 0)
+        stopSharedPingRecordsRefresh(entry)
+    }
+  }, [enabled, entry, hours, uuid])
 
-    if (hours === null)
-      return
-
-    releaseSharedRecords = retainSharedPingRecordsEntry(hours)
-    activeHours = hours
-  }
-
-  onScopeDispose(() => {
-    syncSharedRecordsSubscription(null)
-  })
-
-  // stats 由共享 getRecords 结果派生；共享记录每分钟刷新一次后会自动重算。
-  const stats = computed<NodePingStatsState>(() => {
-    const { uuid: nodeUuid, hours, enabled } = resolved.value
-    if (!enabled || !nodeUuid.trim())
+  const stats = useMemo<NodePingStatsState>(() => {
+    if (!enabled || !uuid.trim())
       return createEmptyStats()
 
-    // 通过 getSharedPingRecordsEntry 读取（不存在则创建），确保 computed 始终对
-    // entry.data 这个 shallowRef 建立响应式依赖——即便首次加载尚未返回。
-    const entry = getSharedPingRecordsEntry(hours)
-    const state = entry.data.value
-    if (!state)
-      return readStatsCache(nodeUuid, hours) ?? createEmptyStats()
+    if (!entry.data)
+      return readStatsCache(uuid, hours) ?? createEmptyStats()
 
-    const records = state.recordsByClient.get(nodeUuid) ?? []
+    const records = entry.data.recordsByClient.get(uuid) ?? []
     return records.length ? buildStats(records) : createEmptyStats()
-  })
+  }, [enabled, entry.data, hours, uuid])
 
-  // 副作用：按需触发首次共享加载并维护 loading/error，不再命令式写入 stats。
-  watch(
-    resolved,
-    async (next, _previous, onCleanup) => {
-      let cancelled = false
-      onCleanup(() => {
-        cancelled = true
-      })
-
-      const { uuid: nodeUuid, hours, enabled } = next
-      if (!enabled || !nodeUuid.trim()) {
-        syncSharedRecordsSubscription(null)
-        loading.value = false
-        error.value = null
-        return
-      }
-
-      syncSharedRecordsSubscription(hours)
-      const entry = getSharedPingRecordsEntry(hours)
-      const shouldLoadRecords = !entry.data.value
-        || Date.now() - entry.lastFetchedAt >= PING_RECORD_REFRESH_INTERVAL_MS
-
-      if (!shouldLoadRecords) {
-        loading.value = false
-        error.value = null
-        return
-      }
-
-      const shouldShowLoading = !entry.data.value
-      loading.value = shouldShowLoading
-      error.value = null
-
-      try {
-        await loadSharedPingRecords(entry, hours)
-      }
-      catch (err) {
-        if (!cancelled && shouldShowLoading)
-          error.value = err instanceof Error ? err.message : '获取 Ping 历史失败'
-      }
-      finally {
-        if (!cancelled)
-          loading.value = false
-      }
-    },
-    { immediate: true },
-  )
-
-  // 共享记录会定时刷新，节流回写 localStorage，避免多节点同时重算时密集写盘。
-  const persistStats = useThrottleFn(
-    (nodeUuid: string, hours: number, value: NodePingStatsState) => {
-      writeStatsCache(nodeUuid, hours, value)
-    },
-    PING_RECORD_REFRESH_INTERVAL_MS,
-    true,
-    true,
-  )
-
-  watch(stats, (value) => {
-    if (!value.hasData)
+  useEffect(() => {
+    if (!stats.hasData || !enabled || !uuid.trim())
       return
-    const { uuid: nodeUuid, hours, enabled } = resolved.value
-    if (enabled && nodeUuid.trim())
-      persistStats(nodeUuid, hours, value)
-  })
+
+    const now = Date.now()
+    if (now - lastPersistedAt.current < PING_RECORD_REFRESH_INTERVAL_MS)
+      return
+
+    lastPersistedAt.current = now
+    writeStatsCache(uuid, hours, stats)
+  }, [enabled, hours, stats, uuid])
 
   return {
     stats,
-    loading,
-    error,
-    history: computed(() => stats.value.history),
-    avgLatency: computed(() => stats.value.avgLatency),
-    avgLoss: computed(() => stats.value.avgLoss),
-    avgVolatility: computed(() => stats.value.avgVolatility),
-    hasData: computed(() => stats.value.hasData),
+    loading: entry.loading,
+    error: entry.error,
+    history: stats.history,
+    avgLatency: stats.avgLatency,
+    avgLoss: stats.avgLoss,
+    avgVolatility: stats.avgVolatility,
+    hasData: stats.hasData,
   }
 }

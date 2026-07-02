@@ -337,49 +337,84 @@ resetSharedRpc()
 
 ## 最佳实践
 
-### 1. 在 Vue 组件中使用
+### 1. 在 React 组件中使用
 
 ```typescript
+import { useEffect, useState } from 'react'
 import { getSharedRpc } from '@/utils/rpc'
 
-const rpc = getSharedRpc()
+export function NodesPanel() {
+  const [nodes, setNodes] = useState<Client[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-onMounted(async () => {
-  const nodes = await rpc.getNodes()
-  // ...
-})
+  useEffect(() => {
+    const rpc = getSharedRpc()
+
+    async function fetchNodes() {
+      setIsLoading(true)
+      setNodes(await rpc.getNodes() as Client[])
+      setIsLoading(false)
+    }
+
+    fetchNodes()
+  }, [])
+
+  return isLoading ? null : nodes.length
+}
 ```
 
-### 2. 使用 VueUse 的 useAsyncState
+### 2. 使用自定义 Hook
 
 ```typescript
-import { useAsyncState } from '@vueuse/core'
+import { useCallback, useEffect, useState } from 'react'
 import { getSharedRpc } from '@/utils/rpc'
 
-const rpc = getSharedRpc()
+export function useNodes() {
+  const [nodes, setNodes] = useState<Record<string, Client>>({})
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<unknown>(null)
 
-const { state: nodes, isLoading, error } = useAsyncState(
-  () => rpc.getNodes(),
-  {},
-)
+  const refresh = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      setNodes(await getSharedRpc().getNodes() as Record<string, Client>)
+    }
+    catch (err) {
+      setError(err)
+    }
+    finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  return { nodes, isLoading, error, refresh }
+}
 ```
 
-### 3. 在 Pinia Store 中使用
+### 3. 在 Zustand Store 中使用
 
 ```typescript
-import { defineStore } from 'pinia'
+import { create } from 'zustand'
 import { getSharedRpc } from '@/utils/rpc'
 
-export const useNodeStore = defineStore('node', () => {
-  const rpc = getSharedRpc()
-  const nodes = ref<Record<string, Client>>({})
+interface NodeState {
+  nodes: Record<string, Client>
+  fetchNodes: () => Promise<void>
+}
 
-  async function fetchNodes() {
-    nodes.value = await rpc.getNodes() as Record<string, Client>
-  }
-
-  return { nodes, fetchNodes }
-})
+export const useNodeStore = create<NodeState>(set => ({
+  nodes: {},
+  async fetchNodes() {
+    const nodes = await getSharedRpc().getNodes() as Record<string, Client>
+    set({ nodes })
+  },
+}))
 ```
 
 ## 参考文档

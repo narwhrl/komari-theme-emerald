@@ -4,7 +4,7 @@
  */
 
 import type { Client, KomariRpc, NodeStatus } from '@/utils/rpc'
-import { useAppStore } from '@/stores/app'
+import { getAppDerivedState, useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { getSharedApi } from '@/utils/api'
 import { getSharedRpc, RpcError } from '@/utils/rpc'
@@ -32,8 +32,6 @@ const DEFAULT_CONFIG: Required<InitConfig> = {
 class InitManager {
   private config: Required<InitConfig>
   private rpc: KomariRpc
-  private appStore: ReturnType<typeof useAppStore>
-  private nodesStore: ReturnType<typeof useNodesStore>
   private pollTimer: ReturnType<typeof setInterval> | null = null
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private isPolling = false
@@ -41,11 +39,18 @@ class InitManager {
   private useWebSocket: boolean | null = null // 根据主题配置决定
   private wsCloseUnsubscribe: (() => void) | null = null
   private wsErrorUnsubscribe: (() => void) | null = null
+
+  private get appStore() {
+    return useAppStore.getState()
+  }
+
+  private get nodesStore() {
+    return useNodesStore.getState()
+  }
+
   constructor(config: InitConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config }
     this.rpc = getSharedRpc()
-    this.appStore = useAppStore()
-    this.nodesStore = useNodesStore()
   }
 
   /**
@@ -85,7 +90,7 @@ class InitManager {
       await this.fetchNodesData()
 
       // 5. 解除加载状态
-      this.appStore.loading = false
+      this.appStore.setLoading(false)
 
       // 6. 建立 WebSocket 连接并开始轮询
       this.startWebSocketAndPolling()
@@ -95,7 +100,7 @@ class InitManager {
     catch (error) {
       console.error('[InitManager] Initialization failed:', error)
       // 即使失败也解除加载状态，显示错误页面
-      this.appStore.loading = false
+      this.appStore.setLoading(false)
       throw error
     }
   }
@@ -114,12 +119,12 @@ class InitManager {
       if (error instanceof RpcError && error.code === 401) {
         console.warn('[InitManager] Private site detected, redirecting to /admin')
         this.appStore.updateLoginState(false)
-        this.appStore.loading = false
+        this.appStore.setLoading(false)
         location.href = '/admin'
         return
       }
       console.error('[InitManager] Health check failed:', error)
-      this.appStore.connectionError = true
+      this.appStore.setConnectionError(true)
       throw new Error('Backend service unavailable')
     }
   }
@@ -131,7 +136,7 @@ class InitManager {
     try {
       const api = getSharedApi()
       const publicSettings = await api.getPublicSettings()
-      this.appStore.publicSettings = publicSettings
+      this.appStore.setPublicSettings(publicSettings)
     }
     catch (error) {
       console.error('[InitManager] Failed to fetch public settings:', error)
@@ -180,7 +185,7 @@ class InitManager {
    */
   private startWebSocketAndPolling(): void {
     // 根据主题配置决定初始连接模式
-    const configuredMode = this.appStore.rpcTransportMode
+    const configuredMode = getAppDerivedState().rpcTransportMode
     this.useWebSocket = configuredMode === 'websocket'
     this.clearReconnectTimer()
 
@@ -221,7 +226,7 @@ class InitManager {
       this.clearReconnectTimer()
 
       // 连接成功，重置错误状态
-      this.appStore.connectionError = false
+      this.appStore.setConnectionError(false)
 
       // 监听连接状态变化
       this.monitorWebSocketConnection()
@@ -375,7 +380,7 @@ class InitManager {
       this.nodesStore.updateNodeStatuses(statusesResult)
 
       // 连接恢复正常，重置错误状态
-      this.appStore.connectionError = false
+      this.appStore.setConnectionError(false)
     }
     catch (error) {
       if (error instanceof RpcError) {
@@ -386,7 +391,7 @@ class InitManager {
       }
 
       // 一次失败就显示错误
-      this.appStore.connectionError = true
+      this.appStore.setConnectionError(true)
     }
     finally {
       this.isPolling = false

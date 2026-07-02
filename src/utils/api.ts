@@ -4,6 +4,8 @@
  * @see https://www.komari.wiki/dev/api.html
  */
 
+/* eslint-disable node/prefer-global/process */
+
 const HTTP_PROTOCOL_REGEX = /^http/
 const HTTPS_PROTOCOL_REGEX = /^https/
 
@@ -210,7 +212,7 @@ export class KomariApi {
   private timeout: number
 
   constructor(options: ApiClientOptions = {}) {
-    this.baseUrl = options.baseUrl || import.meta.env.VITE_API_BASE || '/api'
+    this.baseUrl = options.baseUrl || process.env.NEXT_PUBLIC_API_BASE || '/api'
     this.timeout = options.timeout || 30000
   }
 

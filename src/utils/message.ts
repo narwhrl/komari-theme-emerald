@@ -1,23 +1,10 @@
-import { toast } from 'vue-sonner'
+'use client'
 
-export interface MessageApi {
-  success: (msg: string) => void
-  error: (msg: string) => void
-  warning: (msg: string) => void
-  info: (msg: string) => void
-}
+import { toast } from 'sonner'
 
-export const message: MessageApi = {
-  success: (msg: string) => {
-    toast.success(msg)
-  },
-  error: (msg: string) => {
-    toast.error(msg)
-  },
-  warning: (msg: string) => {
-    toast.warning(msg)
-  },
-  info: (msg: string) => {
-    toast.info(msg)
-  },
+export const message = {
+  success: (content: string) => toast.success(content),
+  error: (content: string) => toast.error(content),
+  warning: (content: string) => toast.warning(content),
+  info: (content: string) => toast.info(content),
 }

@@ -1,5 +1,6 @@
-import type { MaybeRefOrGetter } from 'vue'
-import { computed, toValue } from 'vue'
+'use client'
+
+import { useMemo } from 'react'
 import { NODE_PING_BAR_COUNT, useNodePingStats } from '@/composables/useNodePingStats'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime } from '@/utils/helper'
@@ -13,7 +14,7 @@ export interface NodePingBar {
 }
 
 interface UseNodePingDisplayOptions {
-  enabled?: MaybeRefOrGetter<boolean>
+  enabled?: boolean
   loadingDisplayText?: string
   emptyDisplayText?: string
   loadingPanelTooltipText?: Partial<Record<NodePingMetric, string>>
@@ -45,33 +46,25 @@ function getLossToneClass(loss: number): string {
 }
 
 export function useNodePingDisplay(
-  uuid: MaybeRefOrGetter<string>,
+  uuid: string,
   options: UseNodePingDisplayOptions = {},
 ) {
-  const appStore = useAppStore()
-
-  const pingStatsEnabled = computed(() => {
-    if (options.enabled !== undefined && !toValue(options.enabled))
-      return false
-    if (appStore.publicSettings?.record_enabled === false)
-      return false
-    return appStore.publicSettings?.ping_record_preserve_time !== 0
-  })
-
-  const pingStatsHours = computed(() => {
-    const preserveTime = appStore.publicSettings?.ping_record_preserve_time
-    if (typeof preserveTime === 'number' && preserveTime > 0)
-      return Math.min(preserveTime, 1)
-    return 1
-  })
+  const publicSettings = useAppStore(state => state.publicSettings)
+  const pingStatsEnabled = (options.enabled ?? true)
+    && publicSettings?.record_enabled !== false
+    && publicSettings?.ping_record_preserve_time !== 0
+  const preserveTime = publicSettings?.ping_record_preserve_time
+  const pingStatsHours = typeof preserveTime === 'number' && preserveTime > 0
+    ? Math.min(preserveTime, 1)
+    : 1
 
   const pingStats = useNodePingStats(uuid, {
     hours: pingStatsHours,
     enabled: pingStatsEnabled,
   })
 
-  function buildPingBars(metric: NodePingMetric): NodePingBar[] {
-    const points = pingStats.history.value
+  const buildPingBars = (metric: NodePingMetric): NodePingBar[] => {
+    const points = pingStats.history
     if (!points.length)
       return []
 
@@ -94,12 +87,12 @@ export function useNodePingDisplay(
     })
   }
 
-  function buildEmptyPingBars(metric: NodePingMetric): NodePingBar[] {
-    const tooltip = pingStats.loading.value
+  const buildEmptyPingBars = (metric: NodePingMetric): NodePingBar[] => {
+    const tooltip = pingStats.loading
       ? '加载中'
-      : pingStats.error.value
+      : pingStats.error
         ? '加载失败'
-        : !pingStatsEnabled.value
+        : !pingStatsEnabled
             ? '未启用记录'
             : metric === 'latency'
               ? 'N/A'
@@ -112,48 +105,39 @@ export function useNodePingDisplay(
     }))
   }
 
-  const latencyBars = computed(() => buildPingBars('latency'))
-  const lossBars = computed(() => buildPingBars('loss'))
-  const latencyRenderBars = computed(() => latencyBars.value.length ? latencyBars.value : buildEmptyPingBars('latency'))
-  const lossRenderBars = computed(() => lossBars.value.length ? lossBars.value : buildEmptyPingBars('loss'))
+  const latencyRenderBars = useMemo(() => {
+    const bars = buildPingBars('latency')
+    return bars.length ? bars : buildEmptyPingBars('latency')
+  }, [pingStats.history, pingStats.loading, pingStats.error, pingStatsEnabled])
 
-  const latencyDisplay = computed(() => {
-    if (pingStats.hasData.value)
-      return `${Math.round(pingStats.avgLatency.value)} ms`
-    if (pingStats.loading.value)
-      return options.loadingDisplayText ?? '加载中'
-    return options.emptyDisplayText ?? '-'
-  })
+  const lossRenderBars = useMemo(() => {
+    const bars = buildPingBars('loss')
+    return bars.length ? bars : buildEmptyPingBars('loss')
+  }, [pingStats.history, pingStats.loading, pingStats.error, pingStatsEnabled])
 
-  const lossDisplay = computed(() => {
-    if (pingStats.hasData.value)
-      return `${pingStats.avgLoss.value.toFixed(1)}%`
-    if (pingStats.loading.value)
-      return options.loadingDisplayText ?? '加载中'
-    return options.emptyDisplayText ?? '-'
-  })
+  const latencyDisplay = pingStats.hasData
+    ? `${Math.round(pingStats.avgLatency)} ms`
+    : pingStats.loading
+      ? options.loadingDisplayText ?? '加载中'
+      : options.emptyDisplayText ?? '-'
 
-  const latencyPanelTooltip = computed(() => {
-    if (!pingStats.hasData.value) {
-      if (pingStats.loading.value)
-        return options.loadingPanelTooltipText?.latency ?? ''
-      return options.emptyPanelTooltipText?.latency ?? ''
-    }
-    return `平均延迟 ${Math.round(pingStats.avgLatency.value)} ms`
-  })
+  const lossDisplay = pingStats.hasData
+    ? `${pingStats.avgLoss.toFixed(1)}%`
+    : pingStats.loading
+      ? options.loadingDisplayText ?? '加载中'
+      : options.emptyDisplayText ?? '-'
 
-  const lossPanelTooltip = computed(() => {
-    if (!pingStats.hasData.value) {
-      if (pingStats.loading.value)
-        return options.loadingPanelTooltipText?.loss ?? ''
-      return options.emptyPanelTooltipText?.loss ?? ''
-    }
+  const latencyPanelTooltip = !pingStats.hasData
+    ? pingStats.loading
+      ? options.loadingPanelTooltipText?.latency ?? ''
+      : options.emptyPanelTooltipText?.latency ?? ''
+    : `平均延迟 ${Math.round(pingStats.avgLatency)} ms`
 
-    const volatility = pingStats.avgVolatility.value > 0
-      ? `，平均波动 ${pingStats.avgVolatility.value.toFixed(2)}`
-      : ''
-    return `平均丢包 ${pingStats.avgLoss.value.toFixed(1)}%${volatility}`
-  })
+  const lossPanelTooltip = !pingStats.hasData
+    ? pingStats.loading
+      ? options.loadingPanelTooltipText?.loss ?? ''
+      : options.emptyPanelTooltipText?.loss ?? ''
+    : `平均丢包 ${pingStats.avgLoss.toFixed(1)}%${pingStats.avgVolatility > 0 ? `，平均波动 ${pingStats.avgVolatility.toFixed(2)}` : ''}`
 
   return {
     pingStats,

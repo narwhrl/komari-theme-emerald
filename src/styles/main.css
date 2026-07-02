@@ -1,79 +1,83 @@
 @import 'tailwindcss';
-@import 'tw-animate-css';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 * {
-  scrollbar-color: var(--ring) transparent;
+  scrollbar-color: var(--muted-foreground) transparent;
   scrollbar-width: thin;
+  -webkit-tap-highlight-color: transparent;
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
+  --background: oklch(0.995 0 0);
+  --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
+  --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.145 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
+  --secondary: oklch(0.965 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.47 0 0);
+  --accent: oklch(0.965 0 0);
+  --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
   --warning: oklch(0.768 0.155 70);
-  --warning-foreground: oklch(0.21 0.006 285.885);
-  --success: oklch(0.696 0.17 162.48);
+  --warning-foreground: oklch(0.205 0 0);
+  --success: oklch(0.55 0.16 150);
   --success-foreground: oklch(0.985 0 0);
-  --info: oklch(0.6 0.118 230);
+  --info: oklch(0.52 0.13 250);
   --info-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.705 0.015 286.067);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
+  --border: oklch(0.91 0 0);
+  --input: oklch(0.91 0 0);
+  --ring: oklch(0.54 0 0);
+  --chart-1: oklch(0.56 0.2 25);
+  --chart-2: oklch(0.58 0.13 180);
+  --chart-3: oklch(0.55 0.16 250);
+  --chart-4: oklch(0.66 0.16 70);
+  --chart-5: oklch(0.56 0.14 300);
+  --radius: 0.5rem;
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --motion-fast: 150ms;
+  --motion-normal: 220ms;
+  --motion-slow: 320ms;
+  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
+  --background: oklch(0 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
+  --card: oklch(0.095 0 0);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
+  --popover: oklch(0.095 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.004 286.32);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.145 0 0);
+  --secondary: oklch(0.16 0 0);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
+  --muted: oklch(0.16 0 0);
+  --muted-foreground: oklch(0.64 0 0);
+  --accent: oklch(0.16 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
   --warning: oklch(0.79 0.16 70);
-  --warning-foreground: oklch(0.141 0.005 285.823);
-  --success: oklch(0.74 0.17 162);
-  --success-foreground: oklch(0.141 0.005 285.823);
+  --warning-foreground: oklch(0.145 0 0);
+  --success: oklch(0.68 0.16 150);
+  --success-foreground: oklch(0.145 0 0);
   --info: oklch(0.68 0.13 230);
-  --info-foreground: oklch(0.141 0.005 285.823);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.016 285.938);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --info-foreground: oklch(0.145 0 0);
+  --border: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 18%);
+  --ring: oklch(0.72 0 0);
+  --chart-1: oklch(0.68 0.19 25);
+  --chart-2: oklch(0.7 0.13 180);
+  --chart-3: oklch(0.7 0.15 250);
+  --chart-4: oklch(0.76 0.15 70);
+  --chart-5: oklch(0.72 0.14 300);
 }
 
 @theme inline {
@@ -121,16 +125,117 @@
 
   html {
     font-family: var(--font-sans);
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums;
+    overflow-x: hidden;
+    text-rendering: geometricPrecision;
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  .vercel-card {
+    border: 1px solid var(--color-border);
+    background-color: color-mix(in oklab, var(--color-card) 94%, transparent);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+  }
+
+  .dark .vercel-card {
+    background-color: color-mix(in oklab, var(--color-card) 88%, transparent);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 4%) inset;
+  }
+
+  .vercel-subtle {
+    background-color: color-mix(in oklab, var(--color-muted) 56%, transparent);
+  }
+
+  .vercel-number {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+  }
+
+  .motion-card {
+    transition-property: background-color, border-color, box-shadow, transform;
+    transition-duration: var(--motion-fast);
+    transition-timing-function: var(--motion-ease);
+    will-change: transform;
+  }
+
+  .motion-card:active {
+    transform: translateY(0) scale(0.995);
+    transition-duration: 90ms;
+  }
+
+  @media (hover: hover) {
+    .motion-card:hover {
+      transform: translateY(-2px);
+    }
+  }
+
+  .motion-chip {
+    animation: komari-soft-pop var(--motion-normal) var(--motion-ease) both;
+  }
+
+  .motion-command-item {
+    transform-origin: center;
+  }
+
+  .motion-command-item:active {
+    transform: scale(0.985);
+  }
+
+  .status-pulse {
+    position: relative;
+    color: currentColor;
+  }
+
+  .status-pulse::after {
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    background: currentColor;
+    content: '';
+    opacity: 0.16;
+    transform: scale(0.78);
+    animation: komari-status-pulse 2400ms ease-out infinite;
+  }
+
+  .status-pulse > * {
+    position: relative;
+    z-index: 1;
   }
 }
 
 @layer utilities {
+  .animate-in {
+    animation-name: komari-enter;
+    animation-duration: 200ms;
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
+  }
+
+  .fade-in {
+    --komari-enter-opacity: 0;
+  }
+
+  .slide-in-from-bottom-2 {
+    --komari-enter-translate-y: calc(var(--spacing) * 2);
+  }
+
+  .motion-stagger-item {
+    animation: komari-stagger-enter var(--motion-normal) var(--motion-ease) both;
+  }
+
   .flex-center {
     display: flex;
     align-items: center;
@@ -148,5 +253,58 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+  }
+}
+
+@keyframes komari-enter {
+  from {
+    opacity: var(--komari-enter-opacity, 1);
+    transform: translateY(var(--komari-enter-translate-y, 0));
+  }
+}
+
+@keyframes komari-stagger-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}
+
+@keyframes komari-soft-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.98);
+  }
+}
+
+@keyframes komari-status-pulse {
+  0% {
+    opacity: 0.18;
+    transform: scale(0.78);
+  }
+
+  70% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+
+  .status-pulse::after {
+    animation: none !important;
   }
 }
