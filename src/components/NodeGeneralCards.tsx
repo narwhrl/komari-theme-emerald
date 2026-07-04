@@ -88,7 +88,6 @@ export default function NodeGeneralCards({
   const formattedRemainingValue = financeHelper.formatFinanceAmount(remainingValue, exchangeRateBaseCurrency)
   const formattedTotalValue = financeHelper.formatFinanceAmount(totalValue, exchangeRateBaseCurrency)
   const formattedMonthlyAverageCost = financeHelper.formatFinanceAmount(monthlyAverageCost, exchangeRateBaseCurrency)
-  const remainingSummaryValue = formattedRemainingValue.value.split('.')[0] || formattedRemainingValue.value
   const financeSummaryItems = [
     { label: '总价值', value: formattedTotalValue.value, symbol: formattedTotalValue.symbol, currency: formattedTotalValue.currency },
     { label: '月均支出', value: formattedMonthlyAverageCost.value, symbol: formattedMonthlyAverageCost.symbol, currency: `${formattedMonthlyAverageCost.currency}/月` },
@@ -132,16 +131,18 @@ export default function NodeGeneralCards({
 
         <div className={showVisualPanel ? 'relative col-span-4 row-span-1 col-start-5 row-start-1 h-full w-full' : 'relative col-span-1 col-start-2 row-start-1 min-h-18 md:col-start-3 md:row-start-1 md:min-h-28'}>
           <CardX hoverable className="motion-stagger-item group h-full rounded-md bg-card/95" style={{ animationDelay: `${2 * 45}ms` }} onClick={() => setOpenFinanceCard(value => !value)}>
-            <div className="flex h-full min-w-0 flex-col justify-between gap-2">
-              <div className="flex min-w-0 items-start justify-between gap-2">
-                <span className="min-w-0 truncate text-[11px] leading-none font-medium tracking-wide text-muted-foreground md:text-xs">剩余价值</span>
-                <Icon icon="tabler:cash" width={18} height={18} className="shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground/70 md:size-5" />
+            <div className="flex h-full min-w-0 flex-col justify-between gap-1">
+              <div className="flex items-start justify-between">
+                <span className="text-xs font-medium tracking-wider text-muted-foreground">剩余价值</span>
+                <Icon icon="tabler:cash" width={20} height={20} className="text-muted-foreground/40 transition-colors group-hover:text-foreground/70" />
               </div>
-              <SummaryValueBlock
-                key={`remaining-${transitionKey}`}
-                value={`${formattedRemainingValue.symbol}${remainingSummaryValue}`}
-                unit={formattedRemainingValue.currency}
-              />
+              <div key={`remaining-${transitionKey}`} className="flex min-w-0 items-baseline gap-1">
+                <span className="vercel-number text-md leading-none font-semibold tracking-tight md:text-2xl">
+                  {formattedRemainingValue.symbol}
+                  {formattedRemainingValue.value}
+                </span>
+                <span className="block truncate text-[11px] font-medium text-muted-foreground md:text-xs">{formattedRemainingValue.currency}</span>
+              </div>
             </div>
           </CardX>
           <CardX
@@ -230,12 +231,15 @@ function SummaryCard({ title, icon, value, unit, visual, index, tooltip }: { tit
       ]
 
   const content = (
-    <div className="flex h-full min-w-0 flex-col justify-between gap-2">
-      <div className="flex min-w-0 items-start justify-between gap-2">
-        <span className="min-w-0 truncate text-[11px] leading-none font-medium tracking-wide text-muted-foreground md:text-xs">{title}</span>
-        <Icon icon={icon} width={18} height={18} className="shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground/70 md:size-5" />
+    <div className="flex h-full min-w-0 flex-col justify-between gap-1">
+      <div className="flex items-start justify-between">
+        <span className="text-xs font-medium tracking-wider text-muted-foreground">{title}</span>
+        <Icon icon={icon} width={20} height={20} className="text-muted-foreground/40 transition-colors group-hover:text-foreground/70" />
       </div>
-      <SummaryValueBlock value={value} unit={unit} />
+      <div className="flex min-w-0 items-baseline gap-1">
+        <span className="vercel-number text-md leading-none font-semibold tracking-tight md:text-2xl">{value}</span>
+        <span className="truncate text-[11px] font-medium text-muted-foreground md:text-xs">{unit}</span>
+      </div>
     </div>
   )
 
@@ -249,14 +253,5 @@ function SummaryCard({ title, icon, value, unit, visual, index, tooltip }: { tit
           )
         : content}
     </CardX>
-  )
-}
-
-function SummaryValueBlock({ value, unit }: { value: string, unit: string }) {
-  return (
-    <div className="min-w-0 space-y-1">
-      <div className="vercel-number truncate text-lg leading-none font-semibold tracking-tight text-foreground md:text-2xl">{value}</div>
-      <div className="truncate text-[11px] leading-tight font-medium text-muted-foreground md:text-xs">{unit}</div>
-    </div>
   )
 }
