@@ -17,7 +17,7 @@ export function CardX({
     <div
       className={cn(
         'vercel-card rounded-lg text-card-foreground',
-        hoverable && 'motion-card hover:border-foreground/15 hover:bg-card hover:shadow-md',
+        hoverable && 'motion-card hover:border-foreground/16 hover:bg-card hover:shadow-md',
         className,
       )}
       {...props}

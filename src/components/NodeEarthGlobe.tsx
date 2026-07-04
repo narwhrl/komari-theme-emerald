@@ -17,9 +17,9 @@ interface RegionCluster {
 
 const GLOBE_RADIUS = 0.8
 const INITIAL_THETA = 0.22
+const AUTO_ROTATION_SPEED = 0.0015
 const CHINA_COORD = getCoordByCode('CN') ?? [35.8617, 104.1954]
 const DEFAULT_PHI = -Math.PI / 2 - CHINA_COORD[1] * Math.PI / 180
-const MARKER_LABEL_ANCHOR = 'translate(-12px, -50%)'
 
 function locationToVector([lat, lng]: [number, number]): [number, number, number] {
   const latitude = lat * Math.PI / 180
@@ -88,7 +88,7 @@ export default function NodeEarthGlobe({
 
   const markers = useMemo<Marker[]>(() => clusters.map(cluster => ({
     location: cluster.coord,
-    size: 0.03,
+    size: 0,
   })), [clusters])
 
   const totalServers = displayNodes.length
@@ -128,15 +128,15 @@ export default function NodeEarthGlobe({
     let currentSize = getSize()
 
     const updateMarkerLabels = () => {
-      for (const cluster of clusters.slice(0, 8)) {
+      for (const cluster of clusters) {
         const label = labelMapRef.current.get(cluster.code)
         if (!label)
           continue
 
         const position = projectLocation(cluster.coord, phiRef.current, thetaRef.current, currentSize.width, currentSize.height)
         label.style.opacity = position.visible ? '1' : '0'
-        label.style.filter = position.visible ? 'blur(0)' : 'blur(4px)'
-        label.style.transform = `translate3d(${position.x}px, ${position.y}px, 0) ${MARKER_LABEL_ANCHOR}`
+        label.style.filter = position.visible ? 'blur(0)' : 'blur(20px)'
+        label.style.transform = `translate3d(${position.x}px, ${position.y}px, 0)`
       }
     }
 
@@ -160,7 +160,7 @@ export default function NodeEarthGlobe({
     globeRef.current = createGlobe(canvas, options)
     const tick = () => {
       if (spinning && !pointerRef.current.down)
-        phiRef.current += 0.0025
+        phiRef.current += AUTO_ROTATION_SPEED
       globeRef.current?.update({
         phi: phiRef.current,
         theta: thetaRef.current,
@@ -221,7 +221,7 @@ export default function NodeEarthGlobe({
         onPointerCancel={handlePointerUp}
       />
       <div className="pointer-events-none absolute inset-0 z-10">
-        {clusters.slice(0, 8).map(cluster => (
+        {clusters.map(cluster => (
           <div
             key={cluster.code}
             ref={(element) => {
@@ -230,12 +230,28 @@ export default function NodeEarthGlobe({
               else
                 labelMapRef.current.delete(cluster.code)
             }}
-            className="absolute top-0 left-0 flex items-center gap-1 rounded border border-border bg-background/90 px-1.5 py-0.5 text-[10px] opacity-0 shadow-xs backdrop-blur-sm transition-[opacity,filter] duration-200 ease-out will-change-transform"
-            style={{ transform: `translate3d(-999px, -999px, 0) ${MARKER_LABEL_ANCHOR}` }}
+            className="pointer-events-none absolute -top-3.5 left-0 rounded opacity-0 backdrop-blur-sm transition-[opacity,filter] duration-500 ease-out will-change-transform"
+            style={{ transform: 'translate3d(-999px, -999px, 0)' }}
           >
-            <img src={`/images/flags/${cluster.code}.svg`} alt={cluster.code} className="size-3" />
-            {cluster.onlineServers > 0 ? <span className="text-emerald-600 dark:text-emerald-400">{cluster.onlineServers}</span> : null}
-            {cluster.servers - cluster.onlineServers > 0 ? <span className="text-yellow-600">{cluster.servers - cluster.onlineServers}</span> : null}
+            <img src={`/images/flags/${cluster.code}.svg`} alt={cluster.code} className="absolute -bottom-2 -left-2 z-1 block size-4" />
+            <div className="relative z-2 items-start justify-center rounded bg-background/60 px-2 py-0.5 text-xs text-nowrap [zoom:.8]">
+              {cluster.onlineServers > 0
+                ? (
+                    <div className="flex items-center gap-1">
+                      <span className="inline-block size-1.5 rounded-full bg-green-600" />
+                      <span className="text-green-600">{cluster.onlineServers}</span>
+                    </div>
+                  )
+                : null}
+              {cluster.servers - cluster.onlineServers > 0
+                ? (
+                    <div className="flex items-center gap-1">
+                      <span className="inline-block size-1.5 rounded-full bg-yellow-600" />
+                      <span className="text-yellow-600">{cluster.servers - cluster.onlineServers}</span>
+                    </div>
+                  )
+                : null}
+            </div>
           </div>
         ))}
       </div>

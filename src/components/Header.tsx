@@ -79,7 +79,7 @@ export default function Header({ route = '/' }: { route?: string }) {
     <header
       className={cn(
         'sticky top-0 z-30 border-b transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ease-out',
-        isScrolled ? 'border-border bg-background/82 shadow-xs backdrop-blur-xl' : 'border-transparent bg-background/55 backdrop-blur-md',
+        isScrolled ? 'border-border bg-background/72 shadow-xs backdrop-blur-lg' : 'border-transparent bg-transparent shadow-none backdrop-blur-none',
       )}
     >
       <div className="mx-auto flex h-14 max-w-[1280px] items-center gap-3 px-4">
