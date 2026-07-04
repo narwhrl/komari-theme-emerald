@@ -2,6 +2,7 @@
 
 import { Icon } from '@iconify/react'
 import { useEffect, useMemo, useState } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface VisitorGeoData {
   ip: string
@@ -231,7 +232,7 @@ export default function VisitorInfoCard() {
                     </div>
                   )}
               <div className={`min-w-0 transition-[opacity,transform] duration-220 ease-[cubic-bezier(0.22,1,0.36,1)] ${expand || !index ? 'block translate-y-0 opacity-100' : 'hidden md:block md:translate-y-0 md:opacity-100'}`}>
-                {loading ? <div className="h-2 w-15 animate-pulse rounded-full bg-muted/70" /> : <p className="max-w-30 truncate text-xs font-medium text-muted-foreground sm:max-w-50">{item.value}</p>}
+                {loading ? <Skeleton className="h-2 w-15 rounded-full" /> : <p className="max-w-30 truncate text-xs font-medium text-muted-foreground sm:max-w-50">{item.value}</p>}
               </div>
             </div>
           ))}

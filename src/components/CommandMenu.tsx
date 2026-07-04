@@ -283,7 +283,7 @@ export default function CommandMenu({
           <DialogDescription>搜索节点或执行常用操作</DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+        <div className="flex items-center gap-3 border-b border-border py-3 pr-14 pl-4">
           <Icon icon="tabler:search" width={18} height={18} className="shrink-0 text-muted-foreground" />
           <Input
             ref={inputRef}

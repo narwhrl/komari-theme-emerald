@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EChart from '@/components/EChart'
 import { Button } from '@/components/ui/button'
 import { Empty } from '@/components/ui/empty'
-import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { cutPeakValues, interpolateNullsLinear } from '@/utils/recordHelper'
@@ -42,6 +42,12 @@ const presetViews = [
 
 const chartColors = ['#FF6B6B', '#4ECDC4', '#A78BFA', '#60A5FA', '#FFB347', '#F472B6', '#34D399', '#FB923C']
 const chartMargin = { top: 30, right: 24, bottom: 52, left: 56 }
+const pingTaskSkeletonItems = ['unicom', 'mobile', 'telecom', 'cloudflare']
+const pingChartSkeletonPaths = [
+  'M0 154 C58 134 94 146 137 126 C184 104 229 109 272 118 C325 130 361 95 416 104 C476 114 514 83 640 96',
+  'M0 112 C52 119 94 91 145 99 C202 108 238 134 292 122 C343 111 374 143 426 130 C493 114 543 122 640 104',
+  'M0 183 C78 172 109 189 162 176 C217 162 264 181 314 169 C372 155 413 171 466 151 C526 129 574 143 640 122',
+]
 
 function formatTime(time: string, showDate: boolean): string {
   const date = dayjs(time)
@@ -417,7 +423,7 @@ export default function PingChart({ uuid, className }: { uuid: string, className
         </div>
       </Tabs>
       {loading
-        ? <div className="flex h-40 items-center justify-center"><Spinner /></div>
+        ? <PingChartSkeleton />
         : error
           ? <div className="py-8 text-center text-red-500">{error}</div>
           : tasks.length === 0
@@ -501,6 +507,89 @@ export default function PingChart({ uuid, className }: { uuid: string, className
                   </div>
                 </>
               )}
+    </div>
+  )
+}
+
+function PingChartSkeleton() {
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-1 rounded-md bg-muted/50 p-1">
+          <Skeleton className="h-7 w-13 rounded-sm" />
+          <Skeleton className="h-7 w-16 rounded-sm" />
+        </div>
+        <Skeleton className="h-3 w-18" />
+      </div>
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        {pingTaskSkeletonItems.map(item => <PingTaskSkeletonCard key={item} />)}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Skeleton className="h-7 w-13 rounded-sm" />
+        <Skeleton className="h-7 w-13 rounded-sm" />
+        <Skeleton className="h-7 w-20 rounded-sm" />
+      </div>
+      <div className="vercel-card h-80 rounded-md bg-card/95 p-4">
+        <div className="relative h-full overflow-hidden rounded-sm">
+          <div className="absolute top-3 right-0 flex items-center gap-2">
+            <Skeleton className="h-2.5 w-11 rounded-full" />
+            <Skeleton className="h-2.5 w-14 rounded-full" />
+          </div>
+          <div className="absolute top-7 bottom-9 left-0 flex w-7 flex-col justify-between">
+            <Skeleton className="h-2 w-5 rounded-full opacity-70" />
+            <Skeleton className="h-2 w-4 rounded-full opacity-60" />
+            <Skeleton className="h-2 w-5 rounded-full opacity-50" />
+            <Skeleton className="h-2 w-3 rounded-full opacity-45" />
+          </div>
+          <div className="absolute top-7 right-0 bottom-9 left-9 overflow-hidden">
+            <div className="absolute inset-0 flex flex-col justify-between">
+              <span className="border-t border-dashed border-border/60" />
+              <span className="border-t border-dashed border-border/45" />
+              <span className="border-t border-dashed border-border/35" />
+              <span className="border-t border-dashed border-border/30" />
+            </div>
+            <div className="absolute inset-0 flex justify-between">
+              <span className="border-l border-border/30" />
+              <span className="border-l border-border/20" />
+              <span className="border-l border-border/20" />
+              <span className="border-l border-border/20" />
+              <span className="border-l border-border/30" />
+            </div>
+            <svg className="absolute inset-0 size-full" viewBox="0 0 640 220" preserveAspectRatio="none" aria-hidden="true">
+              {pingChartSkeletonPaths.map((path, index) => (
+                <path
+                  key={path}
+                  d={path}
+                  className={`komari-skeleton-chart-line komari-skeleton-chart-line-${index + 1}`}
+                />
+              ))}
+            </svg>
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card/70 via-transparent to-card/70" />
+          </div>
+          <div className="absolute right-0 bottom-0 left-9 flex justify-between">
+            <Skeleton className="h-2.5 w-10 rounded-full opacity-60" />
+            <Skeleton className="h-2.5 w-10 rounded-full opacity-55" />
+            <Skeleton className="h-2.5 w-10 rounded-full opacity-55" />
+            <Skeleton className="h-2.5 w-10 rounded-full opacity-60" />
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function PingTaskSkeletonCard() {
+  return (
+    <div className="flex items-center gap-3 rounded-md border border-border bg-card/95 p-2 shadow-xs">
+      <Skeleton className="h-4 w-1 rounded" />
+      <div className="min-w-0 flex-1">
+        <Skeleton className="h-4 w-28" />
+        <div className="mt-2 flex items-center gap-1.5">
+          <Skeleton className="h-3 w-10" />
+          <Skeleton className="h-3 w-1 rounded-full" />
+          <Skeleton className="h-3 w-12" />
+        </div>
+      </div>
     </div>
   )
 }
