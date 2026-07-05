@@ -19,7 +19,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
-        {children}
+        <div data-base-ui-root className="relative isolate flex min-h-svh flex-col">
+          {children}
+        </div>
       </body>
     </html>
   )

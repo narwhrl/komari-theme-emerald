@@ -281,7 +281,7 @@ export default function CommandMenu({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="command-dialog top-14 max-h-[min(720px,calc(100dvh-4rem))] max-w-3xl translate-y-0 gap-0 overflow-hidden rounded-xl border-border/80 bg-background/96 p-0 shadow-[0_22px_70px_rgb(15_23_42/18%)] backdrop-blur-xl sm:top-20 dark:shadow-[0_24px_80px_rgb(0_0_0/56%)]"
+        className="command-dialog top-14 max-h-[min(720px,calc(100dvh-4rem))] max-w-3xl translate-y-0 gap-0 overflow-hidden rounded-2xl border-input bg-popover p-0 shadow-lg/5 backdrop-blur-xl sm:top-20"
         overlayClass="bg-background/45 backdrop-blur-[2px]"
       >
         <DialogHeader className="sr-only">

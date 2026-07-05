@@ -452,7 +452,7 @@ export default function PingChart({ uuid, className }: { uuid: string, className
                       <button
                         key={task.id}
                         type="button"
-                        className={`flex cursor-pointer items-center gap-3 rounded-md border border-border bg-card/95 p-2 text-left shadow-xs transition-[background-color,border-color,opacity,box-shadow] hover:border-foreground/15 hover:bg-background focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:outline-none ${!selectedTaskIds.includes(task.id) ? 'opacity-30' : ''}`}
+                        className={`flex cursor-pointer items-center gap-3 rounded-xl border border-input bg-card p-2 text-left shadow-xs/5 transition-[background-color,border-color,opacity,box-shadow] hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background focus-visible:outline-none ${!selectedTaskIds.includes(task.id) ? 'opacity-30' : ''}`}
                         onClick={() => toggleTask(task.id)}
                       >
                         <div className="h-4 w-1 rounded" style={{ backgroundColor: getTaskColor(task.id) }} />
@@ -502,7 +502,7 @@ export default function PingChart({ uuid, className }: { uuid: string, className
                       平滑峰值
                     </Button>
                   </div>
-                  <div className="vercel-card h-80 rounded-md bg-card/95 p-4">
+                  <div className="vercel-card h-80 rounded-2xl bg-card p-4">
                     <EChart option={option} />
                   </div>
                 </>
@@ -529,7 +529,7 @@ function PingChartSkeleton() {
         <Skeleton className="h-7 w-13 rounded-sm" />
         <Skeleton className="h-7 w-20 rounded-sm" />
       </div>
-      <div className="vercel-card h-80 rounded-md bg-card/95 p-4">
+      <div className="vercel-card h-80 rounded-2xl bg-card p-4">
         <div className="relative h-full overflow-hidden rounded-sm">
           <div className="absolute top-3 right-0 flex items-center gap-2">
             <Skeleton className="h-2.5 w-11 rounded-full" />
@@ -580,7 +580,7 @@ function PingChartSkeleton() {
 
 function PingTaskSkeletonCard() {
   return (
-    <div className="flex items-center gap-3 rounded-md border border-border bg-card/95 p-2 shadow-xs">
+    <div className="flex items-center gap-3 rounded-xl border border-input bg-card p-2 shadow-xs/5">
       <Skeleton className="h-4 w-1 rounded" />
       <div className="min-w-0 flex-1">
         <Skeleton className="h-4 w-28" />

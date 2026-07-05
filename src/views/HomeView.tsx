@@ -1,5 +1,6 @@
 'use client'
 
+import type { NodeViewMode } from '@/stores/app'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
 import { useEffect, useMemo, useState } from 'react'
@@ -13,6 +14,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Empty } from '@/components/ui/empty'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { DataTooltip } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { selectNodeGroups, useNodesStore } from '@/stores/nodes'
 import { isNodeInGroup, parseNodeGroups } from '@/utils/groupHelper'
@@ -21,6 +24,10 @@ import { isRegionMatch } from '@/utils/regionHelper'
 
 const nodeItemStaggerMs = 35
 const nodeItemStaggerLimit = 12
+const nodeViewModeOptions: Array<{ mode: NodeViewMode, label: string, icon: string }> = [
+  { mode: 'card', label: '卡片视图', icon: 'tabler:layout-grid' },
+  { mode: 'list', label: '列表视图', icon: 'tabler:table' },
+]
 
 function isNodeMatchSearch(node: NodeData, search: string): boolean {
   if (!search.trim())
@@ -50,6 +57,7 @@ export default function HomeView() {
   const setHomeScrollPosition = useAppStore(state => state.setHomeScrollPosition)
   const nodeSelectedGroup = useAppStore(state => state.nodeSelectedGroup)
   const setNodeSelectedGroup = useAppStore(state => state.setNodeSelectedGroup)
+  const setNodeViewMode = useAppStore(state => state.setNodeViewMode)
   const homeSearchText = useAppStore(state => state.homeSearchText)
   const setHomeSearchText = useAppStore(state => state.setHomeSearchText)
   const derived = useAppDerived()
@@ -96,7 +104,7 @@ export default function HomeView() {
       {connectionError
         ? (
             <div className="alert px-4">
-              <Alert variant="destructive" className="rounded-md border border-destructive/20 bg-destructive/10">
+              <Alert variant="destructive">
                 <AlertTitle>RPC 服务错误</AlertTitle>
                 <AlertDescription>连接服务器失败，请检查网络设置或刷新页面后再试。</AlertDescription>
               </Alert>
@@ -107,7 +115,7 @@ export default function HomeView() {
       {derived.alertEnabled && derived.alertContent
         ? (
             <div className="alert px-4">
-              <Alert className="rounded-md border border-border bg-card/95 shadow-xs">
+              <Alert>
                 {derived.alertTitle ? <AlertTitle>{derived.alertTitle}</AlertTitle> : null}
                 <AlertDescription>
                   <MarkdownRenderer content={derived.alertContent} />
@@ -130,7 +138,7 @@ export default function HomeView() {
       <div className={`node-info relative z-1 flex flex-col gap-4 p-4 pt-0 md:pointer-events-none ${derived.earthViewMode === 'hide' ? 'pt-4' : ''}`}>
         <div className="nodes">
           <Tabs value={nodeSelectedGroup} onValueChange={value => setNodeSelectedGroup(String(value))} className="flex w-full flex-col gap-4">
-            <div className="flex flex-nowrap items-start gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
               <div className="min-w-0 flex-1 overflow-x-auto rounded-sm md:pointer-events-auto">
                 <TabsList aria-label="节点分组">
                   {groups.map(group => (
@@ -143,21 +151,24 @@ export default function HomeView() {
                   ))}
                 </TabsList>
               </div>
-              {homeSearchText.trim()
-                ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="motion-chip pointer-events-auto h-8 min-w-0 max-w-[45vw] gap-1.5 rounded-md bg-background px-2 text-xs shadow-xs"
-                      onClick={() => setHomeSearchText('')}
-                    >
-                      <Icon icon="tabler:search" width={13} height={13} className="shrink-0" />
-                      <span className="truncate">{homeSearchText.trim()}</span>
-                      <Icon icon="tabler:x" width={13} height={13} className="shrink-0 text-muted-foreground" />
-                    </Button>
-                  )
-                : null}
+              <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 md:pointer-events-auto">
+                {homeSearchText.trim()
+                  ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="motion-chip pointer-events-auto h-8 min-w-0 max-w-[min(13rem,45vw)] gap-1.5 rounded-lg bg-popover px-2 text-xs shadow-xs/5 sm:max-w-[18rem]"
+                        onClick={() => setHomeSearchText('')}
+                      >
+                        <Icon icon="tabler:search" width={13} height={13} className="shrink-0" />
+                        <span className="truncate">{homeSearchText.trim()}</span>
+                        <Icon icon="tabler:x" width={13} height={13} className="shrink-0 text-muted-foreground" />
+                      </Button>
+                    )
+                  : null}
+                <NodeViewModeToggle value={derived.nodeViewMode} onValueChange={setNodeViewMode} />
+              </div>
             </div>
             <TabsPanel value={nodeSelectedGroup} className="pointer-events-auto">
               {nodeList.length !== 0 && derived.nodeViewMode === 'card'
@@ -197,8 +208,8 @@ export default function HomeView() {
         {selectedPingNode
           ? (
               <DialogContent
-                className="max-w-6xl gap-0 overflow-hidden border border-border bg-background p-0 shadow-2xl"
-                overlayClass="bg-background/30"
+                className="max-w-6xl gap-0 overflow-hidden border-input bg-popover p-0 shadow-lg/5"
+                overlayClass="bg-black/32"
               >
                 <DialogHeader className="flex h-13 flex-row items-center px-4">
                   <DialogTitle className="truncate">
@@ -214,6 +225,32 @@ export default function HomeView() {
             )
           : null}
       </Dialog>
+    </div>
+  )
+}
+
+function NodeViewModeToggle({ value, onValueChange }: { value: NodeViewMode, onValueChange: (mode: NodeViewMode) => void }) {
+  return (
+    <div role="group" aria-label="节点视图切换" className="pointer-events-auto inline-flex shrink-0 items-center rounded-lg border border-input bg-muted/72 p-0.5 shadow-xs/5">
+      {nodeViewModeOptions.map((option) => {
+        const active = value === option.mode
+        return (
+          <DataTooltip key={option.mode} content={option.label} placement="top" contentClass="whitespace-nowrap text-[11px] px-2">
+            <button
+              type="button"
+              aria-label={option.label}
+              aria-pressed={active}
+              className={cn(
+                'flex h-9 min-w-10 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-[background-color,color,box-shadow] duration-150 ease-out hover:bg-background hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
+                active && 'bg-background text-foreground shadow-xs/5 hover:bg-background dark:bg-input/64',
+              )}
+              onClick={() => onValueChange(option.mode)}
+            >
+              <Icon icon={option.icon} width={17} height={17} />
+            </button>
+          </DataTooltip>
+        )
+      })}
     </div>
   )
 }

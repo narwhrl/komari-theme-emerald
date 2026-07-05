@@ -130,7 +130,7 @@ export default function NodeGeneralCards({
         <SummaryCard title="硬盘用量" icon="tabler:server-2" value={formattedDiskUsed.value} unit={`${formattedDiskUsed.unit} / ${formattedDiskTotal.value} ${formattedDiskTotal.unit}`} visual={showVisualPanel} index={1} />
 
         <div className={showVisualPanel ? 'relative col-span-4 row-span-1 col-start-5 row-start-1 h-full w-full' : 'relative col-span-1 col-start-2 row-start-1 min-h-18 md:col-start-3 md:row-start-1 md:min-h-28'}>
-          <CardX hoverable className="motion-stagger-item group h-full rounded-md bg-card/95" style={{ animationDelay: `${2 * 45}ms` }} onClick={() => setOpenFinanceCard(value => !value)}>
+          <CardX hoverable className="motion-stagger-item group h-full rounded-2xl bg-card" style={{ animationDelay: `${2 * 45}ms` }} onClick={() => setOpenFinanceCard(value => !value)}>
             <div className="flex h-full min-w-0 flex-col justify-between gap-1">
               <div className="flex items-start justify-between">
                 <span className="text-xs font-medium tracking-wider text-muted-foreground">剩余价值</span>
@@ -147,7 +147,8 @@ export default function NodeGeneralCards({
           </CardX>
           <CardX
             hoverable
-            className={`absolute top-0 left-1/2 z-20 h-42 w-[260%] max-w-88 -translate-x-[50%] rounded-lg bg-background shadow-xl transition-[opacity,transform] duration-200 ease-out ${openFinanceCard ? 'scale-100 opacity-100 -translate-y-[5%]' : 'pointer-events-none scale-95 opacity-0 -translate-y-[12%]'}`}
+            className={`absolute top-0 left-1/2 z-50 h-42 w-[260%] max-w-88 -translate-x-[50%] -translate-y-[25%] rounded-2xl bg-popover shadow-lg/5 transition-[opacity,transform] duration-200 ease-out ${openFinanceCard ? 'scale-100 opacity-100 -translate-y-[5%]' : 'pointer-events-none scale-50 opacity-0'}`}
+            contentClassName="h-full p-4"
             onClick={() => setOpenFinanceCard(false)}
           >
             <div className="flex h-full min-w-0 flex-col overflow-hidden">
@@ -166,15 +167,23 @@ export default function NodeGeneralCards({
               <div className="flex shrink-0 flex-1 flex-col">
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1 text-xs font-medium tracking-wider text-muted-foreground">今日汇率</div>
-                  <select
-                    value={exchangeRateBaseCurrency}
-                    className="shrink-0 rounded-sm border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/30"
-                    aria-label="切换汇率基准币种"
-                    onClick={event => event.stopPropagation()}
-                    onChange={event => updateBaseCurrency(event.target.value)}
-                  >
-                    {financeRateCurrencies.map(currency => <option key={currency} value={currency}>{currency}</option>)}
-                  </select>
+                  <div className="relative shrink-0">
+                    <select
+                      value={exchangeRateBaseCurrency}
+                      className="h-7 min-w-18 appearance-none rounded-lg border border-input bg-popover py-1 pr-7 pl-2.5 text-xs font-medium text-muted-foreground shadow-xs/5 outline-none transition-[border-color,color,box-shadow] not-dark:bg-clip-padding hover:bg-accent/50 hover:text-foreground focus-visible:border-ring focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/24 focus-visible:ring-inset dark:bg-input/32 dark:hover:bg-input/64"
+                      aria-label="切换汇率基准币种"
+                      onClick={event => event.stopPropagation()}
+                      onChange={event => updateBaseCurrency(event.target.value)}
+                    >
+                      {financeRateCurrencies.map(currency => <option key={currency} value={currency}>{currency}</option>)}
+                    </select>
+                    <Icon
+                      icon="tabler:chevron-down"
+                      width={14}
+                      height={14}
+                      className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground"
+                    />
+                  </div>
                 </div>
                 <div className="flex-1" />
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
@@ -244,7 +253,7 @@ function SummaryCard({ title, icon, value, unit, visual, index, tooltip }: { tit
   )
 
   return (
-    <CardX hoverable className={`motion-stagger-item group h-full rounded-md bg-card/95 ${positions[index]}`} style={{ animationDelay: `${index * 45}ms` }}>
+    <CardX hoverable className={`motion-stagger-item group h-full rounded-2xl bg-card ${positions[index]}`} style={{ animationDelay: `${index * 45}ms` }}>
       {tooltip
         ? (
             <DataTooltip as="span" placement="top" content={tooltip} className="min-w-0" contentClass="whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal">

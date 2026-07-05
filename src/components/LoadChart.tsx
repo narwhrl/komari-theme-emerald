@@ -876,7 +876,7 @@ function ChartCard({ title, headerValue, option }: { title: string, headerValue:
           <div className="vercel-number min-w-0 text-right text-xs text-foreground/80">{headerValue}</div>
         </div>
       )}
-      className="rounded-md bg-card/95"
+      className="rounded-2xl bg-card"
     >
       <div className="h-48">
         <EChart option={option} />
@@ -902,7 +902,7 @@ function ChartCardSkeleton() {
           <Skeleton className="h-3 w-22" />
         </div>
       )}
-      className="rounded-md bg-card/95"
+      className="rounded-2xl bg-card"
     >
       <div className="relative h-48 overflow-hidden">
         <div className="absolute top-2 bottom-6 left-0 flex w-7 flex-col justify-between">

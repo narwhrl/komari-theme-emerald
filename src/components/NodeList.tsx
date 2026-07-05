@@ -135,7 +135,7 @@ export default function NodeList({
   return (
     <div className="min-w-0 overflow-x-auto overflow-y-hidden p-1 -m-1">
       <div className="flex w-full min-w-fit flex-col gap-1">
-        <div className="grid gap-2 rounded-lg border border-border bg-muted/60 p-2 shadow-xs" style={{ gridTemplateColumns }}>
+        <div className="grid gap-2 rounded-2xl border border-input bg-muted/72 p-2 shadow-xs/5" style={{ gridTemplateColumns }}>
           {columns.map(col => (
             <button
               type="button"
@@ -155,7 +155,7 @@ export default function NodeList({
           {sortedNodes.map((node, index) => (
             <div
               key={transitionKey ? `${transitionKey}-${node.uuid}` : node.uuid}
-              className={`motion-card motion-stagger-item relative flex h-16 cursor-pointer flex-col justify-center rounded-lg border border-border bg-card/95 px-2 shadow-xs hover:border-foreground/15 hover:bg-background hover:shadow-md ${!node.online ? '!border-red-600/20' : ''}`}
+              className={`motion-card motion-stagger-item relative flex h-16 cursor-pointer flex-col justify-center rounded-xl border border-input bg-card px-2 shadow-xs/5 hover:bg-accent/50 ${!node.online ? '!border-destructive/25' : ''}`}
               style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
               onClick={() => onClick(node)}
             >
@@ -164,7 +164,7 @@ export default function NodeList({
               </div>
               {!node.online
                 ? (
-                    <div className="absolute inset-0 z-2 flex items-center rounded-lg bg-background/10 p-2" aria-hidden="true">
+                    <div className="absolute inset-0 z-2 flex items-center rounded-xl bg-background/10 p-2" aria-hidden="true">
                       <div className="grid items-center justify-center gap-2" style={{ gridTemplateColumns }}>
                         <div className="h-full space-y-1" style={offlineOverlayContentStyle}>
                           <div className="truncate text-sm font-semibold">

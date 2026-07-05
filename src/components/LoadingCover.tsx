@@ -68,7 +68,7 @@ export default function LoadingCover() {
 
 function SummarySkeletonCard() {
   return (
-    <div className="vercel-card min-h-24 rounded-md bg-card/95 p-4">
+    <div className="vercel-card min-h-24 rounded-2xl bg-card p-4">
       <div className="flex h-full flex-col justify-between gap-5">
         <div className="flex items-center justify-between gap-3">
           <Skeleton className="h-3 w-18" />
@@ -85,7 +85,7 @@ function SummarySkeletonCard() {
 
 function NodeSkeletonCard() {
   return (
-    <div className="vercel-card rounded-md bg-card/95 p-4">
+    <div className="vercel-card rounded-2xl bg-card p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <Skeleton className="size-6 rounded-full" />
