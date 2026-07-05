@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from 'react'
 import EChart from '@/components/EChart'
 import { CardX } from '@/components/ui/card-x'
 import { Empty } from '@/components/ui/empty'
-import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
@@ -36,6 +36,11 @@ const chartColors = {
 
 const chartMargin = { top: 30, right: 24, bottom: 32, left: 56 }
 const chartMarginWithLegend = { top: 30, right: 24, bottom: 52, left: 56 }
+const chartSkeletonItems = ['cpu', 'memory', 'disk', 'network', 'connections', 'process']
+const loadChartSkeletonPaths = [
+  'M0 128 C42 116 74 122 111 103 C151 82 189 91 227 99 C274 109 306 76 351 87 C394 98 431 73 512 83',
+  'M0 88 C45 101 79 74 122 82 C171 91 199 116 245 104 C291 92 318 118 363 108 C414 96 451 104 512 88',
+]
 
 interface ChartTooltipParam {
   dataIndex: number
@@ -770,7 +775,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
       </Tabs>
 
       {loading
-        ? <div className="flex h-40 items-center justify-center"><Spinner /></div>
+        ? <ChartSkeletonGrid />
         : error
           ? <div className="py-8 text-center text-red-500">{error}</div>
           : remoteData.length === 0
@@ -871,10 +876,71 @@ function ChartCard({ title, headerValue, option }: { title: string, headerValue:
           <div className="vercel-number min-w-0 text-right text-xs text-foreground/80">{headerValue}</div>
         </div>
       )}
-      className="rounded-md bg-card/95"
+      className="rounded-2xl bg-card"
     >
       <div className="h-48">
         <EChart option={option} />
+      </div>
+    </CardX>
+  )
+}
+
+function ChartSkeletonGrid() {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {chartSkeletonItems.map(item => <ChartCardSkeleton key={item} />)}
+    </div>
+  )
+}
+
+function ChartCardSkeleton() {
+  return (
+    <CardX
+      header={(
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-5 w-14" />
+          <Skeleton className="h-3 w-22" />
+        </div>
+      )}
+      className="rounded-2xl bg-card"
+    >
+      <div className="relative h-48 overflow-hidden">
+        <div className="absolute top-2 bottom-6 left-0 flex w-7 flex-col justify-between">
+          <Skeleton className="h-2 w-5 rounded-full opacity-65" />
+          <Skeleton className="h-2 w-4 rounded-full opacity-55" />
+          <Skeleton className="h-2 w-5 rounded-full opacity-45" />
+          <Skeleton className="h-2 w-3 rounded-full opacity-40" />
+        </div>
+        <div className="absolute top-2 right-0 bottom-6 left-9 overflow-hidden">
+          <div className="absolute inset-0 flex flex-col justify-between">
+            <span className="border-t border-dashed border-border/55" />
+            <span className="border-t border-dashed border-border/40" />
+            <span className="border-t border-dashed border-border/35" />
+            <span className="border-t border-dashed border-border/25" />
+          </div>
+          <div className="absolute inset-0 flex justify-between">
+            <span className="border-l border-border/25" />
+            <span className="border-l border-border/15" />
+            <span className="border-l border-border/15" />
+            <span className="border-l border-border/25" />
+          </div>
+          <svg className="absolute inset-0 size-full" viewBox="0 0 512 160" preserveAspectRatio="none" aria-hidden="true">
+            {loadChartSkeletonPaths.map((path, index) => (
+              <path
+                key={path}
+                d={path}
+                className={`komari-skeleton-chart-line komari-skeleton-chart-line-${index + 1}`}
+              />
+            ))}
+          </svg>
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-card/65 via-transparent to-card/65" />
+        </div>
+        <div className="absolute right-0 bottom-0 left-9 flex justify-between">
+          <Skeleton className="h-2 w-8" />
+          <Skeleton className="h-2 w-8" />
+          <Skeleton className="h-2 w-8" />
+          <Skeleton className="h-2 w-8" />
+        </div>
       </div>
     </CardX>
   )

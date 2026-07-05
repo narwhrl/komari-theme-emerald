@@ -143,7 +143,7 @@ export default function InstanceDetail({ id }: { id: string }) {
     return (
       <div className="instance-detail space-y-4">
         <div className="p-4">
-          <CardX className="rounded-md bg-card/95">
+          <CardX className="rounded-2xl bg-card">
             <Empty description="节点不存在或已被删除">
               <Button onClick={() => navigateTo('/')}>返回首页</Button>
             </Empty>
@@ -263,7 +263,7 @@ export default function InstanceDetail({ id }: { id: string }) {
 
       <div className="grid grid-cols-2 gap-4 px-4 lg:grid-cols-4">
         {financeCards.map(item => (
-          <CardX key={item.label} hoverable className="group h-full rounded-md bg-card/95">
+          <CardX key={item.label} hoverable className="group h-full rounded-2xl bg-card">
             <div className="flex h-full min-h-10 flex-col justify-between gap-3 md:min-h-18">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-medium tracking-wider text-muted-foreground">{item.label}</span>
@@ -284,7 +284,7 @@ export default function InstanceDetail({ id }: { id: string }) {
         <InfoCard title="硬件信息" items={hardwareInfo} firstWide />
         <InfoCard title="系统信息" items={systemInfo} data={data} />
         <InfoCard title="存储信息" items={storageInfo} columns="grid-cols-3" />
-        <CardX className="group h-full rounded-md bg-card/95">
+        <CardX className="group h-full rounded-2xl bg-card">
           <div className="mb-3 text-sm font-semibold">网络信息</div>
           <div className="grid grid-cols-2 gap-3">
             <div className="vercel-subtle relative min-w-0 overflow-hidden rounded-sm border border-transparent p-2">
@@ -332,7 +332,7 @@ function StatusMetricCard({ item }: { item: StatusCard }) {
   const hasProgress = typeof item.percentage === 'number'
 
   return (
-    <CardX hoverable className="group h-full rounded-md bg-card/95">
+    <CardX hoverable className="group h-full rounded-2xl bg-card">
       <div className="flex h-full min-h-26 flex-col justify-between gap-3">
         <div className="flex items-center justify-between gap-2">
           <span className="min-w-0 truncate text-xs font-medium tracking-wider text-muted-foreground">{item.label}</span>
@@ -353,7 +353,7 @@ function StatusMetricCard({ item }: { item: StatusCard }) {
 
 function InfoCard({ title, items, firstWide, columns = 'grid-cols-1 sm:grid-cols-2', data }: { title: string, items: InfoItem[], firstWide?: boolean, columns?: string, data?: NodeData }) {
   return (
-    <CardX className="group h-full rounded-md bg-card/95">
+    <CardX className="group h-full rounded-2xl bg-card">
       <div className="mb-3 text-sm font-semibold">{title}</div>
       <div className={`grid gap-3 ${columns}`}>
         {items.map((item, index) => (

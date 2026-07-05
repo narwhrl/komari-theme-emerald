@@ -3,12 +3,11 @@
 import type { KeyboardEvent, ReactNode } from 'react'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Empty } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
-import { Kbd } from '@/components/ui/kbd'
 import { cn } from '@/lib/utils'
 import { selectAppDerived, useAppStore } from '@/stores/app'
 import { selectNodeGroups, useNodesStore } from '@/stores/nodes'
@@ -96,6 +95,7 @@ export default function CommandMenu({
   const nodeViewMode = useAppStore(state => selectAppDerived(state).nodeViewMode)
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
+  const deferredQuery = useDeferredValue(query)
 
   useEffect(() => {
     if (!open)
@@ -118,7 +118,7 @@ export default function CommandMenu({
   }
 
   const allItems = useMemo<CommandItem[]>(() => {
-    const trimmedQuery = query.trim()
+    const trimmedQuery = deferredQuery.trim()
     const nextThemeLabel = themeMode === 'auto'
       ? '切换到浅色主题'
       : themeMode === 'light'
@@ -236,19 +236,19 @@ export default function CommandMenu({
     }))
 
     return [...searchItem, ...actions, ...groupItems, ...nodeItems]
-  }, [groupsRaw, hideAdminEntryWhenLoggedOut, homeSearchText, isLoggedIn, nodeViewMode, nodes, query, setHomeSearchText, setNodeSelectedGroup, setNodeViewMode, themeMode, updateThemeMode])
+  }, [deferredQuery, groupsRaw, hideAdminEntryWhenLoggedOut, homeSearchText, isLoggedIn, nodeViewMode, nodes, setHomeSearchText, setNodeSelectedGroup, setNodeViewMode, themeMode, updateThemeMode])
 
   const visibleItems = useMemo(() => {
     const searchItems = allItems.filter(item => item.section === 'search')
-    const actions = allItems.filter(item => item.section === 'actions' && commandMatches(item, query)).slice(0, 6)
-    const groups = allItems.filter(item => item.section === 'groups' && commandMatches(item, query)).slice(0, query.trim() ? 8 : 5)
-    const nodes = allItems.filter(item => item.section === 'nodes' && commandMatches(item, query)).slice(0, query.trim() ? 10 : 6)
+    const actions = allItems.filter(item => item.section === 'actions' && commandMatches(item, deferredQuery)).slice(0, 6)
+    const groups = allItems.filter(item => item.section === 'groups' && commandMatches(item, deferredQuery)).slice(0, deferredQuery.trim() ? 8 : 5)
+    const nodes = allItems.filter(item => item.section === 'nodes' && commandMatches(item, deferredQuery)).slice(0, deferredQuery.trim() ? 10 : 6)
     return [...searchItems, ...actions, ...groups, ...nodes]
-  }, [allItems, query])
+  }, [allItems, deferredQuery])
 
   useEffect(() => {
     setActiveIndex(0)
-  }, [query, visibleItems.length])
+  }, [deferredQuery, visibleItems.length])
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'ArrowDown') {
@@ -271,11 +271,17 @@ export default function CommandMenu({
       items: visibleItems.filter(item => item.section === section),
     }))
     .filter(group => group.items.length > 0)
+  const activeItem = visibleItems[activeIndex]
+  const sectionStats = groupedSections.map(group => ({
+    section: group.section,
+    title: sectionTitles[group.section],
+    count: group.items.length,
+  }))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="command-dialog top-16 max-h-[min(680px,calc(100dvh-5rem))] max-w-2xl translate-y-0 gap-0 overflow-hidden border-border bg-background/95 p-0 shadow-2xl backdrop-blur-xl sm:top-20"
+        className="command-dialog top-14 max-h-[min(720px,calc(100dvh-4rem))] max-w-3xl translate-y-0 gap-0 overflow-hidden rounded-2xl border-input bg-popover p-0 shadow-lg/5 backdrop-blur-xl sm:top-20"
         overlayClass="bg-background/45 backdrop-blur-[2px]"
       >
         <DialogHeader className="sr-only">
@@ -283,31 +289,56 @@ export default function CommandMenu({
           <DialogDescription>搜索节点或执行常用操作</DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-          <Icon icon="tabler:search" width={18} height={18} className="shrink-0 text-muted-foreground" />
-          <Input
-            ref={inputRef}
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-            onKeyDown={handleKeyDown}
-            role="combobox"
-            aria-expanded="true"
-            aria-controls="komari-command-list"
-            aria-activedescendant={visibleItems[activeIndex] ? `komari-command-${visibleItems[activeIndex].id}` : undefined}
-            aria-label="搜索节点或执行操作"
-            placeholder="搜索节点、分组或操作..."
-            className="h-10 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0"
-          />
-          <div className="hidden shrink-0 items-center gap-1 text-muted-foreground sm:flex">
-            <Kbd>Ctrl</Kbd>
-            <Kbd>K</Kbd>
+        <div className="border-b border-border/80 bg-muted/18">
+          <div className="flex items-center gap-3 py-3 pr-14 pl-4">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground shadow-xs">
+              <Icon icon="tabler:search" width={18} height={18} aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <label htmlFor="komari-command-input" className="sr-only">搜索节点或执行操作</label>
+              <Input
+                id="komari-command-input"
+                ref={inputRef}
+                type="search"
+                name="command-search"
+                autoComplete="off"
+                spellCheck={false}
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                onKeyDown={handleKeyDown}
+                role="combobox"
+                aria-expanded="true"
+                aria-controls="komari-command-list"
+                aria-activedescendant={activeItem ? `komari-command-${activeItem.id}` : undefined}
+                aria-label="搜索节点或执行操作"
+                placeholder="搜索节点、分组或操作…"
+                className="h-11 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0"
+              />
+            </div>
+            <span className="hidden shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground sm:inline-flex">
+              {visibleItems.length}
+              {' '}
+              项
+            </span>
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto px-4 pb-3 pr-14">
+            {sectionStats.length
+              ? sectionStats.map(stat => (
+                  <span key={stat.section} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                    {stat.title}
+                    <span className="vercel-number text-foreground">{stat.count}</span>
+                  </span>
+                ))
+              : (
+                  <span className="inline-flex shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">无结果</span>
+                )}
           </div>
         </div>
 
-        <div id="komari-command-list" role="listbox" className="max-h-[min(560px,calc(100dvh-10rem))] overflow-y-auto p-2">
+        <div id="komari-command-list" role="listbox" className="max-h-[min(540px,calc(100dvh-13rem))] overflow-y-auto overscroll-contain p-2">
           {groupedSections.length
             ? groupedSections.map(group => (
-                <CommandGroup key={group.section} title={sectionTitles[group.section]}>
+                <CommandGroup key={group.section} title={sectionTitles[group.section]} count={group.items.length}>
                   {group.items.map((item) => {
                     const itemIndex = visibleItems.findIndex(visibleItem => visibleItem.id === item.id)
                     const active = itemIndex === activeIndex
@@ -319,18 +350,22 @@ export default function CommandMenu({
                         role="option"
                         aria-selected={active}
                         className={cn(
-                          'motion-command-item flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-left outline-none transition-[background-color,color,transform] duration-150 ease-out focus-visible:ring-[3px] focus-visible:ring-ring/30',
-                          active ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent/70',
+                          'motion-command-item grid min-h-14 w-full cursor-pointer grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-3 py-2.5 text-left outline-none transition-[background-color,color,box-shadow,transform] duration-150 ease-out focus-visible:ring-[3px] focus-visible:ring-ring/30',
+                          active ? 'bg-foreground text-background shadow-sm' : 'text-foreground hover:bg-accent/70',
                         )}
                         onMouseEnter={() => setActiveIndex(itemIndex)}
                         onClick={() => runCommand(item)}
                       >
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
-                          <Icon icon={item.icon} width={17} height={17} />
+                        <span className={cn(
+                          'flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors',
+                          active ? 'border-background/20 bg-background/15 text-background' : 'border-border bg-background text-muted-foreground',
+                        )}
+                        >
+                          <Icon icon={item.icon} width={17} height={17} aria-hidden="true" />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{item.label}</span>
-                          <span className="block truncate text-xs text-muted-foreground">{item.description}</span>
+                          <span className={cn('block truncate text-xs', active ? 'text-background/70' : 'text-muted-foreground')}>{item.description}</span>
                         </span>
                         {item.badge ? <span className="shrink-0">{item.badge}</span> : null}
                       </button>
@@ -340,19 +375,17 @@ export default function CommandMenu({
               ))
             : (
                 <div className="py-10">
-                  <Empty description="没有匹配的操作" />
+                  <Empty description="没有匹配项，试试节点名称、地区或分组" />
                 </div>
               )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-          <span>输入筛选，回车执行</span>
-          <span className="hidden items-center gap-1 sm:flex">
-            <Kbd>↑</Kbd>
-            <Kbd>↓</Kbd>
-            <span>选择</span>
-            <Kbd>Enter</Kbd>
-            <span>执行</span>
+        <div className="flex min-h-11 items-center justify-between gap-3 border-t border-border bg-muted/12 px-4 py-2 text-[11px] text-muted-foreground">
+          <span className="min-w-0 truncate">
+            {activeItem ? `${sectionTitles[activeItem.section]} / ${activeItem.label}` : '没有可选项目'}
+          </span>
+          <span className="vercel-number shrink-0 rounded-full border border-border bg-background px-2 py-0.5 font-medium text-foreground">
+            {visibleItems.length ? `${Math.min(activeIndex + 1, visibleItems.length)} / ${visibleItems.length}` : '0'}
           </span>
         </div>
       </DialogContent>
@@ -360,10 +393,13 @@ export default function CommandMenu({
   )
 }
 
-function CommandGroup({ title, children }: { title: string, children: ReactNode }) {
+function CommandGroup({ title, count, children }: { title: string, count: number, children: ReactNode }) {
   return (
-    <section className="mb-2 last:mb-0">
-      <div className="px-3 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground">{title}</div>
+    <section className="mb-2 last:mb-0" aria-label={title}>
+      <div className="flex items-center justify-between px-3 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground">
+        <span>{title}</span>
+        <span className="vercel-number">{count}</span>
+      </div>
       <div className="space-y-1">{children}</div>
     </section>
   )

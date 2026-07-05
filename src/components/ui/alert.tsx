@@ -4,12 +4,12 @@ import { cva } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const alertVariants = cva(
-  'relative w-full rounded-lg border px-4 py-3 text-sm',
+  'relative w-full rounded-xl border px-3.5 py-3 text-sm text-card-foreground',
   {
     variants: {
       variant: {
-        default: 'bg-card text-card-foreground',
-        destructive: 'border-destructive/50 text-destructive dark:border-destructive',
+        default: 'bg-transparent dark:bg-input/32',
+        destructive: 'border-destructive/32 bg-destructive/4 text-destructive',
       },
     },
     defaultVariants: {

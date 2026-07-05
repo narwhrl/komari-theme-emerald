@@ -3,12 +3,14 @@ import { cn } from '@/lib/utils'
 
 export function CardX({
   className,
+  contentClassName,
   header,
   headerExtra,
   children,
   hoverable,
   ...props
 }: ComponentProps<'div'> & {
+  contentClassName?: string
   header?: ReactNode
   headerExtra?: ReactNode
   hoverable?: boolean
@@ -16,8 +18,8 @@ export function CardX({
   return (
     <div
       className={cn(
-        'vercel-card rounded-lg text-card-foreground',
-        hoverable && 'motion-card hover:border-foreground/15 hover:bg-card hover:shadow-md',
+        'vercel-card rounded-2xl text-card-foreground',
+        hoverable && 'motion-card hover:bg-card hover:shadow-md/5',
         className,
       )}
       {...props}
@@ -30,7 +32,7 @@ export function CardX({
             </div>
           )
         : null}
-      <div className="p-4">{children}</div>
+      <div className={cn('p-4', contentClassName)}>{children}</div>
     </div>
   )
 }

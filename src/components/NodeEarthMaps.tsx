@@ -5,7 +5,7 @@ import type { NodeData } from '@/stores/nodes'
 import * as echarts from 'echarts/core'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Empty } from '@/components/ui/empty'
-import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useAppDerived } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { ensureWorldMapRegistered } from '@/utils/echartsWorldMap'
@@ -134,7 +134,7 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
         <div className="relative w-full flex-1 -translate-y-1/6">
           {loading
             ? (
-                <div className="flex h-full w-full items-center justify-center"><Spinner /></div>
+                <MapSkeleton />
               )
             : mapName
               ? (
@@ -147,6 +147,18 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
                 : null}
         </div>
       </div>
+    </div>
+  )
+}
+
+function MapSkeleton() {
+  return (
+    <div className="relative h-full w-full overflow-hidden">
+      <Skeleton className="absolute top-0 right-0 h-5 w-20 rounded" />
+      <Skeleton className="absolute top-1/2 left-1/2 h-[82%] w-[92%] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-80" />
+      <Skeleton className="absolute top-[34%] left-[28%] h-4 w-12 rounded" />
+      <Skeleton className="absolute top-[44%] left-[52%] h-4 w-10 rounded" />
+      <Skeleton className="absolute top-[58%] left-[39%] h-4 w-14 rounded" />
     </div>
   )
 }

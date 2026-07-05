@@ -122,7 +122,7 @@ export default function NodeCard({
   return (
     <CardX
       hoverable
-      className={`node-card h-full w-full cursor-pointer rounded-md bg-card/95 ${!node.online ? '!border-destructive/25' : ''}`}
+      className={`node-card h-full w-full cursor-pointer rounded-2xl bg-card ${!node.online ? '!border-destructive/25' : ''}`}
       onClick={onClick}
       header={(
         <div className="flex min-w-0 items-center gap-2">

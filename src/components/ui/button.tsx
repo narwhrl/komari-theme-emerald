@@ -7,21 +7,21 @@ import { cva } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium outline-none transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 hover:-translate-y-px active:translate-y-0 active:scale-[0.98]',
+  'relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border text-sm font-medium outline-none transition-shadow before:pointer-events-none before:absolute before:inset-0 before:rounded-[calc(var(--radius-lg)-1px)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-64 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4',
   {
     variants: {
       variant: {
-        default: 'border border-primary bg-primary text-primary-foreground shadow-xs hover:bg-primary/90',
-        destructive: 'border border-destructive bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90',
-        outline: 'border border-border bg-background shadow-xs hover:border-foreground/20 hover:bg-accent hover:text-accent-foreground',
-        secondary: 'border border-border bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
-        ghost: 'border border-transparent hover:border-border hover:bg-accent hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
+        default: 'border-primary bg-primary text-primary-foreground shadow-primary/24 shadow-xs hover:bg-primary/90 data-pressed:bg-primary/90 disabled:shadow-none',
+        destructive: 'border-destructive bg-destructive text-white shadow-destructive/24 shadow-xs hover:bg-destructive/90 data-pressed:bg-destructive/90 disabled:shadow-none',
+        outline: 'border-input bg-popover text-foreground shadow-xs/5 not-dark:bg-clip-padding hover:bg-accent/50 data-pressed:bg-accent/50 dark:bg-input/32 dark:hover:bg-input/64',
+        secondary: 'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/90 data-pressed:bg-secondary/90',
+        ghost: 'border-transparent text-foreground hover:bg-accent data-pressed:bg-accent',
+        link: 'border-transparent text-foreground underline-offset-4 hover:underline data-pressed:underline',
       },
       size: {
         'default': 'h-9 px-4 py-2',
-        'sm': 'h-8 rounded-md px-3 text-xs',
-        'lg': 'h-10 rounded-md px-6',
+        'sm': 'h-8 gap-1.5 px-3 text-xs',
+        'lg': 'h-10 px-6',
         'icon': 'size-9',
         'icon-sm': 'size-8',
       },

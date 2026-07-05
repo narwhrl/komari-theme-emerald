@@ -53,7 +53,7 @@ export default function AppPage() {
     <Provider>
       <Background />
       {loading ? <LoadingCover /> : null}
-      <Header route={route} />
+      <Header />
       {!loading
         ? (
             <main className="flex-1">
