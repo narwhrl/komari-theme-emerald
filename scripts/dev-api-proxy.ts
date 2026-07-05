@@ -50,6 +50,22 @@ function getCorsHeaders(request: IncomingMessage): Record<string, string> {
   }
 }
 
+function getProxyResponseHeaders(request: IncomingMessage, upstreamHeaders: IncomingMessage['headers']): Record<string, string | string[]> {
+  const headers: Record<string, string | string[]> = {}
+
+  for (const [key, value] of Object.entries(upstreamHeaders)) {
+    const normalizedKey = key.toLowerCase()
+    if (typeof value === 'undefined' || normalizedKey.startsWith('access-control-') || normalizedKey === 'vary')
+      continue
+    headers[key] = value
+  }
+
+  return {
+    ...headers,
+    ...getCorsHeaders(request),
+  }
+}
+
 function resolveTargetUrl(target: URL, requestUrl?: string): URL | null {
   const localUrl = new URL(requestUrl || '/', 'http://localhost')
   if (!localUrl.pathname.startsWith('/api'))
@@ -102,10 +118,7 @@ function proxyHttpRequest(target: URL, request: IncomingMessage, response: Serve
     headers: requestHeaders,
     method: request.method,
   }, (upstreamResponse) => {
-    response.writeHead(upstreamResponse.statusCode ?? 502, {
-      ...upstreamResponse.headers,
-      ...getCorsHeaders(request),
-    })
+    response.writeHead(upstreamResponse.statusCode ?? 502, getProxyResponseHeaders(request, upstreamResponse.headers))
     upstreamResponse.pipe(response)
   })
 
