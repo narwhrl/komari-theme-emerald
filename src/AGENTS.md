@@ -19,11 +19,12 @@ This document applies to `/src` only. Keep changes aligned with the current Next
 
 ## UI Library
 
-`src/components/ui/` is the local coss-ui-style component library (alert, avatar, back-top, badge, button, card-x, dialog, empty, input, progress-thin, sonner, spinner, tabs, tooltip).
+`src/components/ui/` is the local coss-ui-style component library (alert, avatar, back-top, badge, button, card-x, dialog, empty, group, input, progress-thin, sonner, spinner, tabs, toggle-group, tooltip).
 
 - Wrap `@base-ui/react` primitives when applicable.
 - Declare variants with `class-variance-authority` and merge classes with `cn()` from `@/lib/utils`.
 - Use Tailwind utilities and CSS variables from `@/styles/main.css`.
+- For local coss-ui-style usage patterns, see `docs/coss-ui.md`.
 
 When adding UI:
 

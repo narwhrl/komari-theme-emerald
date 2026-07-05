@@ -30,6 +30,10 @@ bun run dev
 bun run lint
 ```
 
+## 开发文档
+
+- [coss-ui 本地组件使用指南](./docs/coss-ui.md)
+
 ## 构建
 
 ```bash

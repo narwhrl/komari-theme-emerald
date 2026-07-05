@@ -23,6 +23,7 @@ Repo guide for `komari-theme-emerald`.
 - `src/` app source
 - `public/images/` runtime image contract, especially flags and logos
 - `.github/` release workflow
+- `docs/coss-ui.md` local coss-ui-style component usage notes
 - `docs/preview.png` release preview image
 - `komari-theme.json` theme manifest consumed by the zip build
 - `next.config.ts` Next static export configuration
@@ -110,6 +111,7 @@ Contributor density, useful for triage:
 - Respect existing generated outputs and naming patterns, especially `komari-theme-emerald-build-<sha>.zip`
 - Root verification is lint plus build, not tests
 - UI is built on coss-ui-style local React components, `@base-ui/react`, and Tailwind CSS v4 under `src/components/ui/`. Do **not** reintroduce Naive UI, reka-ui, Vue component libraries, UnoCSS, or SCSS.
+- Check `docs/coss-ui.md` before adding or changing grouped controls, toggle groups, or other coss-ui-style primitives.
 
 ## Repo grounded anti-patterns
 
