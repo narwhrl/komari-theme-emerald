@@ -1,11 +1,13 @@
 'use client'
 
 import type { EChartsOption } from 'echarts'
+import { Icon } from '@iconify/react'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import EChart from '@/components/EChart'
 import { Button } from '@/components/ui/button'
 import { Empty } from '@/components/ui/empty'
+import { Group, GroupSeparator } from '@/components/ui/group'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs'
 import { useAppDerived, useAppStore } from '@/stores/app'
@@ -410,9 +412,6 @@ export default function PingChart({ uuid, className }: { uuid: string, className
       setSelectedTaskIds([])
   }
 
-  const getToggleButtonClass = (active: boolean) =>
-    `h-7 rounded-sm bg-background/50 px-2 text-xs shadow-none hover:bg-background ${active ? 'text-primary shadow-[0_0_0_2px] shadow-primary/10' : 'text-muted-foreground'}`
-
   return (
     <div className={`flex flex-col gap-4 ${className ?? ''}`}>
       <Tabs value={selectedView} onValueChange={value => setSelectedView(String(value))} className="w-full">
@@ -470,38 +469,37 @@ export default function PingChart({ uuid, className }: { uuid: string, className
                       </button>
                     ))}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <Group aria-label="延迟图表显示选项">
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="sm"
+                      variant="outline"
                       aria-pressed={showDelay}
-                      className={getToggleButtonClass(showDelay)}
                       onClick={() => setShowDelay(value => !value)}
                     >
+                      <Icon icon="lucide:clock" aria-hidden="true" className="size-4" />
                       延迟
                     </Button>
+                    <GroupSeparator />
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="sm"
+                      variant="outline"
                       aria-pressed={showLoss}
-                      className={getToggleButtonClass(showLoss)}
                       onClick={() => setShowLoss(value => !value)}
                     >
+                      <Icon icon="lucide:package-x" aria-hidden="true" className="size-4" />
                       丢包
                     </Button>
+                    <GroupSeparator />
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="sm"
+                      variant="outline"
                       aria-pressed={cutPeak}
-                      className={getToggleButtonClass(cutPeak)}
                       onClick={() => setCutPeak(value => !value)}
                     >
+                      <Icon icon="lucide:chart-spline" aria-hidden="true" className="size-4" />
                       平滑峰值
                     </Button>
-                  </div>
+                  </Group>
                   <div className="vercel-card h-80 rounded-2xl bg-card p-4">
                     <EChart option={option} />
                   </div>
