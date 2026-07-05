@@ -3,7 +3,7 @@
 import type { NodeViewMode } from '@/stores/app'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
 import NodeCard from '@/components/NodeCard'
 import NodeGeneralCards from '@/components/NodeGeneralCards'
@@ -14,8 +14,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Empty } from '@/components/ui/empty'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
+import { ToggleGroup, ToggleGroupItem, ToggleGroupSeparator } from '@/components/ui/toggle-group'
 import { DataTooltip } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { selectNodeGroups, useNodesStore } from '@/stores/nodes'
 import { isNodeInGroup, parseNodeGroups } from '@/utils/groupHelper'
@@ -46,6 +46,10 @@ function isNodeMatchSearch(node: NodeData, search: string): boolean {
   if (node.remark && node.remark.toLowerCase().includes(lowerSearch))
     return true
   return false
+}
+
+function isNodeViewMode(value: string | undefined): value is NodeViewMode {
+  return value === 'card' || value === 'list'
 }
 
 export default function HomeView() {
@@ -231,26 +235,32 @@ export default function HomeView() {
 
 function NodeViewModeToggle({ value, onValueChange }: { value: NodeViewMode, onValueChange: (mode: NodeViewMode) => void }) {
   return (
-    <div role="group" aria-label="节点视图切换" className="pointer-events-auto inline-flex shrink-0 items-center rounded-lg border border-input bg-muted/72 p-0.5 shadow-xs/5">
-      {nodeViewModeOptions.map((option) => {
-        const active = value === option.mode
+    <ToggleGroup
+      aria-label="节点视图切换"
+      className="pointer-events-auto shrink-0"
+      onValueChange={(modes) => {
+        const nextMode = modes.at(0)
+        if (isNodeViewMode(nextMode))
+          onValueChange(nextMode)
+      }}
+      value={[value]}
+      variant="outline"
+    >
+      {nodeViewModeOptions.map((option, index) => {
         return (
-          <DataTooltip key={option.mode} content={option.label} placement="top" contentClass="whitespace-nowrap text-[11px] px-2">
-            <button
-              type="button"
-              aria-label={option.label}
-              aria-pressed={active}
-              className={cn(
-                'flex h-9 min-w-10 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-[background-color,color,box-shadow] duration-150 ease-out hover:bg-background hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background',
-                active && 'bg-background text-foreground shadow-xs/5 hover:bg-background dark:bg-input/64',
-              )}
-              onClick={() => onValueChange(option.mode)}
-            >
-              <Icon icon={option.icon} width={17} height={17} />
-            </button>
-          </DataTooltip>
+          <Fragment key={option.mode}>
+            {index > 0 ? <ToggleGroupSeparator /> : null}
+            <DataTooltip content={option.label} placement="top" contentClass="whitespace-nowrap text-[11px] px-2">
+              <ToggleGroupItem
+                aria-label={option.label}
+                value={option.mode}
+              >
+                <Icon icon={option.icon} width={17} height={17} />
+              </ToggleGroupItem>
+            </DataTooltip>
+          </Fragment>
         )
       })}
-    </div>
+    </ToggleGroup>
   )
 }
