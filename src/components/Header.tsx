@@ -23,6 +23,7 @@ interface HeaderActionButton {
   title: string
   icon: string
   action: HeaderAction
+  label?: string
 }
 
 export default function Header() {
@@ -51,6 +52,7 @@ export default function Header() {
         title: '在 GitHub 上 Star',
         icon: 'mdi:github',
         action: 'openGithubRepository',
+        label: 'Star',
       })
     }
     else if (isLoggedIn || !hideAdminEntryWhenLoggedOut) {
@@ -149,8 +151,9 @@ export default function Header() {
 
           {actionButtons.map(button => (
             <DataTooltip key={button.action} content={button.title} placement="bottom" contentClass="whitespace-nowrap text-[11px] px-2">
-              <Button type="button" variant="ghost" size="icon-sm" aria-label={button.title} className={topbarButtonClass} onClick={() => handleButtonClick(button.action)}>
-                <Icon icon={button.icon} width={18} height={18} />
+              <Button type="button" variant="ghost" size={button.label ? 'sm' : 'icon-sm'} aria-label={button.title} className={topbarButtonClass} onClick={() => handleButtonClick(button.action)}>
+                <Icon icon={button.icon} width={button.label ? 16 : 18} height={button.label ? 16 : 18} />
+                {button.label ? <span>{button.label}</span> : null}
               </Button>
             </DataTooltip>
           ))}
