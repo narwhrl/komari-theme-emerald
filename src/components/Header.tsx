@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable node/prefer-global/process */
+
 import { Icon } from '@iconify/react'
 import { use, useEffect, useMemo, useState } from 'react'
 import CommandMenu from '@/components/CommandMenu'
@@ -12,6 +14,17 @@ import { selectAppDerived, useAppStore } from '@/stores/app'
 import { navigateTo } from '@/utils/navigation'
 
 const topbarButtonClass = 'hover:translate-y-0'
+const isCloudflarePages = process.env.NEXT_PUBLIC_IS_CLOUDFLARE_PAGES === 'true'
+const githubRepositoryUrl = process.env.NEXT_PUBLIC_GITHUB_REPOSITORY_URL
+
+type HeaderAction = 'toggleTheme' | 'jumpToSetting' | 'openGithubRepository'
+
+interface HeaderActionButton {
+  title: string
+  icon: string
+  action: HeaderAction
+  label?: string
+}
 
 export default function Header() {
   const isScrolled = use(ScrollContext)
@@ -23,9 +36,10 @@ export default function Header() {
   const hideAdminEntryWhenLoggedOut = useAppStore(state => selectAppDerived(state).hideAdminEntryWhenLoggedOut)
   const [commandOpen, setCommandOpen] = useState(false)
 
+  const isBrandLoading = publicSettings === undefined
   const sitename = publicSettings?.sitename || 'Komari Monitor'
-  const actionButtons = useMemo(() => {
-    const buttons = [
+  const actionButtons = useMemo<HeaderActionButton[]>(() => {
+    const buttons: HeaderActionButton[] = [
       {
         title: themeMode === 'auto' ? '自动主题' : themeMode === 'light' ? '浅色主题' : '深色主题',
         icon: themeMode === 'auto' ? 'icon-park-outline:dark-mode' : themeMode === 'light' ? 'icon-park-outline:sun-one' : 'icon-park-outline:moon',
@@ -33,7 +47,15 @@ export default function Header() {
       },
     ]
 
-    if (isLoggedIn || !hideAdminEntryWhenLoggedOut) {
+    if (isCloudflarePages) {
+      buttons.push({
+        title: '在 GitHub 上 Star',
+        icon: 'lucide:github',
+        action: 'openGithubRepository',
+        label: 'Star',
+      })
+    }
+    else if (isLoggedIn || !hideAdminEntryWhenLoggedOut) {
       buttons.push({
         title: '后台管理',
         icon: 'icon-park-outline:setting',
@@ -56,13 +78,16 @@ export default function Header() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  function handleButtonClick(action: string) {
+  function handleButtonClick(action: HeaderAction) {
     switch (action) {
       case 'toggleTheme':
         updateThemeMode()
         break
       case 'jumpToSetting':
         window.location.href = '/admin'
+        break
+      case 'openGithubRepository':
+        window.open(githubRepositoryUrl, '_blank', 'noopener,noreferrer')
         break
     }
   }
@@ -78,13 +103,26 @@ export default function Header() {
         <button
           type="button"
           className="group/brand flex min-w-0 cursor-pointer items-center gap-3 rounded-md text-left outline-none transition-[color,box-shadow] duration-150 ease-out focus-visible:ring-[3px] focus-visible:ring-ring/30"
+          aria-label={isBrandLoading ? '站点信息加载中' : sitename}
+          aria-busy={isBrandLoading}
           onClick={() => navigateTo('/')}
         >
-          <Avatar className="size-8 ring-1 ring-border transition-transform duration-200 ease-out group-hover/brand:scale-105">
-            <AvatarImage src="/favicon.ico" alt={sitename} />
-            <AvatarFallback>{sitename.slice(0, 1)}</AvatarFallback>
-          </Avatar>
-          <h1 className="m-0 max-w-[34vw] truncate text-base font-semibold tracking-tight sm:max-w-none">{sitename}</h1>
+          {isBrandLoading
+            ? (
+                <>
+                  <span aria-hidden="true" className="komari-skeleton block size-8 shrink-0 rounded-full" />
+                  <span aria-hidden="true" className="komari-skeleton block h-4 w-32 max-w-[34vw] rounded-md" />
+                </>
+              )
+            : (
+                <>
+                  <Avatar className="size-8 ring-1 ring-border transition-transform duration-200 ease-out group-hover/brand:scale-105">
+                    <AvatarImage src="/favicon.ico" alt={sitename} />
+                    <AvatarFallback>{sitename.slice(0, 1)}</AvatarFallback>
+                  </Avatar>
+                  <h1 className="m-0 max-w-[34vw] truncate text-base font-semibold tracking-tight sm:max-w-none">{sitename}</h1>
+                </>
+              )}
         </button>
 
         <div className="min-w-0 flex-1" />
@@ -113,8 +151,9 @@ export default function Header() {
 
           {actionButtons.map(button => (
             <DataTooltip key={button.action} content={button.title} placement="bottom" contentClass="whitespace-nowrap text-[11px] px-2">
-              <Button type="button" variant="ghost" size="icon-sm" aria-label={button.title} className={topbarButtonClass} onClick={() => handleButtonClick(button.action)}>
-                <Icon icon={button.icon} width={18} height={18} />
+              <Button type="button" variant={button.label ? 'default' : 'ghost'} size={button.label ? 'sm' : 'icon-sm'} aria-label={button.title} className={topbarButtonClass} onClick={() => handleButtonClick(button.action)}>
+                <Icon icon={button.icon} width={button.label ? 16 : 18} height={button.label ? 16 : 18} aria-hidden="true" />
+                {button.label ? <span>{button.label}</span> : null}
               </Button>
             </DataTooltip>
           ))}

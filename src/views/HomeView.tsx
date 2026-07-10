@@ -142,15 +142,24 @@ export default function HomeView() {
       <div className={`node-info relative z-1 flex flex-col gap-4 p-4 pt-0 md:pointer-events-none ${derived.earthViewMode === 'hide' ? 'pt-4' : ''}`}>
         <div className="nodes">
           <Tabs value={nodeSelectedGroup} onValueChange={value => setNodeSelectedGroup(String(value))} className="flex w-full flex-col gap-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-              <div className="min-w-0 flex-1 overflow-x-auto rounded-sm md:pointer-events-auto">
-                <TabsList aria-label="节点分组">
+            <div className="flex min-w-0 items-center gap-2 max-[359px]:gap-1">
+              <div className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain rounded-sm md:pointer-events-auto">
+                <TabsList aria-label="节点分组" className="max-[359px]:gap-x-0">
                   {groups.map(group => (
                     <TabsTab
                       key={group.name}
                       value={group.name}
+                      aria-label={group.tab}
+                      className="px-[calc(--spacing(2)-1px)] text-sm max-[399px]:px-1 max-[399px]:text-xs max-[329px]:px-0.5"
                     >
-                      {group.tab}
+                      {group.name === 'all'
+                        ? (
+                            <>
+                              <span className="max-[399px]:hidden">全部节点</span>
+                              <span className="hidden max-[399px]:inline">全部</span>
+                            </>
+                          )
+                        : group.tab}
                     </TabsTab>
                   ))}
                 </TabsList>
@@ -253,9 +262,10 @@ function NodeViewModeToggle({ value, onValueChange }: { value: NodeViewMode, onV
             <DataTooltip content={option.label} placement="top" contentClass="whitespace-nowrap text-[11px] px-2">
               <ToggleGroupItem
                 aria-label={option.label}
+                className="max-[359px]:min-w-9 max-[359px]:px-1.5"
                 value={option.mode}
               >
-                <Icon icon={option.icon} width={17} height={17} />
+                <Icon icon={option.icon} width={17} height={17} className="max-[359px]:size-4" />
               </ToggleGroupItem>
             </DataTooltip>
           </Fragment>

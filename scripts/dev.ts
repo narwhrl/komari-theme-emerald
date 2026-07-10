@@ -29,7 +29,10 @@ function readDevOptions(args: string[]): { backendTarget?: string, nextArgs: str
 
 const { backendTarget, nextArgs } = readDevOptions(process.argv.slice(2))
 const proxy = backendTarget ? await startDevApiProxy(backendTarget) : null
-const env = { ...process.env }
+const env: NodeJS.ProcessEnv = {
+  ...process.env,
+  CF_PAGES: process.env.CF_PAGES ?? '1',
+}
 
 if (proxy) {
   env.NEXT_PUBLIC_API_BASE = proxy.apiBase
