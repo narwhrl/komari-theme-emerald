@@ -50,7 +50,7 @@ export default function Header() {
     if (isCloudflarePages) {
       buttons.push({
         title: '在 GitHub 上 Star',
-        icon: 'mdi:github',
+        icon: 'lucide:github',
         action: 'openGithubRepository',
         label: 'Star',
       })
@@ -151,8 +151,8 @@ export default function Header() {
 
           {actionButtons.map(button => (
             <DataTooltip key={button.action} content={button.title} placement="bottom" contentClass="whitespace-nowrap text-[11px] px-2">
-              <Button type="button" variant="ghost" size={button.label ? 'sm' : 'icon-sm'} aria-label={button.title} className={topbarButtonClass} onClick={() => handleButtonClick(button.action)}>
-                <Icon icon={button.icon} width={button.label ? 16 : 18} height={button.label ? 16 : 18} />
+              <Button type="button" variant={button.label ? 'default' : 'ghost'} size={button.label ? 'sm' : 'icon-sm'} aria-label={button.title} className={topbarButtonClass} onClick={() => handleButtonClick(button.action)}>
+                <Icon icon={button.icon} width={button.label ? 16 : 18} height={button.label ? 16 : 18} aria-hidden="true" />
                 {button.label ? <span>{button.label}</span> : null}
               </Button>
             </DataTooltip>
