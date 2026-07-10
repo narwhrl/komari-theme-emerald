@@ -285,7 +285,7 @@ export default function CommandMenu({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="command-dialog top-14 max-h-[min(720px,calc(100dvh-4rem))] max-w-3xl translate-y-0 gap-0 overflow-hidden rounded-2xl border-input bg-popover p-0 shadow-lg/5 backdrop-blur-xl sm:top-20"
+        className="command-dialog top-4 max-h-[calc(100dvh-2rem)] max-w-2xl translate-y-0 gap-0 overflow-hidden rounded-2xl border-input bg-popover p-0 shadow-lg/5 backdrop-blur-xl sm:top-1/2 sm:max-h-[min(720px,calc(100dvh-3rem))] sm:-translate-y-1/2"
         overlayClass="bg-background/45 backdrop-blur-[2px]"
       >
         <DialogHeader className="sr-only">
@@ -339,7 +339,7 @@ export default function CommandMenu({
           </div>
         </div>
 
-        <div id="komari-command-list" role="listbox" className="max-h-[min(540px,calc(100dvh-13rem))] overflow-y-auto overscroll-contain p-2">
+        <div id="komari-command-list" role="listbox" className="max-h-[min(520px,calc(100dvh-16rem))] overflow-y-auto overscroll-contain p-2">
           {groupedSections.length
             ? groupedSections.map(group => (
                 <CommandGroup key={group.section} title={sectionTitles[group.section]} count={group.items.length}>
@@ -384,13 +384,19 @@ export default function CommandMenu({
               )}
         </div>
 
-        <div className="flex min-h-11 items-center justify-between gap-3 border-t border-border bg-muted/12 px-4 py-2 text-[11px] text-muted-foreground">
-          <span className="min-w-0 truncate">
-            {activeItem ? `${sectionTitles[activeItem.section]} / ${activeItem.label}` : '没有可选项目'}
-          </span>
-          <span className="vercel-number shrink-0 rounded-full border border-border bg-background px-2 py-0.5 font-medium text-foreground">
-            {visibleItems.length ? `${Math.min(activeIndex + 1, visibleItems.length)} / ${visibleItems.length}` : '0'}
-          </span>
+        <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border bg-muted/12 px-4 py-2 text-[11px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <CommandFooterHint label="导航">
+              <CommandKey icon="lucide:arrow-up" />
+              <CommandKey icon="lucide:arrow-down" />
+            </CommandFooterHint>
+            <CommandFooterHint label="打开">
+              <CommandKey icon="lucide:corner-down-left" />
+            </CommandFooterHint>
+          </div>
+          <CommandFooterHint label="关闭" className="shrink-0">
+            <CommandKey>Esc</CommandKey>
+          </CommandFooterHint>
         </div>
       </DialogContent>
     </Dialog>
@@ -399,12 +405,29 @@ export default function CommandMenu({
 
 function CommandGroup({ title, count, children }: { title: string, count: number, children: ReactNode }) {
   return (
-    <section className="mb-2 last:mb-0" aria-label={title}>
-      <div className="flex items-center justify-between px-3 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground">
+    <section className="mb-2 border-t border-border/60 pt-2 first:border-t-0 first:pt-0 last:mb-0" aria-label={title}>
+      <div className="flex items-center justify-between px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
         <span>{title}</span>
         <span className="vercel-number">{count}</span>
       </div>
       <div className="space-y-1">{children}</div>
     </section>
+  )
+}
+
+function CommandKey({ icon, children }: { icon?: string, children?: ReactNode }) {
+  return (
+    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-border bg-background px-1 text-[10px] font-medium text-foreground shadow-xs">
+      {icon ? <Icon icon={icon} width={12} height={12} aria-hidden="true" /> : children}
+    </kbd>
+  )
+}
+
+function CommandFooterHint({ label, className, children }: { label: string, className?: string, children: ReactNode }) {
+  return (
+    <span className={cn('flex items-center gap-1.5', className)}>
+      <span className="flex items-center gap-0.5">{children}</span>
+      <span>{label}</span>
+    </span>
   )
 }
