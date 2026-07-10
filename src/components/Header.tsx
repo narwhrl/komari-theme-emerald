@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable node/prefer-global/process */
+
 import { Icon } from '@iconify/react'
 import { use, useEffect, useMemo, useState } from 'react'
 import CommandMenu from '@/components/CommandMenu'
@@ -12,6 +14,16 @@ import { selectAppDerived, useAppStore } from '@/stores/app'
 import { navigateTo } from '@/utils/navigation'
 
 const topbarButtonClass = 'hover:translate-y-0'
+const isCloudflarePages = process.env.NEXT_PUBLIC_IS_CLOUDFLARE_PAGES === 'true'
+const githubRepositoryUrl = process.env.NEXT_PUBLIC_GITHUB_REPOSITORY_URL
+
+type HeaderAction = 'toggleTheme' | 'jumpToSetting' | 'openGithubRepository'
+
+interface HeaderActionButton {
+  title: string
+  icon: string
+  action: HeaderAction
+}
 
 export default function Header() {
   const isScrolled = use(ScrollContext)
@@ -25,8 +37,8 @@ export default function Header() {
 
   const isBrandLoading = publicSettings === undefined
   const sitename = publicSettings?.sitename || 'Komari Monitor'
-  const actionButtons = useMemo(() => {
-    const buttons = [
+  const actionButtons = useMemo<HeaderActionButton[]>(() => {
+    const buttons: HeaderActionButton[] = [
       {
         title: themeMode === 'auto' ? '自动主题' : themeMode === 'light' ? '浅色主题' : '深色主题',
         icon: themeMode === 'auto' ? 'icon-park-outline:dark-mode' : themeMode === 'light' ? 'icon-park-outline:sun-one' : 'icon-park-outline:moon',
@@ -34,7 +46,14 @@ export default function Header() {
       },
     ]
 
-    if (isLoggedIn || !hideAdminEntryWhenLoggedOut) {
+    if (isCloudflarePages) {
+      buttons.push({
+        title: '在 GitHub 上 Star',
+        icon: 'mdi:github',
+        action: 'openGithubRepository',
+      })
+    }
+    else if (isLoggedIn || !hideAdminEntryWhenLoggedOut) {
       buttons.push({
         title: '后台管理',
         icon: 'icon-park-outline:setting',
@@ -57,13 +76,16 @@ export default function Header() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  function handleButtonClick(action: string) {
+  function handleButtonClick(action: HeaderAction) {
     switch (action) {
       case 'toggleTheme':
         updateThemeMode()
         break
       case 'jumpToSetting':
         window.location.href = '/admin'
+        break
+      case 'openGithubRepository':
+        window.open(githubRepositoryUrl, '_blank', 'noopener,noreferrer')
         break
     }
   }

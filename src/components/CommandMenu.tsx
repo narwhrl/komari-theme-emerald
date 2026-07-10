@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable node/prefer-global/process */
+
 import type { KeyboardEvent, ReactNode } from 'react'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
@@ -35,6 +37,8 @@ const sectionTitles: Record<CommandSection, string> = {
   groups: '分组',
   nodes: '节点',
 }
+
+const isCloudflarePages = process.env.NEXT_PUBLIC_IS_CLOUDFLARE_PAGES === 'true'
 
 function normalize(value: unknown): string {
   return typeof value === 'string' ? value.trim().toLowerCase() : ''
@@ -177,7 +181,7 @@ export default function CommandMenu({
       })
     }
 
-    if (isLoggedIn || !hideAdminEntryWhenLoggedOut) {
+    if (!isCloudflarePages && (isLoggedIn || !hideAdminEntryWhenLoggedOut)) {
       actions.push({
         id: 'admin',
         section: 'actions',
