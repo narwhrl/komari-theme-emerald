@@ -86,6 +86,7 @@ export default function CommandMenu({
   onOpenChange: (open: boolean) => void
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const commandItemElementsRef = useRef(new Map<string, HTMLButtonElement>())
   const nodes = useNodesStore(state => state.nodes)
   const groupsRaw = useMemo(() => selectNodeGroups(nodes), [nodes])
   const themeMode = useAppStore(state => state.themeMode)
@@ -249,10 +250,19 @@ export default function CommandMenu({
     const nodes = allItems.filter(item => item.section === 'nodes' && commandMatches(item, deferredQuery)).slice(0, deferredQuery.trim() ? 10 : 6)
     return [...searchItems, ...actions, ...groups, ...nodes]
   }, [allItems, deferredQuery])
+  const activeItem = visibleItems[activeIndex]
+  const activeItemId = activeItem?.id
 
   useEffect(() => {
     setActiveIndex(0)
   }, [deferredQuery, visibleItems.length])
+
+  useEffect(() => {
+    if (!activeItemId)
+      return
+
+    commandItemElementsRef.current.get(activeItemId)?.scrollIntoView({ block: 'nearest' })
+  }, [activeItemId])
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'ArrowDown') {
@@ -275,7 +285,6 @@ export default function CommandMenu({
       items: visibleItems.filter(item => item.section === section),
     }))
     .filter(group => group.items.length > 0)
-  const activeItem = visibleItems[activeIndex]
   const sectionStats = groupedSections.map(group => ({
     section: group.section,
     title: sectionTitles[group.section],
@@ -350,26 +359,32 @@ export default function CommandMenu({
                       <button
                         id={`komari-command-${item.id}`}
                         key={item.id}
+                        ref={(element) => {
+                          if (element)
+                            commandItemElementsRef.current.set(item.id, element)
+                          else
+                            commandItemElementsRef.current.delete(item.id)
+                        }}
                         type="button"
                         role="option"
                         aria-selected={active}
                         className={cn(
                           'motion-command-item grid min-h-14 w-full cursor-pointer grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-3 py-2.5 text-left outline-none transition-[background-color,color,box-shadow,transform] duration-150 ease-out focus-visible:ring-[3px] focus-visible:ring-ring/30',
-                          active ? 'bg-foreground text-background shadow-sm' : 'text-foreground hover:bg-accent/70',
+                          active ? 'bg-neutral-100 text-foreground shadow-sm dark:bg-neutral-800' : 'text-foreground hover:bg-accent/70',
                         )}
                         onMouseEnter={() => setActiveIndex(itemIndex)}
                         onClick={() => runCommand(item)}
                       >
                         <span className={cn(
                           'flex size-8 shrink-0 items-center justify-center rounded-md border transition-colors',
-                          active ? 'border-background/20 bg-background/15 text-background' : 'border-border bg-background text-muted-foreground',
+                          active ? 'border-foreground/10 bg-background/75 text-foreground' : 'border-border bg-background text-muted-foreground',
                         )}
                         >
                           <Icon icon={item.icon} width={17} height={17} aria-hidden="true" />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{item.label}</span>
-                          <span className={cn('block truncate text-xs', active ? 'text-background/70' : 'text-muted-foreground')}>{item.description}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{item.description}</span>
                         </span>
                         {item.badge ? <span className="shrink-0">{item.badge}</span> : null}
                       </button>
