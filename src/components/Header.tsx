@@ -23,6 +23,7 @@ export default function Header() {
   const hideAdminEntryWhenLoggedOut = useAppStore(state => selectAppDerived(state).hideAdminEntryWhenLoggedOut)
   const [commandOpen, setCommandOpen] = useState(false)
 
+  const isBrandLoading = publicSettings === undefined
   const sitename = publicSettings?.sitename || 'Komari Monitor'
   const actionButtons = useMemo(() => {
     const buttons = [
@@ -78,13 +79,26 @@ export default function Header() {
         <button
           type="button"
           className="group/brand flex min-w-0 cursor-pointer items-center gap-3 rounded-md text-left outline-none transition-[color,box-shadow] duration-150 ease-out focus-visible:ring-[3px] focus-visible:ring-ring/30"
+          aria-label={isBrandLoading ? '站点信息加载中' : sitename}
+          aria-busy={isBrandLoading}
           onClick={() => navigateTo('/')}
         >
-          <Avatar className="size-8 ring-1 ring-border transition-transform duration-200 ease-out group-hover/brand:scale-105">
-            <AvatarImage src="/favicon.ico" alt={sitename} />
-            <AvatarFallback>{sitename.slice(0, 1)}</AvatarFallback>
-          </Avatar>
-          <h1 className="m-0 max-w-[34vw] truncate text-base font-semibold tracking-tight sm:max-w-none">{sitename}</h1>
+          {isBrandLoading
+            ? (
+                <>
+                  <span aria-hidden="true" className="komari-skeleton block size-8 shrink-0 rounded-full" />
+                  <span aria-hidden="true" className="komari-skeleton block h-4 w-32 max-w-[34vw] rounded-md" />
+                </>
+              )
+            : (
+                <>
+                  <Avatar className="size-8 ring-1 ring-border transition-transform duration-200 ease-out group-hover/brand:scale-105">
+                    <AvatarImage src="/favicon.ico" alt={sitename} />
+                    <AvatarFallback>{sitename.slice(0, 1)}</AvatarFallback>
+                  </Avatar>
+                  <h1 className="m-0 max-w-[34vw] truncate text-base font-semibold tracking-tight sm:max-w-none">{sitename}</h1>
+                </>
+              )}
         </button>
 
         <div className="min-w-0 flex-1" />

@@ -176,7 +176,7 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-variant-numeric: tabular-nums;
-    overflow-x: hidden;
+    overflow-x: clip;
     text-rendering: geometricPrecision;
     touch-action: manipulation;
   }
