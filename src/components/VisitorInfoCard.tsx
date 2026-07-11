@@ -179,8 +179,11 @@ export default function VisitorInfoCard() {
 
   useEffect(() => {
     const client = detectClient()
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Device detection requires browser APIs and therefore runs only after hydration.
     setDevice(client.device)
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Browser detection requires browser APIs and therefore runs only after hydration.
     setBrowser(client.browser)
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- The displayed visit time starts when client-side detection completes.
     setVisitTime(formatVisitTime(new Date()))
 
     fetchVisitorGeo().then((geo) => {

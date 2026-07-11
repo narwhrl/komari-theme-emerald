@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { NODE_PING_BAR_COUNT, useNodePingStats } from '@/composables/useNodePingStats'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime } from '@/utils/helper'
@@ -63,7 +63,7 @@ export function useNodePingDisplay(
     enabled: pingStatsEnabled,
   })
 
-  const buildPingBars = (metric: NodePingMetric): NodePingBar[] => {
+  const buildPingBars = useCallback((metric: NodePingMetric): NodePingBar[] => {
     const points = pingStats.history
     if (!points.length)
       return []
@@ -85,9 +85,9 @@ export function useNodePingDisplay(
             : `${formatDateTime(point.time, 'HH:mm:ss')}\n${value.toFixed(1)}%`,
       }
     })
-  }
+  }, [pingStats.history])
 
-  const buildEmptyPingBars = (metric: NodePingMetric): NodePingBar[] => {
+  const buildEmptyPingBars = useCallback((metric: NodePingMetric): NodePingBar[] => {
     const tooltip = pingStats.loading
       ? '加载中'
       : pingStats.error
@@ -103,17 +103,17 @@ export function useNodePingDisplay(
       className: 'bg-muted-foreground/10',
       tooltip,
     }))
-  }
+  }, [pingStats.error, pingStats.loading, pingStatsEnabled])
 
   const latencyRenderBars = useMemo(() => {
     const bars = buildPingBars('latency')
     return bars.length ? bars : buildEmptyPingBars('latency')
-  }, [pingStats.history, pingStats.loading, pingStats.error, pingStatsEnabled])
+  }, [buildEmptyPingBars, buildPingBars])
 
   const lossRenderBars = useMemo(() => {
     const bars = buildPingBars('loss')
     return bars.length ? bars : buildEmptyPingBars('loss')
-  }, [pingStats.history, pingStats.loading, pingStats.error, pingStatsEnabled])
+  }, [buildEmptyPingBars, buildPingBars])
 
   const latencyDisplay = pingStats.hasData
     ? `${Math.round(pingStats.avgLatency)} ms`

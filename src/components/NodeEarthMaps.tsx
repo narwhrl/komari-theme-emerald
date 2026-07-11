@@ -95,7 +95,6 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
   }, [isDark, mapName, points])
 
   useEffect(() => {
-    setLoading(true)
     ensureWorldMapRegistered()
       .then(setMapName)
       .catch(error => setLoadError(error instanceof Error ? error.message : '地图资源加载失败'))
