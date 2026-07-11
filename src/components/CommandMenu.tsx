@@ -6,6 +6,7 @@ import type { KeyboardEvent, ReactNode } from 'react'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useThemeModeTransition } from '@/components/ThemeTransitionContext'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Empty } from '@/components/ui/empty'
@@ -94,7 +95,7 @@ export default function CommandMenu({
   const setHomeSearchText = useAppStore(state => state.setHomeSearchText)
   const setNodeSelectedGroup = useAppStore(state => state.setNodeSelectedGroup)
   const setNodeViewMode = useAppStore(state => state.setNodeViewMode)
-  const updateThemeMode = useAppStore(state => state.updateThemeMode)
+  const updateThemeMode = useThemeModeTransition()
   const isLoggedIn = useAppStore(state => state.isLoggedIn)
   const hideAdminEntryWhenLoggedOut = useAppStore(state => selectAppDerived(state).hideAdminEntryWhenLoggedOut)
   const nodeViewMode = useAppStore(state => selectAppDerived(state).nodeViewMode)

@@ -23,23 +23,48 @@ const BYTE_DECIMALS: ByteDecimalsConfig = {
 const FORCED_RPC_TRANSPORT_MODE = process.env.NEXT_PUBLIC_RPC_TRANSPORT_MODE
 
 function canUseStorage(): boolean {
-  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+  try {
+    return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+  }
+  catch {
+    return false
+  }
 }
 
 function readStorage<T extends string>(key: string, fallback: T): T {
   if (!canUseStorage())
     return fallback
-  return (window.localStorage.getItem(key) as T | null) ?? fallback
+  try {
+    return (window.localStorage.getItem(key) as T | null) ?? fallback
+  }
+  catch {
+    return fallback
+  }
 }
 
 function writeStorage(key: string, value: string): void {
   if (!canUseStorage())
     return
-  window.localStorage.setItem(key, value)
+  try {
+    window.localStorage.setItem(key, value)
+  }
+  catch {
+    // Persisted preferences are optional; state updates must still complete.
+  }
 }
 
 function isValidThemeMode(value: unknown): value is ThemeMode {
   return value === 'auto' || value === 'light' || value === 'dark'
+}
+
+export function resolveThemeIsDark(themeMode: ThemeMode, isSystemDark: boolean): boolean {
+  return themeMode === 'auto' ? isSystemDark : themeMode === 'dark'
+}
+
+export function getNextThemeMode(currentMode: ThemeMode, mode?: ThemeMode): ThemeMode {
+  return mode && isValidThemeMode(mode)
+    ? mode
+    : ({ auto: 'light', light: 'dark', dark: 'auto' } satisfies Record<ThemeMode, ThemeMode>)[currentMode]
 }
 
 function isValidViewMode(value: unknown): value is NodeViewMode {
@@ -152,9 +177,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setHomeSearchText: homeSearchText => set({ homeSearchText }),
   updateThemeMode: (mode) => {
     const currentMode = isValidThemeMode(get().themeMode) ? get().themeMode : 'auto'
-    const nextMode = mode && isValidThemeMode(mode)
-      ? mode
-      : ({ auto: 'light', light: 'dark', dark: 'auto' } satisfies Record<ThemeMode, ThemeMode>)[currentMode]
+    const nextMode = getNextThemeMode(currentMode, mode)
     writeStorage('themeMode', nextMode)
     set({ themeMode: nextMode })
   },
@@ -197,7 +220,7 @@ export function selectAppDerived(state: AppStoreState): AppDerivedState {
   const earthViewMode = isValidEarthViewMode(settings?.earthViewMode) ? settings.earthViewMode : 'earth'
   const backgroundEnabled = typeof settings?.backgroundEnabled === 'boolean' ? settings.backgroundEnabled : false
   const backgroundType = settings?.backgroundType === 'video' ? 'video' : 'image'
-  const isDark = state.themeMode === 'auto' ? state.isSystemDark : state.themeMode === 'dark'
+  const isDark = resolveThemeIsDark(state.themeMode, state.isSystemDark)
   const resolvedThemeMode = isDark ? 'dark' : 'light'
   const lightBackgroundUrl = typeof settings?.lightBackgroundUrl === 'string' ? settings.lightBackgroundUrl.trim() : ''
   const darkBackgroundUrl = typeof settings?.darkBackgroundUrl === 'string' ? settings.darkBackgroundUrl.trim() : ''

@@ -194,6 +194,13 @@
   }
 }
 
+html.theme-transition-active::view-transition-group(root),
+html.theme-transition-active::view-transition-old(root),
+html.theme-transition-active::view-transition-new(root) {
+  animation-duration: var(--motion-normal);
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 @layer components {
   .vercel-card {
     position: relative;

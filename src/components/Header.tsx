@@ -6,6 +6,7 @@ import { Icon } from '@iconify/react'
 import { use, useEffect, useMemo, useState } from 'react'
 import CommandMenu from '@/components/CommandMenu'
 import { ScrollContext } from '@/components/ScrollContext'
+import { useThemeModeTransition } from '@/components/ThemeTransitionContext'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -43,7 +44,7 @@ export default function Header() {
   const publicSettings = useAppStore(state => state.publicSettings)
   const isLoggedIn = useAppStore(state => state.isLoggedIn)
   const homeSearchText = useAppStore(state => state.homeSearchText)
-  const updateThemeMode = useAppStore(state => state.updateThemeMode)
+  const updateThemeMode = useThemeModeTransition()
   const hideAdminEntryWhenLoggedOut = useAppStore(state => selectAppDerived(state).hideAdminEntryWhenLoggedOut)
   const [commandOpen, setCommandOpen] = useState(false)
 
