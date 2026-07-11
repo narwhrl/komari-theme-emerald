@@ -3,7 +3,7 @@
 import type { NodeViewMode } from '@/stores/app'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
 import NodeCard from '@/components/NodeCard'
 import NodeGeneralCards from '@/components/NodeGeneralCards'
@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Empty } from '@/components/ui/empty'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
-import { ToggleGroup, ToggleGroupItem, ToggleGroupSeparator } from '@/components/ui/toggle-group'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { DataTooltip } from '@/components/ui/tooltip'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { selectNodeGroups, useNodesStore } from '@/stores/nodes'
@@ -253,22 +253,18 @@ function NodeViewModeToggle({ value, onValueChange }: { value: NodeViewMode, onV
           onValueChange(nextMode)
       }}
       value={[value]}
-      variant="outline"
     >
-      {nodeViewModeOptions.map((option, index) => {
+      {nodeViewModeOptions.map((option) => {
         return (
-          <Fragment key={option.mode}>
-            {index > 0 ? <ToggleGroupSeparator /> : null}
-            <DataTooltip content={option.label} placement="top" contentClass="whitespace-nowrap text-[11px] px-2">
-              <ToggleGroupItem
-                aria-label={option.label}
-                className="max-[359px]:min-w-9 max-[359px]:px-1.5"
-                value={option.mode}
-              >
-                <Icon icon={option.icon} width={17} height={17} className="max-[359px]:size-4" />
-              </ToggleGroupItem>
-            </DataTooltip>
-          </Fragment>
+          <DataTooltip key={option.mode} as="span" content={option.label} placement="top" contentClass="whitespace-nowrap text-[11px] px-2">
+            <ToggleGroupItem
+              aria-label={option.label}
+              className="max-[359px]:min-w-9 max-[359px]:px-1.5"
+              value={option.mode}
+            >
+              <Icon icon={option.icon} width={17} height={17} className="max-[359px]:size-4" />
+            </ToggleGroupItem>
+          </DataTooltip>
         )
       })}
     </ToggleGroup>
