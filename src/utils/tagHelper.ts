@@ -1,3 +1,4 @@
+import type { NodeData } from '@/stores/nodes'
 import dayjs from 'dayjs'
 
 /** 计费周期类型 */
@@ -308,17 +309,22 @@ export function getTagColorHex(color: TagColor): string {
  * @param tags 标签字符串，用分号分隔
  * @returns 标签数组
  */
-export function parseTags(tags: string | undefined): Array<{ text: string, color: TagColor, hex: string }> {
+export function parseTags(tags: string | undefined): Array<{ id: string, text: string, color: TagColor, hex: string }> {
   if (!tags || tags.trim() === '')
     return []
 
   const tagList = tags.split(';').filter(tag => tag.trim() !== '')
+  const occurrenceCounts = new Map<string, number>()
 
   return tagList.map((tag, index) => {
     const { text, color } = parseTagWithColor(tag)
     const defaultColor = TAG_COLORS[index % TAG_COLORS.length] ?? 'blue'
     const resolvedColor = color ?? defaultColor
+    const idBase = `${text}:${color ?? 'default'}`
+    const occurrence = occurrenceCounts.get(idBase) ?? 0
+    occurrenceCounts.set(idBase, occurrence + 1)
     return {
+      id: `${idBase}:${occurrence}`,
       text,
       color: resolvedColor,
       hex: getTagColorHex(resolvedColor),
@@ -358,6 +364,35 @@ export function formatPriceWithCycle(
   const priceText = formatPrice(price, currency, lang)
   const cycleText = getBillingCycleText(billingCycle, lang)
   return `${priceText} / ${cycleText}`
+}
+
+export interface NodePriceTag {
+  id: 'price' | 'status' | 'remaining'
+  text: string
+  highlightValue?: string
+  prefix?: string
+  suffix?: string
+}
+
+export function getNodePriceTags(node: NodeData, lang: 'zh-CN' | 'en-US'): NodePriceTag[] {
+  if (node.price === 0)
+    return []
+
+  const days = getDaysUntilExpired(node.expired_at)
+  const status = getExpireStatus(node.expired_at)
+  const priceText = formatPriceWithCycle(node.price, node.billing_cycle, node.currency, lang)
+  const tags: NodePriceTag[] = [{ id: 'price', text: priceText }]
+
+  if (status === 'expired')
+    tags.push({ id: 'status', text: lang === 'zh-CN' ? '已过期' : 'Expired' })
+  else if (status === 'long_term')
+    tags.push({ id: 'status', text: lang === 'zh-CN' ? '长期' : 'Long-term' })
+  else if (lang === 'zh-CN')
+    tags.push({ id: 'remaining', text: `剩余 ${days} 天`, prefix: '剩余 ', highlightValue: String(days), suffix: ' 天' })
+  else
+    tags.push({ id: 'remaining', text: `${days} days left`, highlightValue: String(days), suffix: ' days left' })
+
+  return tags
 }
 
 /**

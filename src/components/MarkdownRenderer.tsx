@@ -1,4 +1,5 @@
 interface Token {
+  key: string
   type: 'text' | 'bold' | 'italic' | 'link' | 'image' | 'code' | 'br'
   content?: string
   url?: string
@@ -20,61 +21,60 @@ function parseMarkdown(text: string): Token[] {
 
   const tokens: Token[] = []
   let remaining = text
+  let offset = 0
+
+  function appendToken(token: Omit<Token, 'key'>, length: number) {
+    tokens.push({ ...token, key: `${offset}-${token.type}` })
+    offset += length
+    remaining = remaining.slice(length)
+  }
 
   while (remaining.length > 0) {
     const imageMatch = remaining.match(IMAGE_REGEX)
     if (imageMatch) {
-      tokens.push({ type: 'image', alt: imageMatch[1], url: imageMatch[2] })
-      remaining = remaining.slice(imageMatch[0].length)
+      appendToken({ type: 'image', alt: imageMatch[1], url: imageMatch[2] }, imageMatch[0].length)
       continue
     }
 
     const linkMatch = remaining.match(LINK_REGEX)
     if (linkMatch) {
-      tokens.push({ type: 'link', content: linkMatch[1], url: linkMatch[2] })
-      remaining = remaining.slice(linkMatch[0].length)
+      appendToken({ type: 'link', content: linkMatch[1], url: linkMatch[2] }, linkMatch[0].length)
       continue
     }
 
     const boldMatch = remaining.match(BOLD_ASTERISK_REGEX) || remaining.match(BOLD_UNDERSCORE_REGEX)
     if (boldMatch) {
-      tokens.push({ type: 'bold', content: boldMatch[1] })
-      remaining = remaining.slice(boldMatch[0].length)
+      appendToken({ type: 'bold', content: boldMatch[1] }, boldMatch[0].length)
       continue
     }
 
     const italicMatch = remaining.match(ITALIC_ASTERISK_REGEX) || remaining.match(ITALIC_UNDERSCORE_REGEX)
     if (italicMatch) {
-      tokens.push({ type: 'italic', content: italicMatch[1] })
-      remaining = remaining.slice(italicMatch[0].length)
+      appendToken({ type: 'italic', content: italicMatch[1] }, italicMatch[0].length)
       continue
     }
 
     const codeMatch = remaining.match(CODE_REGEX)
     if (codeMatch) {
-      tokens.push({ type: 'code', content: codeMatch[1] })
-      remaining = remaining.slice(codeMatch[0].length)
+      appendToken({ type: 'code', content: codeMatch[1] }, codeMatch[0].length)
       continue
     }
 
     if (remaining[0] === '\n') {
-      tokens.push({ type: 'br' })
-      remaining = remaining.slice(1)
+      appendToken({ type: 'br' }, 1)
       continue
     }
 
     const nextSpecial = remaining.search(NEXT_SPECIAL_REGEX)
     if (nextSpecial === -1) {
-      tokens.push({ type: 'text', content: remaining })
+      appendToken({ type: 'text', content: remaining }, remaining.length)
       break
     }
     else if (nextSpecial === 0) {
-      tokens.push({ type: 'text', content: remaining[0] })
-      remaining = remaining.slice(1)
+      appendToken({ type: 'text', content: remaining[0] }, 1)
     }
     else {
-      tokens.push({ type: 'text', content: remaining.slice(0, nextSpecial) })
-      remaining = remaining.slice(nextSpecial)
+      appendToken({ type: 'text', content: remaining.slice(0, nextSpecial) }, nextSpecial)
     }
   }
 
@@ -86,23 +86,23 @@ export default function MarkdownRenderer({ content }: { content: string }) {
 
   return (
     <span className="leading-[1.6]">
-      {tokens.map((token, index) => {
+      {tokens.map((token) => {
         switch (token.type) {
           case 'image':
-            return <img key={index} src={token.url} alt={token.alt} loading="lazy" className="inline-block h-auto max-w-full rounded align-middle" style={{ maxHeight: 200 }} />
+            return <img key={token.key} src={token.url} alt={token.alt} loading="lazy" className="inline-block h-auto max-w-full rounded align-middle" style={{ maxHeight: 200 }} />
           case 'link':
-            return <a key={index} href={token.url} target="_blank" rel="noopener noreferrer" className="text-primary underline-offset-4 hover:underline">{token.content}</a>
+            return <a key={token.key} href={token.url} target="_blank" rel="noopener noreferrer" className="text-primary underline-offset-4 hover:underline">{token.content}</a>
           case 'bold':
-            return <strong key={index}>{token.content}</strong>
+            return <strong key={token.key}>{token.content}</strong>
           case 'italic':
-            return <em key={index}>{token.content}</em>
+            return <em key={token.key}>{token.content}</em>
           case 'code':
-            return <code key={index} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em] text-foreground">{token.content}</code>
+            return <code key={token.key} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em] text-foreground">{token.content}</code>
           case 'br':
-            return <br key={index} />
+            return <br key={token.key} />
           case 'text':
           default:
-            return <span key={index}>{token.content}</span>
+            return <span key={token.key}>{token.content}</span>
         }
       })}
     </span>

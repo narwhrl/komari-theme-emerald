@@ -22,8 +22,9 @@
     "package-theme": "bun scripts/build-theme.ts",
     "type-check": "bun scripts/type-check.ts",
     "publish": "bun scripts/publish.ts",
-    "lint": "eslint . --fix --cache",
-    "lint:eslint": "eslint . --fix --cache"
+    "lint": "eslint . --cache --max-warnings 0",
+    "lint:eslint": "eslint . --cache --max-warnings 0",
+    "lint:fix": "eslint . --fix --cache"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

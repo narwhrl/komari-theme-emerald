@@ -13,20 +13,13 @@ import { useAppStore } from '@/stores/app'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
-import { formatPriceWithCycle, getDaysUntilExpired, getExpireStatus, getExpireTextClass, parseTags } from '@/utils/tagHelper'
+import { getExpireTextClass, getNodePriceTags, parseTags } from '@/utils/tagHelper'
 
 interface ColumnConfig {
   key: string
   label: string
   width: string | number
   sortable: boolean
-}
-
-interface PriceTagItem {
-  text: string
-  highlightValue?: string
-  prefix?: string
-  suffix?: string
 }
 
 const columns: ColumnConfig[] = [
@@ -58,25 +51,6 @@ function getTrafficUsedPercentage(node: NodeData): number {
   if (node.traffic_limit <= 0)
     return 0
   return Math.min((getTrafficUsed(node) / node.traffic_limit) * 100, 100)
-}
-
-function getPriceTags(node: NodeData, lang: 'zh-CN' | 'en-US'): PriceTagItem[] {
-  const tags: PriceTagItem[] = []
-  if (node.price !== 0) {
-    const days = getDaysUntilExpired(node.expired_at)
-    const status = getExpireStatus(node.expired_at)
-    const priceText = formatPriceWithCycle(node.price, node.billing_cycle, node.currency, lang)
-    tags.push({ text: priceText })
-    if (status === 'expired')
-      tags.push({ text: lang === 'zh-CN' ? '已过期' : 'Expired' })
-    else if (status === 'long_term')
-      tags.push({ text: lang === 'zh-CN' ? '长期' : 'Long-term' })
-    else if (lang === 'zh-CN')
-      tags.push({ text: `剩余 ${days} 天`, prefix: '剩余 ', highlightValue: String(days), suffix: ' 天' })
-    else
-      tags.push({ text: `${days} days left`, highlightValue: String(days), suffix: ' days left' })
-  }
-  return tags
 }
 
 export default function NodeList({
@@ -212,7 +186,7 @@ export default function NodeList({
       case 'os':
         return <div key={key} className="flex justify-center"><img src={getOSImage(node.os)} alt={getOSName(node.os)} className="size-4" /></div>
       case 'name': {
-        const priceTags = getPriceTags(node, lang)
+        const priceTags = getNodePriceTags(node, lang)
         return (
           <div key={key} className={`space-y-0.5 ${mutedClass}`}>
             <div className="flex items-center gap-1 text-xs font-semibold">
@@ -222,8 +196,8 @@ export default function NodeList({
             {priceTags.length > 0
               ? (
                   <div className="truncate text-[11px] text-muted-foreground/70">
-                    {priceTags.map((tag, tagIndex) => (
-                      <span key={`${tag.text}-${tagIndex}`} className={tagIndex ? 'ml-1' : ''}>
+                    {priceTags.map((tag, index) => (
+                      <span key={tag.id} className={index ? 'ml-1' : ''}>
                         {tag.highlightValue
                           ? (
                               <>
@@ -245,8 +219,8 @@ export default function NodeList({
         return (
           <div key={key}>
             <div className="flex flex-wrap items-center gap-1">
-              {parseTags(node.tags).map((tag, tagIndex) => (
-                <Badge key={`${tag.text}-${tagIndex}`} variant="outline" className="rounded border-muted-foreground/10 px-1.5 !text-[11px] text-muted-foreground">{tag.text}</Badge>
+              {parseTags(node.tags).map(tag => (
+                <Badge key={tag.id} variant="outline" className="rounded border-muted-foreground/10 px-1.5 !text-[11px] text-muted-foreground">{tag.text}</Badge>
               ))}
             </div>
           </div>

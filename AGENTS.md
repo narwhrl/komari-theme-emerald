@@ -45,7 +45,7 @@ bun run lint
 Notes:
 
 - `bun run build` runs type check plus production build
-- `bun run lint` runs eslint with `--fix --cache`
+- `bun run lint` runs a zero-warning eslint check; use `bun run lint:fix` to apply eslint fixes locally
 - There is no test suite in this repository
 - Do not invent `bun test` or Vitest commands here
 

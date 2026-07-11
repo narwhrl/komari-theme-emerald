@@ -11,14 +11,7 @@ import { useAppStore } from '@/stores/app'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
-import { formatPriceWithCycle, getDaysUntilExpired, getExpireStatus, getExpireTextClass, parseTags } from '@/utils/tagHelper'
-
-interface PriceTagItem {
-  text: string
-  highlightValue?: string
-  prefix?: string
-  suffix?: string
-}
+import { getExpireTextClass, getNodePriceTags, parseTags } from '@/utils/tagHelper'
 
 function getTrafficUsed(node: NodeData): number {
   const { net_total_up = 0, net_total_down = 0, traffic_limit_type } = node
@@ -30,25 +23,6 @@ function getTrafficUsed(node: NodeData): number {
     case 'sum':
     default: return net_total_up + net_total_down
   }
-}
-
-function getPriceTags(node: NodeData, lang: 'zh-CN' | 'en-US'): PriceTagItem[] {
-  const tags: PriceTagItem[] = []
-  if (node.price !== 0) {
-    const days = getDaysUntilExpired(node.expired_at)
-    const status = getExpireStatus(node.expired_at)
-    const priceText = formatPriceWithCycle(node.price, node.billing_cycle, node.currency, lang)
-    tags.push({ text: priceText })
-    if (status === 'expired')
-      tags.push({ text: lang === 'zh-CN' ? '已过期' : 'Expired' })
-    else if (status === 'long_term')
-      tags.push({ text: lang === 'zh-CN' ? '长期' : 'Long-term' })
-    else if (lang === 'zh-CN')
-      tags.push({ text: `剩余 ${days} 天`, prefix: '剩余 ', highlightValue: String(days), suffix: ' 天' })
-    else
-      tags.push({ text: `${days} days left`, highlightValue: String(days), suffix: ' days left' })
-  }
-  return tags
 }
 
 function PingPanel({
@@ -113,9 +87,9 @@ export default function NodeCard({
   const diskPercentage = (node.disk ?? 0) / (node.disk_total || 1) * 100
   const trafficUsed = getTrafficUsed(node)
   const trafficUsedPercentage = node.traffic_limit <= 0 ? 0 : Math.min((trafficUsed / node.traffic_limit) * 100, 100)
-  const priceTags = getPriceTags(node, lang)
+  const priceTags = getNodePriceTags(node, lang)
   const remainingTimeTagClass = node.price === 0 ? '' : getExpireTextClass(node.expired_at)
-  const customTags = parseTags(node.tags).map(tag => tag.text)
+  const customTags = parseTags(node.tags)
   const ping = useNodePingDisplay(node.uuid)
   const hasRegion = Boolean(node.region?.trim())
 
@@ -190,8 +164,8 @@ export default function NodeCard({
           {priceTags.length
             ? (
                 <InfoBlock className="col-span-2" muted={!node.online}>
-                  {priceTags.map((tag, index) => (
-                    <span key={`${tag.text}-${index}`} className="flex flex-row items-center gap-1">
+                  {priceTags.map(tag => (
+                    <span key={tag.id} className="flex flex-row items-center gap-1">
                       {tag.highlightValue
                         ? (
                             <>
@@ -212,8 +186,8 @@ export default function NodeCard({
         {customTags.length > 0
           ? (
               <div className="flex shrink-0 flex-wrap items-center gap-1">
-                {customTags.map((tag, index) => (
-                  <Badge key={`${tag}-${index}`} variant="outline" className="rounded border-muted-foreground/10 px-1.5 !text-[11px] text-muted-foreground">{tag}</Badge>
+                {customTags.map(tag => (
+                  <Badge key={tag.id} variant="outline" className="rounded border-muted-foreground/10 px-1.5 !text-[11px] text-muted-foreground">{tag.text}</Badge>
                 ))}
               </div>
             )
