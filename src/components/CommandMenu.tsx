@@ -107,6 +107,7 @@ export default function CommandMenu({
     if (!open)
       return
 
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Opening the dialog copies the current home search into its editable draft.
     setQuery(homeSearchText)
     const timer = window.setTimeout(() => inputRef.current?.select(), 40)
     return () => window.clearTimeout(timer)
@@ -255,6 +256,7 @@ export default function CommandMenu({
   const activeItemId = activeItem?.id
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Filtering changes the selectable collection, so keyboard focus returns to its first item.
     setActiveIndex(0)
   }, [deferredQuery, visibleItems.length])
 

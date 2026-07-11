@@ -19,7 +19,9 @@ export default function Background() {
   const showFallbackBackground = hasCustomBackground && hasError
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- A new media source must clear the previous load result before rendering.
     setIsLoaded(false)
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- A new media source must clear the previous error result before rendering.
     setHasError(false)
 
     if (!derived.backgroundEnabled || !currentUrl)

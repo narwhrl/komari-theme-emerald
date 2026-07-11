@@ -59,6 +59,7 @@ export function Provider({ children }: { children: ReactNode }) {
   }, [derived.backgroundEnabled])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Scroll position is an external browser event source that initializes the shared scroll context.
     const handleScroll = () => setIsScrolled(window.scrollY > 1)
     handleScroll()
     window.addEventListener('scroll', handleScroll, { passive: true })

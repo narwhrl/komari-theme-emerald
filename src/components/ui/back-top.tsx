@@ -8,6 +8,7 @@ export function BackTop() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Scroll position is an external browser event source that determines visibility.
     const handleScroll = () => setVisible(window.scrollY > 360)
     handleScroll()
     window.addEventListener('scroll', handleScroll, { passive: true })

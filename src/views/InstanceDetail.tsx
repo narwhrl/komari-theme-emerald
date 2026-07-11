@@ -3,7 +3,7 @@
 import type { NodeData } from '@/stores/nodes'
 import type { CurrencyCode } from '@/utils/financeHelper'
 import { Icon } from '@iconify/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import LoadChart from '@/components/LoadChart'
 import PingChart from '@/components/PingChart'
 import { Badge } from '@/components/ui/badge'
@@ -102,17 +102,18 @@ export default function InstanceDetail({ id }: { id: string }) {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Persisted browser settings must hydrate after SSR to avoid an initial markup mismatch.
     setFinanceBaseCurrency(financeHelper.getStoredFinanceCurrency())
     financeHelper.getDailyExchangeRates()
       .then(({ rates }) => setExchangeRates(rates))
       .catch(() => {})
   }, [])
 
-  const formatFinanceMetricValue = (amountCNY: number, currency: CurrencyCode): string => {
+  const formatFinanceMetricValue = useCallback((amountCNY: number, currency: CurrencyCode): string => {
     const targetRate = exchangeRates[currency] || 1
     const formattedValue = financeHelper.formatFinanceAmount(amountCNY * targetRate, currency)
     return `${formattedValue.symbol}${formattedValue.value} ${formattedValue.currency}`
-  }
+  }, [exchangeRates])
 
   const financeCards = useMemo<MetricCard[]>(() => {
     if (!data)
@@ -137,7 +138,7 @@ export default function InstanceDetail({ id }: { id: string }) {
       { label: '剩余时间', value: remainingTime.value, unit: remainingTime.unit, icon: 'tabler:calendar-dollar', valueClass: data.expired_at ? getExpireTextClass(data.expired_at) : '' },
       { label: '剩余价值', value: remainingValue.value, unit: remainingValue.unit, icon: 'tabler:coins' },
     ]
-  }, [data, exchangeRates, financeBaseCurrency, lang])
+  }, [data, exchangeRates, financeBaseCurrency, formatFinanceMetricValue, lang])
 
   if (!data) {
     return (

@@ -35,7 +35,9 @@ export default function NodeGeneralCards({
   const [openFinanceCard, setOpenFinanceCard] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Persisted browser settings must hydrate after SSR to avoid an initial markup mismatch.
     setExchangeRateBaseCurrency(financeHelper.getStoredFinanceCurrency())
+    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Persisted browser settings must hydrate after SSR to avoid an initial markup mismatch.
     setExcludeFreeNodes(financeHelper.shouldExcludeFreeNodes())
     financeHelper.getDailyExchangeRates()
       .then(({ rates }) => setExchangeRates(rates))
