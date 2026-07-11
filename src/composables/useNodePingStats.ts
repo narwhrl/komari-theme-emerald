@@ -390,7 +390,7 @@ export function useNodePingStats(
   const hours = Math.max(1, Math.floor(options?.hours ?? 24))
   const enabled = options?.enabled ?? true
   const [, forceRender] = useState(0)
-  const lastPersistedAt = useRef(0)
+  const lastPersistedAtRef = useRef(0)
   const entry = getSharedPingRecordsEntry(hours)
 
   useEffect(() => {
@@ -428,10 +428,10 @@ export function useNodePingStats(
       return
 
     const now = Date.now()
-    if (now - lastPersistedAt.current < PING_RECORD_REFRESH_INTERVAL_MS)
+    if (now - lastPersistedAtRef.current < PING_RECORD_REFRESH_INTERVAL_MS)
       return
 
-    lastPersistedAt.current = now
+    lastPersistedAtRef.current = now
     writeStatsCache(uuid, hours, stats)
   }, [enabled, hours, stats, uuid])
 

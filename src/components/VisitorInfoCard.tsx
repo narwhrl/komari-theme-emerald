@@ -173,7 +173,7 @@ export default function VisitorInfoCard() {
   const [isp, setIsp] = useState('获取中')
   const [location, setLocation] = useState('正在定位访客来源')
   const [countryCode, setCountryCode] = useState('')
-  const [visitTime, setVisitTime] = useState(formatVisitTime(new Date()))
+  const [visitTime, setVisitTime] = useState(() => formatVisitTime(new Date()))
   const [flagVisible, setFlagVisible] = useState(true)
   const [expand, setExpand] = useState(false)
 
