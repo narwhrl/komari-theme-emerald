@@ -69,7 +69,7 @@ function PingPanel({
   return (
     <button
       type="button"
-      className={`group/panel vercel-subtle relative col-span-3 flex h-10 cursor-pointer flex-col gap-1.5 rounded-sm border border-transparent p-1.5 text-left transition-[background-color,border-color,transform] duration-150 ease-out hover:-translate-y-px hover:border-border focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none active:translate-y-0 active:scale-[0.99] ${!node.online ? 'blur-xs opacity-60' : ''}`}
+      className={`motion-card-panel group/panel vercel-subtle relative col-span-3 flex h-10 cursor-pointer flex-col gap-1.5 rounded-sm border border-transparent p-1.5 text-left transition-[background-color,border-color,transform] duration-150 ease-out hover:border-border hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none active:scale-[0.995] ${!node.online ? 'blur-xs opacity-60' : ''}`}
       title={tooltip}
       aria-label={`${node.name} ${label}`}
       onClick={(event) => {
@@ -121,7 +121,7 @@ export default function NodeCard({
 
   return (
     <CardX
-      hoverable
+      interaction="pressable"
       className={`node-card h-full w-full cursor-pointer rounded-2xl bg-card ${!node.online ? '!border-destructive/25' : ''}`}
       onClick={onClick}
       header={(
@@ -139,6 +139,17 @@ export default function NodeCard({
         </div>
       )}
     >
+      <button
+        type="button"
+        className="sr-only"
+        aria-label={`查看 ${node.name} 节点详情`}
+        onClick={(event) => {
+          event.stopPropagation()
+          onClick()
+        }}
+      >
+        查看节点详情
+      </button>
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-2 gap-3">
           <Metric label="CPU" value={`${(node.cpu ?? 0).toFixed(1)}%`} sub={`${(node.load ?? 0).toFixed(2)}, ${(node.load5 ?? 0).toFixed(2)}, ${(node.load15 ?? 0).toFixed(2)}`} percentage={node.cpu ?? 0} status={getStatus(node.cpu ?? 0)} />

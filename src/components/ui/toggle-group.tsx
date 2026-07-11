@@ -13,7 +13,7 @@ const toggleGroupVariants = cva(
   {
     variants: {
       variant: {
-        default: 'gap-0.5 rounded-lg bg-muted p-0.5 text-muted-foreground/72',
+        default: 'w-fit gap-0.5',
         outline: 'gap-0 overflow-hidden rounded-xl border border-input bg-popover shadow-xs/5 not-dark:bg-clip-padding dark:bg-input/32',
       },
       size: {
@@ -34,11 +34,11 @@ const toggleGroupItemVariants = cva(
   {
     variants: {
       variant: {
-        default: 'rounded-md hover:bg-background data-pressed:bg-background data-pressed:shadow-xs/5 dark:data-pressed:bg-input/64',
+        default: 'rounded-lg border-transparent text-foreground hover:bg-accent data-pressed:bg-input/64 data-pressed:text-accent-foreground',
         outline: 'rounded-none hover:bg-muted/60 data-pressed:bg-muted/80 dark:hover:bg-input/64 dark:data-pressed:bg-input/80',
       },
       size: {
-        default: 'h-9 min-w-10 px-2.5 text-sm [&_svg:not([class*=\'size-\'])]:size-4',
+        default: 'h-9 min-w-9 px-[calc(--spacing(2)-1px)] text-sm [&_svg:not([class*=\'size-\'])]:size-4 sm:h-8 sm:min-w-8',
         sm: 'h-8 min-w-8 px-2 text-xs [&_svg:not([class*=\'size-\'])]:size-3.5',
         lg: 'h-10 min-w-10 px-3 text-base [&_svg:not([class*=\'size-\'])]:size-4.5',
       },

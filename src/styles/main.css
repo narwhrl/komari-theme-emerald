@@ -194,6 +194,13 @@
   }
 }
 
+html.theme-transition-active::view-transition-group(root),
+html.theme-transition-active::view-transition-old(root),
+html.theme-transition-active::view-transition-new(root) {
+  animation-duration: var(--motion-normal);
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 @layer components {
   .vercel-card {
     position: relative;
@@ -234,18 +241,21 @@
     transition-property: background-color, border-color, box-shadow, transform;
     transition-duration: var(--motion-fast);
     transition-timing-function: var(--motion-ease);
-    will-change: transform;
   }
 
-  .motion-card:active {
-    transform: translateY(0) scale(0.995);
+  .motion-card:focus-visible,
+  .motion-card-pressable:focus-within {
+    outline: 2px solid color-mix(in oklab, var(--color-ring) 58%, transparent);
+    outline-offset: 2px;
+  }
+
+  .motion-card-pressable {
+    cursor: pointer;
+  }
+
+  .motion-card-pressable:active {
+    transform: scale(0.995);
     transition-duration: 90ms;
-  }
-
-  @media (hover: hover) {
-    .motion-card:hover {
-      transform: translateY(-2px);
-    }
   }
 
   .motion-chip {
@@ -334,6 +344,48 @@
 }
 
 @layer utilities {
+  .motion-card-subtle:is(:focus-visible, :focus-within) {
+    background-color: color-mix(in oklab, var(--color-card) 99%, var(--color-foreground));
+    border-color: color-mix(in srgb, var(--color-foreground) 12%, transparent);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+  }
+
+  .motion-card-pressable:is(:focus-visible, :focus-within) {
+    background-color: color-mix(in oklab, var(--color-card) 98%, var(--color-foreground));
+    border-color: color-mix(in srgb, var(--color-foreground) 16%, transparent);
+    box-shadow: 0 6px 16px rgb(0 0 0 / 8%);
+  }
+
+  .dark .motion-card-subtle:is(:focus-visible, :focus-within) {
+    box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+  }
+
+  .dark .motion-card-pressable:is(:focus-visible, :focus-within) {
+    box-shadow: 0 6px 16px rgb(0 0 0 / 28%);
+  }
+
+  @media (hover: hover) {
+    .motion-card-subtle:hover {
+      background-color: color-mix(in oklab, var(--color-card) 99%, var(--color-foreground));
+      border-color: color-mix(in srgb, var(--color-foreground) 12%, transparent);
+      box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+    }
+
+    .motion-card-pressable:hover {
+      background-color: color-mix(in oklab, var(--color-card) 98%, var(--color-foreground));
+      border-color: color-mix(in srgb, var(--color-foreground) 16%, transparent);
+      box-shadow: 0 6px 16px rgb(0 0 0 / 8%);
+    }
+
+    .dark .motion-card-subtle:hover {
+      box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+    }
+
+    .dark .motion-card-pressable:hover {
+      box-shadow: 0 6px 16px rgb(0 0 0 / 28%);
+    }
+  }
+
   .animate-in {
     animation-name: komari-enter;
     animation-duration: 200ms;
@@ -450,5 +502,10 @@
 
   .komari-skeleton-chart-line {
     animation: none !important;
+  }
+
+  .motion-card-pressable:active,
+  .motion-card-panel:active {
+    transform: none;
   }
 }

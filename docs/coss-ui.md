@@ -117,8 +117,8 @@ import { Icon } from '@iconify/react'
 import {
   ToggleGroup,
   ToggleGroupItem,
-  ToggleGroupSeparator,
 } from '@/components/ui/toggle-group'
+import { DataTooltip } from '@/components/ui/tooltip'
 
 type NodeViewMode = 'card' | 'list'
 
@@ -137,20 +137,22 @@ function NodeViewModeToggle({
     <ToggleGroup
       aria-label="节点视图切换"
       value={[value]}
-      variant="outline"
       onValueChange={(values) => {
         const nextValue = values.at(0)
         if (isNodeViewMode(nextValue))
           onValueChange(nextValue)
       }}
     >
-      <ToggleGroupItem aria-label="卡片视图" value="card">
-        <Icon icon="tabler:layout-grid" aria-hidden="true" className="size-4" />
-      </ToggleGroupItem>
-      <ToggleGroupSeparator />
-      <ToggleGroupItem aria-label="列表视图" value="list">
-        <Icon icon="tabler:table" aria-hidden="true" className="size-4" />
-      </ToggleGroupItem>
+      <DataTooltip as="span" content="卡片视图" placement="top">
+        <ToggleGroupItem aria-label="卡片视图" value="card">
+          <Icon icon="tabler:layout-grid" aria-hidden="true" className="size-4" />
+        </ToggleGroupItem>
+      </DataTooltip>
+      <DataTooltip as="span" content="列表视图" placement="top">
+        <ToggleGroupItem aria-label="列表视图" value="list">
+          <Icon icon="tabler:table" aria-hidden="true" className="size-4" />
+        </ToggleGroupItem>
+      </DataTooltip>
     </ToggleGroup>
   )
 }
@@ -162,7 +164,8 @@ function NodeViewModeToggle({
 - `onValueChange` 也返回数组。若业务状态必须始终有效，应过滤空数组或未知值，不要直接写入 store。
 - `ToggleGroupItem` 必须提供稳定的 `value`。
 - 图标按钮需要 `aria-label`，否则只有图标时可访问名称不清晰。
-- 需要分隔线时使用 `ToggleGroupSeparator`，保持和 coss-ui 示例一致。
+- 使用官方 tooltip 样式时保留默认 variant，不添加外框或 `ToggleGroupSeparator`。
+- 需要连续 outline 分段控件时，再使用 `variant="outline"` 与 `ToggleGroupSeparator`。
 
 ## 新增本地 coss-ui 风格组件
 

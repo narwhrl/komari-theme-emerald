@@ -1,16 +1,42 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import type { ThemeMode } from '@/stores/app'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollContext } from '@/components/ScrollContext'
+import { ThemeTransitionContext } from '@/components/ThemeTransitionContext'
 import { BackTop } from '@/components/ui/back-top'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { useAppDerived, useAppStore } from '@/stores/app'
+import { getNextThemeMode, resolveThemeIsDark, useAppDerived, useAppStore } from '@/stores/app'
+import { applyDocumentTheme, runThemeTransition } from '@/utils/themeTransition'
 
 export function Provider({ children }: { children: ReactNode }) {
   const [isScrolled, setIsScrolled] = useState(false)
   const hydrateFromBrowser = useAppStore(state => state.hydrateFromBrowser)
+  const themeMode = useAppStore(state => state.themeMode)
+  const isSystemDark = useAppStore(state => state.isSystemDark)
+  const setThemeMode = useAppStore(state => state.updateThemeMode)
   const derived = useAppDerived()
+  const pendingThemeModeRef = useRef<ThemeMode | null>(null)
+
+  const updateThemeMode = useCallback((mode?: ThemeMode) => {
+    const currentMode = pendingThemeModeRef.current ?? themeMode
+    const nextMode = getNextThemeMode(currentMode, mode)
+    const fromIsDark = resolveThemeIsDark(currentMode, isSystemDark)
+    const toIsDark = resolveThemeIsDark(nextMode, isSystemDark)
+    pendingThemeModeRef.current = nextMode
+
+    runThemeTransition({
+      fromIsDark,
+      toIsDark,
+      update: () => {
+        applyDocumentTheme(toIsDark)
+        setThemeMode(nextMode)
+        if (pendingThemeModeRef.current === nextMode)
+          pendingThemeModeRef.current = null
+      },
+    })
+  }, [isSystemDark, setThemeMode, themeMode])
 
   useEffect(() => {
     hydrateFromBrowser()
@@ -22,9 +48,7 @@ export function Provider({ children }: { children: ReactNode }) {
   }, [hydrateFromBrowser])
 
   useEffect(() => {
-    const root = document.documentElement
-    root.classList.toggle('dark', derived.isDark)
-    root.style.colorScheme = derived.isDark ? 'dark' : 'light'
+    applyDocumentTheme(derived.isDark)
   }, [derived.isDark])
 
   useEffect(() => {
@@ -45,10 +69,12 @@ export function Provider({ children }: { children: ReactNode }) {
 
   return (
     <TooltipProvider>
-      <ScrollContext value={contextValue}>
-        {children}
-        <BackTop />
-      </ScrollContext>
+      <ThemeTransitionContext value={updateThemeMode}>
+        <ScrollContext value={contextValue}>
+          {children}
+          <BackTop />
+        </ScrollContext>
+      </ThemeTransitionContext>
     </TooltipProvider>
   )
 }

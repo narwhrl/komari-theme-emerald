@@ -1,25 +1,28 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
+type CardInteraction = 'subtle' | 'pressable'
+
 export function CardX({
   className,
   contentClassName,
   header,
   headerExtra,
   children,
-  hoverable,
+  interaction,
   ...props
 }: ComponentProps<'div'> & {
   contentClassName?: string
   header?: ReactNode
   headerExtra?: ReactNode
-  hoverable?: boolean
+  interaction?: CardInteraction
 }) {
   return (
     <div
       className={cn(
         'vercel-card rounded-2xl text-card-foreground',
-        hoverable && 'motion-card hover:bg-card hover:shadow-md/5',
+        interaction === 'subtle' && 'motion-card motion-card-subtle',
+        interaction === 'pressable' && 'motion-card motion-card-pressable',
         className,
       )}
       {...props}

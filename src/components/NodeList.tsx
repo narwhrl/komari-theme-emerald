@@ -1,5 +1,6 @@
 'use client'
 
+import type { KeyboardEvent } from 'react'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
 import { useMemo, useState } from 'react'
@@ -132,6 +133,13 @@ export default function NodeList({
     }
   }
 
+  function handleNodeKeyDown(event: KeyboardEvent<HTMLDivElement>, node: NodeData) {
+    if (event.key !== 'Enter' && event.key !== ' ')
+      return
+    event.preventDefault()
+    onClick(node)
+  }
+
   return (
     <div className="min-w-0 overflow-x-auto overflow-y-hidden p-1 -m-1">
       <div className="flex w-full min-w-fit flex-col gap-1">
@@ -155,9 +163,13 @@ export default function NodeList({
           {sortedNodes.map((node, index) => (
             <div
               key={transitionKey ? `${transitionKey}-${node.uuid}` : node.uuid}
-              className={`motion-card motion-stagger-item relative flex h-16 cursor-pointer flex-col justify-center rounded-xl border border-input bg-card px-2 shadow-xs/5 hover:bg-accent/50 ${!node.online ? '!border-destructive/25' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-label={`查看节点 ${node.name} 详情`}
+              className={`motion-card motion-card-pressable motion-stagger-item relative flex h-16 cursor-pointer flex-col justify-center rounded-xl border border-input bg-card px-2 shadow-xs/5 ${!node.online ? '!border-destructive/25' : ''}`}
               style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
               onClick={() => onClick(node)}
+              onKeyDown={event => handleNodeKeyDown(event, node)}
             >
               <div className="grid items-center gap-2" style={{ gridTemplateColumns }}>
                 {columns.map(col => renderCell(col.key, node))}
