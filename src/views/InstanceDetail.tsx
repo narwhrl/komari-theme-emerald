@@ -263,7 +263,7 @@ export default function InstanceDetail({ id }: { id: string }) {
 
       <div className="grid grid-cols-2 gap-4 px-4 lg:grid-cols-4">
         {financeCards.map(item => (
-          <CardX key={item.label} hoverable className="group h-full rounded-2xl bg-card">
+          <CardX key={item.label} interaction="subtle" className="group h-full rounded-2xl bg-card">
             <div className="flex h-full min-h-10 flex-col justify-between gap-3 md:min-h-18">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-medium tracking-wider text-muted-foreground">{item.label}</span>
@@ -332,7 +332,7 @@ function StatusMetricCard({ item }: { item: StatusCard }) {
   const hasProgress = typeof item.percentage === 'number'
 
   return (
-    <CardX hoverable className="group h-full rounded-2xl bg-card">
+    <CardX interaction="subtle" className="group h-full rounded-2xl bg-card">
       <div className="flex h-full min-h-26 flex-col justify-between gap-3">
         <div className="flex items-center justify-between gap-2">
           <span className="min-w-0 truncate text-xs font-medium tracking-wider text-muted-foreground">{item.label}</span>

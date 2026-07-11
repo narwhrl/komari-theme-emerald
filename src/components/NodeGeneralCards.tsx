@@ -1,5 +1,6 @@
 'use client'
 
+import type { KeyboardEvent } from 'react'
 import type { NodeData } from '@/stores/nodes'
 import type { CurrencyCode } from '@/utils/financeHelper'
 import { Icon } from '@iconify/react'
@@ -120,6 +121,17 @@ export default function NodeGeneralCards({
     financeHelper.setStoredFinanceCurrency(currency)
   }
 
+  function toggleFinanceCard() {
+    setOpenFinanceCard(value => !value)
+  }
+
+  function handleFinanceCardKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Enter' && event.key !== ' ')
+      return
+    event.preventDefault()
+    toggleFinanceCard()
+  }
+
   return (
     <div className={wrapperClass}>
       {showEarth ? <NodeEarthGlobe nodes={globeNodes} spinning={earthViewMode === 'earth'} className="col-span-12 col-start-1 md:col-span-6 md:col-start-7" /> : null}
@@ -130,7 +142,17 @@ export default function NodeGeneralCards({
         <SummaryCard title="硬盘用量" icon="tabler:server-2" value={formattedDiskUsed.value} unit={`${formattedDiskUsed.unit} / ${formattedDiskTotal.value} ${formattedDiskTotal.unit}`} visual={showVisualPanel} index={1} />
 
         <div className={showVisualPanel ? 'relative col-span-4 row-span-1 col-start-5 row-start-1 h-full w-full' : 'relative col-span-1 col-start-2 row-start-1 min-h-18 md:col-start-3 md:row-start-1 md:min-h-28'}>
-          <CardX hoverable className="motion-stagger-item group h-full rounded-2xl bg-card" style={{ animationDelay: `${2 * 45}ms` }} onClick={() => setOpenFinanceCard(value => !value)}>
+          <CardX
+            interaction="pressable"
+            role="button"
+            tabIndex={0}
+            aria-label="展开剩余价值详情"
+            aria-expanded={openFinanceCard}
+            className="motion-stagger-item group h-full rounded-2xl bg-card"
+            style={{ animationDelay: `${2 * 45}ms` }}
+            onClick={toggleFinanceCard}
+            onKeyDown={handleFinanceCardKeyDown}
+          >
             <div className="flex h-full min-w-0 flex-col justify-between gap-1">
               <div className="flex items-start justify-between">
                 <span className="text-xs font-medium tracking-wider text-muted-foreground">剩余价值</span>
@@ -146,8 +168,8 @@ export default function NodeGeneralCards({
             </div>
           </CardX>
           <CardX
-            hoverable
-            className={`absolute top-0 left-1/2 z-50 h-42 w-[260%] max-w-88 -translate-x-[50%] -translate-y-[25%] rounded-2xl bg-popover shadow-lg/5 transition-[opacity,transform] duration-200 ease-out ${openFinanceCard ? 'scale-100 opacity-100 -translate-y-[5%]' : 'pointer-events-none scale-50 opacity-0'}`}
+            interaction="subtle"
+            className={`absolute top-0 left-1/2 z-50 h-42 w-[260%] max-w-88 -translate-x-[50%] -translate-y-[25%] rounded-2xl bg-popover shadow-lg/5 transition-[opacity,transform,background-color,border-color,box-shadow] duration-200 ease-out ${openFinanceCard ? 'scale-100 opacity-100 -translate-y-[5%]' : 'pointer-events-none scale-50 opacity-0'}`}
             contentClassName="h-full p-4"
             onClick={() => setOpenFinanceCard(false)}
           >
@@ -253,7 +275,7 @@ function SummaryCard({ title, icon, value, unit, visual, index, tooltip }: { tit
   )
 
   return (
-    <CardX hoverable className={`motion-stagger-item group h-full rounded-2xl bg-card ${positions[index]}`} style={{ animationDelay: `${index * 45}ms` }}>
+    <CardX interaction="subtle" className={`motion-stagger-item group h-full rounded-2xl bg-card ${positions[index]}`} style={{ animationDelay: `${index * 45}ms` }}>
       {tooltip
         ? (
             <DataTooltip as="span" placement="top" content={tooltip} className="min-w-0" contentClass="whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal">
