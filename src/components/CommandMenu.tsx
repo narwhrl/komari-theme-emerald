@@ -237,7 +237,7 @@ export default function CommandMenu({
       icon: node.online ? 'tabler:server-bolt' : 'tabler:server-off',
       badge: node.online
         ? <span className="rounded-sm bg-emerald-600/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">在线</span>
-        : <span className="rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">离线</span>,
+        : <span className="rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive-foreground">离线</span>,
       keywords: nodeKeywords(node),
       onSelect: () => navigateTo(`/instance/${encodeURIComponent(node.uuid)}`),
     }))

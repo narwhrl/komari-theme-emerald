@@ -53,10 +53,20 @@ export default function AppPage() {
     <Provider>
       <Background />
       {loading ? <LoadingCover /> : null}
+      {!loading
+        ? (
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:inline-flex focus:h-9 focus:items-center focus:rounded-lg focus:border focus:border-input focus:bg-background focus:px-3 focus:text-sm focus:text-foreground focus:shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              跳到主要内容
+            </a>
+          )
+        : null}
       <Header />
       {!loading
         ? (
-            <main className="flex-1">
+            <main id="main-content" tabIndex={-1} className="flex-1 outline-none">
               <div className="mx-auto max-w-[1280px]">
                 <div key={route} className={disablePageAnimation ? undefined : 'animate-in fade-in slide-in-from-bottom-2 duration-200'}>
                   {match ? <InstanceDetail id={decodeURIComponent(match[1] ?? '')} /> : <HomeView />}

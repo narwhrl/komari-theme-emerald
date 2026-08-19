@@ -777,7 +777,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
       {loading
         ? <ChartSkeletonGrid />
         : error
-          ? <div className="py-8 text-center text-red-500">{error}</div>
+          ? <div className="py-8 text-center text-destructive-foreground">{error}</div>
           : remoteData.length === 0
             ? <Empty description="暂无负载数据" />
             : (

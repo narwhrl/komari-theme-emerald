@@ -238,7 +238,7 @@ export default function InstanceDetail({ id }: { id: string }) {
         </Button>
         <div className="flex items-center gap-2 text-lg font-bold">
           <img src={`/images/flags/${getRegionCode(data.region)}.svg`} alt={getRegionDisplayName(data.region)} className="size-6" />
-          <span>{data.name}</span>
+          <h2>{data.name}</h2>
         </div>
         <Badge variant={data.online ? 'default' : 'destructive'} className="!rounded text-xs">
           {data.online ? '在线' : '离线'}
@@ -275,7 +275,7 @@ export default function InstanceDetail({ id }: { id: string }) {
         <InfoCard title="系统信息" items={systemInfo} data={data} />
         <InfoCard title="存储信息" items={storageInfo} columns="grid-cols-3" />
         <CardX className="group h-full rounded-2xl bg-card">
-          <div className="mb-3 text-sm font-semibold">网络信息</div>
+          <h3 className="mb-3 text-sm font-semibold">网络信息</h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="vercel-subtle relative min-w-0 overflow-hidden rounded-sm border border-transparent p-2">
               {hasTrafficLimit ? <div className="pointer-events-none absolute inset-y-0 left-0 w-full origin-left rounded-sm bg-primary/10 transition-transform duration-300 ease-out" style={{ transform: `scaleX(${trafficUsedPercentage / 100})` }} /> : null}
@@ -344,7 +344,7 @@ function StatusMetricCard({ item }: { item: StatusCard }) {
 function InfoCard({ title, items, firstWide, columns = 'grid-cols-1 sm:grid-cols-2', data }: { title: string, items: InfoItem[], firstWide?: boolean, columns?: string, data?: NodeData }) {
   return (
     <CardX className="group h-full rounded-2xl bg-card">
-      <div className="mb-3 text-sm font-semibold">{title}</div>
+      <h3 className="mb-3 text-sm font-semibold">{title}</h3>
       <div className={`grid gap-3 ${columns}`}>
         {items.map((item, index) => (
           <div key={item.label} className={`vercel-subtle flex min-w-0 flex-col gap-1 rounded-sm border border-transparent p-2 ${firstWide && index === 0 ? 'col-span-full' : ''}`}>

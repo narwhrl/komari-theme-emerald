@@ -20,6 +20,8 @@ const INITIAL_THETA = 0.22
 const AUTO_ROTATION_SPEED = 0.0015
 const CHINA_COORD = getCoordByCode('CN') ?? [35.8617, 104.1954]
 const DEFAULT_PHI = -Math.PI / 2 - CHINA_COORD[1] * Math.PI / 180
+const COBE_WRAPPER_UNWRAP_LIMIT = 64
+const COBE_WRAPPER_STYLE_WHITESPACE = /\s+/g
 
 function locationToVector([lat, lng]: [number, number]): [number, number, number] {
   const latitude = lat * Math.PI / 180
@@ -50,6 +52,51 @@ function projectLocation(coord: [number, number], phi: number, theta: number, wi
   }
 }
 
+function getGlobeTheme(isDark: boolean) {
+  return isDark
+    ? {
+        dark: 1,
+        mapBrightness: 4,
+        baseColor: [0.32, 0.33, 0.4] as [number, number, number],
+        markerColor: [0.4, 0.7, 1.0] as [number, number, number],
+        glowColor: [0.2, 0.25, 0.45] as [number, number, number],
+        arcColor: [0.45, 0.75, 1.0] as [number, number, number],
+      }
+    : {
+        dark: 0,
+        mapBrightness: 6,
+        baseColor: [1, 1, 1] as [number, number, number],
+        markerColor: [0.21, 0.51, 0.93] as [number, number, number],
+        glowColor: [1, 1, 1] as [number, number, number],
+        arcColor: [0.21, 0.51, 0.93] as [number, number, number],
+      }
+}
+
+function isCobeWrapper(element: Element): boolean {
+  if (!(element instanceof HTMLDivElement))
+    return false
+  if (element.className !== '')
+    return false
+  const style = element.style.cssText.replaceAll(COBE_WRAPPER_STYLE_WHITESPACE, '')
+  return style.includes('position:relative') && style.includes('width:100%') && style.includes('height:100%')
+}
+
+function restoreCanvasFromCobeWrapper(canvas: HTMLCanvasElement) {
+  for (let index = 0; index < COBE_WRAPPER_UNWRAP_LIMIT; index += 1) {
+    const wrapper = canvas.parentElement
+    if (!wrapper || !isCobeWrapper(wrapper))
+      return
+    const host = wrapper.parentElement
+    if (!host)
+      return
+    host.insertBefore(canvas, wrapper)
+    if (wrapper.parentNode === host)
+      wrapper.remove()
+    else
+      return
+  }
+}
+
 export default function NodeEarthGlobe({
   nodes,
   spinning = true,
@@ -74,6 +121,22 @@ export default function NodeEarthGlobe({
   const phiRef = useRef(DEFAULT_PHI)
   const thetaRef = useRef(INITIAL_THETA)
   const pointerRef = useRef({ down: false, x: 0, y: 0 })
+  const reduceMotionRef = useRef(false)
+  const clustersRef = useRef<RegionCluster[]>([])
+  const spinningRef = useRef(spinning)
+  const markersRef = useRef<Marker[]>([])
+  const arcsRef = useRef<Arc[]>([])
+  const isDarkRef = useRef(isDark)
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const syncReduceMotion = () => {
+      reduceMotionRef.current = media.matches
+    }
+    syncReduceMotion()
+    media.addEventListener('change', syncReduceMotion)
+    return () => media.removeEventListener('change', syncReduceMotion)
+  }, [])
 
   const clusters = useMemo<RegionCluster[]>(() => {
     const map = new Map<string, RegionCluster>()
@@ -102,6 +165,12 @@ export default function NodeEarthGlobe({
     return clusters.map(cluster => ({ from: visitorCoord, to: cluster.coord }))
   }, [clusters, visitorCoord])
 
+  clustersRef.current = clusters
+  spinningRef.current = spinning
+  markersRef.current = markers
+  arcsRef.current = arcs
+  isDarkRef.current = isDark
+
   const totalServers = displayNodes.length
   const onlineServers = displayNodes.filter(node => node.online).length
   const offlineServers = totalServers - onlineServers
@@ -111,26 +180,11 @@ export default function NodeEarthGlobe({
     if (!canvas)
       return
 
+    restoreCanvasFromCobeWrapper(canvas)
+
     let frame = 0
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    const colors = isDark
-      ? {
-          dark: 1,
-          mapBrightness: 4,
-          baseColor: [0.32, 0.33, 0.4] as [number, number, number],
-          markerColor: [0.4, 0.7, 1.0] as [number, number, number],
-          glowColor: [0.2, 0.25, 0.45] as [number, number, number],
-          arcColor: [0.45, 0.75, 1.0] as [number, number, number],
-        }
-      : {
-          dark: 0,
-          mapBrightness: 6,
-          baseColor: [1, 1, 1] as [number, number, number],
-          markerColor: [0.21, 0.51, 0.93] as [number, number, number],
-          glowColor: [1, 1, 1] as [number, number, number],
-          arcColor: [0.21, 0.51, 0.93] as [number, number, number],
-        }
-
+    const theme = getGlobeTheme(isDarkRef.current)
     const getSize = () => {
       const rect = canvas.getBoundingClientRect()
       return {
@@ -141,7 +195,7 @@ export default function NodeEarthGlobe({
     let currentSize = getSize()
 
     const updateMarkerLabels = () => {
-      for (const cluster of clusters) {
+      for (const cluster of clustersRef.current) {
         const label = labelMapRef.current.get(cluster.code)
         if (!label)
           continue
@@ -159,24 +213,24 @@ export default function NodeEarthGlobe({
       height: currentSize.height,
       phi: phiRef.current,
       theta: thetaRef.current,
-      dark: colors.dark,
+      dark: theme.dark,
       diffuse: 1.2,
       mapSamples: 10000,
-      mapBrightness: colors.mapBrightness,
-      baseColor: colors.baseColor,
-      markerColor: colors.markerColor,
-      glowColor: colors.glowColor,
-      markers,
+      mapBrightness: theme.mapBrightness,
+      baseColor: theme.baseColor,
+      markerColor: theme.markerColor,
+      glowColor: theme.glowColor,
+      markers: markersRef.current,
       markerElevation: 0,
-      arcs,
-      arcColor: colors.arcColor,
+      arcs: arcsRef.current,
+      arcColor: theme.arcColor,
       arcWidth: 0.8,
       arcHeight: 0.4,
     }
 
     globeRef.current = createGlobe(canvas, options)
     const tick = () => {
-      if (spinning && !pointerRef.current.down)
+      if (spinningRef.current && !pointerRef.current.down && !reduceMotionRef.current)
         phiRef.current += AUTO_ROTATION_SPEED
       globeRef.current?.update({
         phi: phiRef.current,
@@ -201,8 +255,26 @@ export default function NodeEarthGlobe({
       window.removeEventListener('resize', resize)
       globeRef.current?.destroy()
       globeRef.current = null
+      restoreCanvasFromCobeWrapper(canvas)
     }
-  }, [arcs, clusters, isDark, markers, spinning])
+  }, [])
+
+  useEffect(() => {
+    const globe = globeRef.current
+    if (!globe)
+      return
+    const theme = getGlobeTheme(isDark)
+    globe.update({
+      markers,
+      arcs,
+      dark: theme.dark,
+      mapBrightness: theme.mapBrightness,
+      baseColor: theme.baseColor,
+      markerColor: theme.markerColor,
+      glowColor: theme.glowColor,
+      arcColor: theme.arcColor,
+    })
+  }, [arcs, isDark, markers])
 
   function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
     pointerRef.current = { down: true, x: event.clientX, y: event.clientY }
@@ -227,7 +299,7 @@ export default function NodeEarthGlobe({
   }
 
   return (
-    <div className={`relative mx-auto aspect-square w-full max-w-md -translate-y-6 md:-translate-y-12 ${className ?? ''}`}>
+    <div className={`relative mx-auto aspect-square w-full max-w-md overflow-hidden -translate-y-4 lg:-translate-y-8 ${className ?? ''}`}>
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full cursor-grab touch-none select-none contain-layout active:cursor-grabbing"
@@ -255,16 +327,16 @@ export default function NodeEarthGlobe({
               {cluster.onlineServers > 0
                 ? (
                     <div className="flex items-center gap-1">
-                      <span className="inline-block size-1.5 rounded-full bg-green-600" />
-                      <span className="text-green-600">{cluster.onlineServers}</span>
+                      <span className="inline-block size-1.5 rounded-full bg-success-foreground" />
+                      <span className="text-success-foreground">{cluster.onlineServers}</span>
                     </div>
                   )
                 : null}
               {cluster.servers - cluster.onlineServers > 0
                 ? (
                     <div className="flex items-center gap-1">
-                      <span className="inline-block size-1.5 rounded-full bg-yellow-600" />
-                      <span className="text-yellow-600">{cluster.servers - cluster.onlineServers}</span>
+                      <span className="inline-block size-1.5 rounded-full bg-warning-foreground" />
+                      <span className="text-warning-foreground">{cluster.servers - cluster.onlineServers}</span>
                     </div>
                   )
                 : null}
@@ -285,8 +357,8 @@ export default function NodeEarthGlobe({
 }
 
 function LegendDot({ color, value }: { color: 'green' | 'yellow', value: number }) {
-  const dot = color === 'green' ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-yellow-600'
-  const text = color === 'green' ? 'text-emerald-600 dark:text-emerald-400' : 'text-yellow-600'
+  const dot = color === 'green' ? 'bg-success-foreground' : 'bg-warning-foreground'
+  const text = color === 'green' ? 'text-success-foreground' : 'text-warning-foreground'
   return (
     <div className="flex items-center gap-1">
       <span className={`inline-block size-1.5 animate-pulse rounded-full ${dot}`} />

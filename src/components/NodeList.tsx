@@ -1,6 +1,5 @@
 'use client'
 
-import type { KeyboardEvent } from 'react'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
 import { useMemo, useState } from 'react'
@@ -100,44 +99,60 @@ export default function NodeList({
     }
   }
 
-  function handleNodeKeyDown(event: KeyboardEvent<HTMLDivElement>, node: NodeData) {
-    if (event.key !== 'Enter' && event.key !== ' ')
-      return
-    event.preventDefault()
-    onClick(node)
-  }
-
   return (
     <div className="min-w-0 overflow-x-auto overflow-y-hidden p-1 -m-1">
       <div className="flex w-full min-w-fit flex-col gap-1">
         <div className="grid gap-2 rounded-2xl border border-input bg-muted/72 p-2 shadow-xs/5" style={{ gridTemplateColumns }}>
-          {columns.map(col => (
-            <button
-              type="button"
-              key={col.key}
-              className={`${col.sortable ? 'cursor-pointer' : 'cursor-default'} ${['status', 'os'].includes(col.key) ? 'text-center' : 'text-left'}`}
-              onClick={() => handleSort(col)}
-            >
-              <span className="text-xs text-muted-foreground">
-                {col.label}
-                {col.sortable && sortKey === col.key ? (sortDir === 1 ? ' ↑' : ' ↓') : ''}
-              </span>
-            </button>
-          ))}
+          {columns.map((col) => {
+            const alignClass = ['status', 'os'].includes(col.key) ? 'text-center' : 'text-left'
+            const sortLabel = sortKey === col.key
+              ? `${col.label}，${sortDir === 1 ? '升序' : '降序'}`
+              : col.label
+
+            if (!col.sortable) {
+              return (
+                <div key={col.key} className={alignClass}>
+                  <span className="text-xs text-muted-foreground">{col.label}</span>
+                </div>
+              )
+            }
+
+            return (
+              <button
+                type="button"
+                key={col.key}
+                className={`cursor-pointer ${alignClass}`}
+                aria-label={sortLabel}
+                onClick={() => handleSort(col)}
+              >
+                <span className="text-xs text-muted-foreground">
+                  {col.label}
+                  {sortKey === col.key ? (sortDir === 1 ? ' ↑' : ' ↓') : ''}
+                </span>
+              </button>
+            )
+          })}
         </div>
 
         <div className="flex flex-col gap-1">
           {sortedNodes.map((node, index) => (
             <div
               key={transitionKey ? `${transitionKey}-${node.uuid}` : node.uuid}
-              role="button"
-              tabIndex={0}
-              aria-label={`查看节点 ${node.name} 详情`}
               className={`motion-card motion-card-pressable motion-stagger-item relative flex h-16 cursor-pointer flex-col justify-center rounded-xl border border-input bg-card px-2 shadow-xs/5 ${!node.online ? '!border-destructive/25' : ''}`}
               style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
               onClick={() => onClick(node)}
-              onKeyDown={event => handleNodeKeyDown(event, node)}
             >
+              <button
+                type="button"
+                className="sr-only"
+                aria-label={`查看节点 ${node.name} 详情`}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onClick(node)
+                }}
+              >
+                查看节点详情
+              </button>
               <div className="grid items-center gap-2" style={{ gridTemplateColumns }}>
                 {columns.map(col => renderCell(col.key, node))}
               </div>
@@ -147,7 +162,7 @@ export default function NodeList({
                       <div className="grid items-center justify-center gap-2" style={{ gridTemplateColumns }}>
                         <div className="h-full space-y-1" style={offlineOverlayContentStyle}>
                           <div className="truncate text-sm font-semibold">
-                            <span className="text-red-500">离线</span>
+                            <span className="text-destructive-foreground">离线</span>
                             {' '}
                             {node.name}
                           </div>
@@ -171,7 +186,7 @@ export default function NodeList({
       case 'status':
         return (
           <div key={key} className="flex justify-center">
-            <div className={`status-pulse relative size-2 rounded-full ${node.online ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`}>
+            <div className={`status-pulse relative size-2 rounded-full ${node.online ? 'text-success-foreground' : 'text-destructive-foreground'}`}>
               <span className="block size-full rounded-full bg-current" />
             </div>
           </div>
@@ -188,7 +203,7 @@ export default function NodeList({
             </div>
             {priceTags.length > 0
               ? (
-                  <div className="truncate text-[11px] text-muted-foreground/70">
+                  <div className="truncate text-[11px] text-muted-foreground">
                     {priceTags.map((tag, index) => (
                       <span key={tag.id} className={index ? 'ml-1' : ''}>
                         {tag.highlightValue
@@ -369,11 +384,11 @@ export default function NodeList({
         return (
           <div key={key}>
             <div className="flex flex-col text-[10px]">
-              <span className="flex flex-row items-center gap-1 text-emerald-600 dark:text-emerald-400">
+              <span className="flex flex-row items-center gap-1 text-success-foreground">
                 <Icon icon="tabler:chevron-up" width={12} height={12} />
                 {formatBytesPerSecond(node.net_out ?? 0)}
               </span>
-              <span className="flex flex-row items-center gap-1 text-blue-600">
+              <span className="flex flex-row items-center gap-1 text-info-foreground">
                 <Icon icon="tabler:chevron-down" width={12} height={12} />
                 {formatBytesPerSecond(node.net_in ?? 0)}
               </span>
