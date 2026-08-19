@@ -34,8 +34,7 @@ const DEFAULT_BYTE_DECIMALS: ByteDecimalsConfig = {
   B: 0,
   KB: 0,
   MB: 1,
-  GB: 1,
-  TB: 2,
+  TB: 1,
 }
 
 /**

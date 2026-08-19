@@ -1,5 +1,6 @@
 'use client'
 
+import type { NodePingBar } from '@/composables/useNodePingDisplay'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
 import { Badge } from '@/components/ui/badge'
@@ -9,21 +10,10 @@ import { DataTooltip } from '@/components/ui/tooltip'
 import { useNodePingDisplay } from '@/composables/useNodePingDisplay'
 import { useAppStore } from '@/stores/app'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
+import { getDiskUsedPercentage, getMemoryUsedPercentage, getTrafficUsed, getTrafficUsedPercentage, hasRegion } from '@/utils/nodeHelpers'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
 import { getExpireTextClass, getNodePriceTags, parseTags } from '@/utils/tagHelper'
-
-function getTrafficUsed(node: NodeData): number {
-  const { net_total_up = 0, net_total_down = 0, traffic_limit_type } = node
-  switch (traffic_limit_type) {
-    case 'up': return net_total_up
-    case 'down': return net_total_down
-    case 'min': return Math.min(net_total_up, net_total_down)
-    case 'max': return Math.max(net_total_up, net_total_down)
-    case 'sum':
-    default: return net_total_up + net_total_down
-  }
-}
 
 function PingPanel({
   label,
@@ -36,7 +26,7 @@ function PingPanel({
   label: string
   display: string
   tooltip: string
-  bars: ReturnType<typeof useNodePingDisplay>['latencyRenderBars']
+  bars: NodePingBar[]
   node: NodeData
   onPingClick: (node: NodeData) => void
 }) {
@@ -83,15 +73,15 @@ export default function NodeCard({
   const formatBytes = (bytes: number) => formatBytesWithConfig(bytes, byteDecimals)
   const formatBytesPerSecond = (bytes: number) => formatBytesPerSecondWithConfig(bytes, byteDecimals)
   const formatUptime = (seconds: number) => formatUptimeWithFormat(seconds, 'hour')
-  const memPercentage = (node.ram ?? 0) / (node.mem_total || 1) * 100
-  const diskPercentage = (node.disk ?? 0) / (node.disk_total || 1) * 100
+  const memPercentage = getMemoryUsedPercentage(node)
+  const diskPercentage = getDiskUsedPercentage(node)
   const trafficUsed = getTrafficUsed(node)
-  const trafficUsedPercentage = node.traffic_limit <= 0 ? 0 : Math.min((trafficUsed / node.traffic_limit) * 100, 100)
+  const trafficUsedPercentage = getTrafficUsedPercentage(node)
   const priceTags = getNodePriceTags(node, lang)
   const remainingTimeTagClass = node.price === 0 ? '' : getExpireTextClass(node.expired_at)
   const customTags = parseTags(node.tags)
   const ping = useNodePingDisplay(node.uuid)
-  const hasRegion = Boolean(node.region?.trim())
+  const nodeHasRegion = hasRegion(node.region)
 
   return (
     <CardX
@@ -109,7 +99,7 @@ export default function NodeCard({
       headerExtra={(
         <div className="flex items-center gap-2">
           <img src={getOSImage(node.os)} alt={getOSName(node.os)} className="size-4" />
-          {hasRegion ? <img src={`/images/flags/${getRegionCode(node.region)}.svg`} alt={getRegionDisplayName(node.region)} className="size-5 shrink-0" /> : null}
+          {nodeHasRegion ? <img src={`/images/flags/${getRegionCode(node.region)}.svg`} alt={getRegionDisplayName(node.region)} className="size-5 shrink-0" /> : null}
         </div>
       )}
     >
@@ -180,6 +170,22 @@ export default function NodeCard({
                 </InfoBlock>
               )
             : null}
+          <div className={`col-span-6 flex items-center justify-between rounded-sm border border-transparent px-2 py-1 text-[11px] text-muted-foreground ${!node.online ? 'blur-xs opacity-60' : ''}`}>
+            <span>三网</span>
+            {ping.topPingNetworks.length > 0
+              ? (
+                  <div className="flex items-center">
+                    {ping.topPingNetworks.map((network, index) => (
+                      <DataTooltip key={network.taskId} placement="top" content={`${network.name}\n${network.latency}`} className="whitespace-pre">
+                        <span className={`${index ? 'ml-1' : ''} ${network.toneClass}`}>
+                          {index ? `· ${network.latency}` : network.latency}
+                        </span>
+                      </DataTooltip>
+                    ))}
+                  </div>
+                )
+              : <span>N/A</span>}
+          </div>
           <PingPanel label="延迟" display={ping.latencyDisplay} tooltip={ping.latencyPanelTooltip} bars={ping.latencyRenderBars} node={node} onPingClick={onPingClick} />
           <PingPanel label="丢包" display={ping.lossDisplay} tooltip={ping.lossPanelTooltip} bars={ping.lossRenderBars} node={node} onPingClick={onPingClick} />
         </div>

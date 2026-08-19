@@ -11,6 +11,7 @@ import { ProgressThin } from '@/components/ui/progress-thin'
 import { DataTooltip } from '@/components/ui/tooltip'
 import { useAppStore } from '@/stores/app'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
+import { getDiskUsedPercentage, getMemoryUsedPercentage, getTrafficUsed, getTrafficUsedPercentage } from '@/utils/nodeHelpers'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
 import { getExpireTextClass, getNodePriceTags, parseTags } from '@/utils/tagHelper'
@@ -23,35 +24,17 @@ interface ColumnConfig {
 }
 
 const columns: ColumnConfig[] = [
-  { key: 'status', label: '状态', width: '40px', sortable: false },
-  { key: 'os', label: '系统', width: '40px', sortable: false },
+  { key: 'status', label: '状态', width: '40px', sortable: true },
+  { key: 'os', label: '系统', width: '40px', sortable: true },
   { key: 'name', label: '节点', width: 'minmax(160px, 0.8fr)', sortable: true },
   { key: 'tags', label: '标签', width: 'minmax(200px, 1fr)', sortable: false },
   { key: 'uptime', label: '运行时间', width: '116px', sortable: true },
-  { key: 'cpu', label: 'CPU', width: '100px', sortable: false },
-  { key: 'mem', label: '内存', width: '100px', sortable: false },
-  { key: 'disk', label: '硬盘', width: '100px', sortable: false },
-  { key: 'traffic', label: '流量', width: '100px', sortable: false },
+  { key: 'cpu', label: 'CPU', width: '100px', sortable: true },
+  { key: 'mem', label: '内存', width: '100px', sortable: true },
+  { key: 'disk', label: '硬盘', width: '100px', sortable: true },
+  { key: 'traffic', label: '流量', width: '100px', sortable: true },
   { key: 'rate', label: '速率', width: '80px', sortable: true },
 ]
-
-function getTrafficUsed(node: NodeData): number {
-  const { net_total_up = 0, net_total_down = 0, traffic_limit_type } = node
-  switch (traffic_limit_type) {
-    case 'up': return net_total_up
-    case 'down': return net_total_down
-    case 'min': return Math.min(net_total_up, net_total_down)
-    case 'max': return Math.max(net_total_up, net_total_down)
-    case 'sum':
-    default: return net_total_up + net_total_down
-  }
-}
-
-function getTrafficUsedPercentage(node: NodeData): number {
-  if (node.traffic_limit <= 0)
-    return 0
-  return Math.min((getTrafficUsed(node) / node.traffic_limit) * 100, 100)
-}
 
 export default function NodeList({
   nodes,
@@ -83,12 +66,22 @@ export default function NodeList({
 
     return sorted.sort((a, b) => {
       switch (sortKey) {
+        case 'status': return sortDir * ((a.online ? 1 : 0) - (b.online ? 1 : 0))
+        case 'os': {
+          const va = (a.os || '').toLowerCase()
+          const vb = (b.os || '').toLowerCase()
+          return sortDir * (va < vb ? -1 : va > vb ? 1 : 0)
+        }
         case 'name': {
           const va = (a.name || '').toLowerCase()
           const vb = (b.name || '').toLowerCase()
           return sortDir * (va < vb ? -1 : va > vb ? 1 : 0)
         }
         case 'uptime': return sortDir * ((a.uptime ?? 0) - (b.uptime ?? 0))
+        case 'cpu': return sortDir * ((a.cpu ?? 0) - (b.cpu ?? 0))
+        case 'mem': return sortDir * ((a.ram ?? 0) / (a.mem_total || 1) - (b.ram ?? 0) / (b.mem_total || 1))
+        case 'disk': return sortDir * ((a.disk ?? 0) / (a.disk_total || 1) - (b.disk ?? 0) / (b.disk_total || 1))
+        case 'traffic': return sortDir * (getTrafficUsedPercentage(a) - getTrafficUsedPercentage(b))
         case 'rate': return sortDir * (((a.net_out ?? 0) + (a.net_in ?? 0)) - ((b.net_out ?? 0) + (b.net_in ?? 0)))
         default: return 0
       }
@@ -266,7 +259,7 @@ export default function NodeList({
           </div>
         )
       case 'mem': {
-        const memPercentage = (node.ram ?? 0) / (node.mem_total || 1) * 100
+        const memPercentage = getMemoryUsedPercentage(node)
         return (
           <div key={key} className="group">
             <DataTooltip
@@ -311,7 +304,7 @@ export default function NodeList({
         )
       }
       case 'disk': {
-        const diskPercentage = (node.disk ?? 0) / (node.disk_total || 1) * 100
+        const diskPercentage = getDiskUsedPercentage(node)
         return (
           <div key={key} className="group">
             <div className="space-y-1">

@@ -95,8 +95,10 @@ export default function HomeView() {
     let filtered = groupNodeList
     if (debouncedSearchText.trim())
       filtered = filtered.filter(node => isNodeMatchSearch(node, debouncedSearchText))
-    return filtered
-  }, [debouncedSearchText, groupNodeList])
+    if (!derived.offlineNodesLast)
+      return filtered
+    return [...filtered].sort((a, b) => a.online === b.online ? 0 : a.online ? -1 : 1)
+  }, [debouncedSearchText, derived.offlineNodesLast, groupNodeList])
   const selectedPingNode = selectedPingNodeUuid ? nodes.find(node => node.uuid === selectedPingNodeUuid) ?? null : null
 
   function handleNodeClick(node: NodeData) {

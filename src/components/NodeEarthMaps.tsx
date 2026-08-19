@@ -9,9 +9,51 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useAppDerived } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { ensureWorldMapRegistered } from '@/utils/echartsWorldMap'
-import { getCountryCodeFromRegion } from '@/utils/geoHelper'
+import { getCoordByCode, getCountryCodeFromRegion } from '@/utils/geoHelper'
+import { getRegionDisplayName } from '@/utils/regionHelper'
+
 import '@/utils/echarts'
 
+interface EarthMapPoint {
+  code: string
+  name: string
+  coord: [number, number]
+  online: number
+  offline: number
+  total: number
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('\'', '&#39;')
+}
+function getTooltipPoint(params: unknown): Pick<EarthMapPoint, 'name' | 'online' | 'offline'> | null {
+  const first = Array.isArray(params) ? params[0] : params
+  if (typeof first !== 'object' || first === null || !('data' in first))
+    return null
+
+  const data = first.data
+  if (typeof data !== 'object' || data === null || Array.isArray(data))
+    return null
+  if (!('name' in data) || !('online' in data) || !('offline' in data))
+    return null
+  if (typeof data.name !== 'string' || typeof data.online !== 'number' || typeof data.offline !== 'number')
+    return null
+
+  return { name: data.name, online: data.online, offline: data.offline }
+}
+
+function getScatterLabel(params: unknown): string {
+  if (typeof params !== 'object' || params === null || !('value' in params) || !Array.isArray(params.value))
+    return ''
+
+  const total = params.value[2]
+  return typeof total === 'number' ? String(total) : ''
+}
 export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[], className?: string }) {
   const fallbackNodes = useNodesStore(state => state.earthNodes)
   const displayNodes = nodes ?? fallbackNodes
@@ -22,16 +64,32 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  const points = useMemo(() => {
-    const map = new Map<string, { code: string, online: number, total: number }>()
+  const points = useMemo<EarthMapPoint[]>(() => {
+    const map = new Map<string, EarthMapPoint>()
     for (const node of displayNodes) {
       const code = getCountryCodeFromRegion(node.region)
       if (!code)
         continue
-      const current = map.get(code) ?? { code, online: 0, total: 0 }
+      const coord = getCoordByCode(code)
+      if (!coord)
+        continue
+
+      const current = map.get(code)
+      if (!current) {
+        map.set(code, {
+          code,
+          name: getRegionDisplayName(node.region),
+          coord,
+          online: node.online ? 1 : 0,
+          offline: node.online ? 0 : 1,
+          total: 1,
+        })
+        continue
+      }
+
       current.total += 1
       current.online += node.online ? 1 : 0
-      map.set(code, current)
+      current.offline += node.online ? 0 : 1
     }
     return Array.from(map.values()).sort((a, b) => b.online - a.online || b.total - a.total)
   }, [displayNodes])
@@ -49,11 +107,43 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
       offlineAreaColor: isDark ? 'rgba(234, 179, 8, 0.32)' : 'rgba(202, 138, 4, 0.22)',
       activeBorderColor: isDark ? 'rgba(16, 185, 129, 0.95)' : 'rgba(5, 150, 105, 0.92)',
       offlineBorderColor: isDark ? 'rgba(234, 179, 8, 0.8)' : 'rgba(202, 138, 4, 0.88)',
+      dotEmerald: isDark ? 'rgba(16, 185, 129, 0.92)' : 'rgba(5, 150, 105, 0.9)',
+      dotYellow: isDark ? 'rgba(234, 179, 8, 0.92)' : 'rgba(202, 138, 4, 0.9)',
     }
 
     return {
       animationDurationUpdate: 300,
       animationEasingUpdate: 'cubicOut',
+      tooltip: {
+        trigger: 'item',
+        confine: true,
+        formatter: (params: unknown) => {
+          const point = getTooltipPoint(params)
+          return point
+            ? `${escapeHtml(point.name)}<br/>在线 ${point.online} · 离线 ${point.offline}`
+            : ''
+        },
+      },
+      geo: {
+        map: mapName,
+        roam: false,
+        left: 'center',
+        top: 'center',
+        width: '100%',
+        silent: true,
+        itemStyle: {
+          areaColor: 'transparent',
+          borderColor: 'transparent',
+        },
+        emphasis: {
+          itemStyle: {
+            areaColor: 'transparent',
+            borderColor: 'transparent',
+          },
+          label: { show: false },
+        },
+        label: { show: false },
+      },
       series: [
         {
           type: 'map',
@@ -63,9 +153,7 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
           left: 'center',
           top: 'center',
           width: '100%',
-          height: '100%',
-          layoutCenter: ['50%', '50%'],
-          layoutSize: '168%',
+          tooltip: { show: false },
           emphasis: {
             label: { show: false },
             itemStyle: {
@@ -89,6 +177,32 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
             },
           })),
           label: { show: false },
+        },
+        {
+          type: 'scatter',
+          coordinateSystem: 'geo',
+          data: points.map(point => ({
+            name: point.name,
+            value: [point.coord[1], point.coord[0], point.total],
+            online: point.online,
+            offline: point.offline,
+            symbolSize: point.total <= 1 ? 8 : 14,
+            label: { show: point.total > 1 },
+            itemStyle: {
+              color: point.offline > 0 ? colors.dotYellow : colors.dotEmerald,
+            },
+          })),
+          symbol: 'circle',
+          itemStyle: {
+            borderColor: '#ffffff',
+            borderWidth: 1,
+          },
+          label: {
+            color: '#ffffff',
+            fontSize: 10,
+            formatter: getScatterLabel,
+          },
+          emphasis: { scale: 1.3 },
         },
       ],
     }
@@ -130,7 +244,7 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
               </div>
             )
           : null}
-        <div className="relative w-full flex-1 -translate-y-1/6">
+        <div className="relative w-full flex-1 -translate-y-1/5 md:-translate-y-1/6">
           {loading
             ? (
                 <MapSkeleton />

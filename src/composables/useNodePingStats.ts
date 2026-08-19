@@ -9,12 +9,36 @@ export interface NodePingHistoryPoint {
   loss: number | null
 }
 
+export interface NodePingPerTaskStat {
+  taskId: number
+  name: string
+  avgLatency: number
+  loss: number
+}
+
 export interface NodePingStatsState {
   avgLatency: number
   avgLoss: number
   avgVolatility: number
   history: NodePingHistoryPoint[]
+  perTaskStats: NodePingPerTaskStat[]
   hasData: boolean
+}
+export interface NodePingStatsResult {
+  stats: NodePingStatsState
+  loading: boolean
+  error: string | null
+  history: NodePingHistoryPoint[]
+  avgLatency: number
+  avgLoss: number
+  avgVolatility: number
+  perTaskStats: NodePingPerTaskStat[]
+  hasData: boolean
+}
+
+interface PingTaskInfo {
+  id: number
+  name: string
 }
 
 interface PingRecord {
@@ -26,10 +50,12 @@ interface PingRecord {
 
 interface SharedPingRecordsResponse {
   records?: PingRecord[]
+  tasks?: unknown
 }
 
 interface SharedPingRecordsState {
   recordsByClient: Map<string, PingRecord[]>
+  tasks: PingTaskInfo[]
 }
 
 interface SharedPingRecordsEntry {
@@ -43,7 +69,7 @@ interface SharedPingRecordsEntry {
 }
 
 export const NODE_PING_BAR_COUNT = 20
-const CACHE_VERSION = 5
+const CACHE_VERSION = 6
 const CACHE_KEY_PREFIX = 'komari-theme-emerald:node-ping-stats'
 const FULL_LOSS_EPSILON = 1e-6
 const PING_RECORD_REFRESH_INTERVAL_MS = 60_000
@@ -60,6 +86,7 @@ function createEmptyStats(): NodePingStatsState {
     avgLoss: 0,
     avgVolatility: 0,
     history: [],
+    perTaskStats: [],
     hasData: false,
   }
 }
@@ -111,6 +138,17 @@ function isValidHistoryPoint(value: unknown): value is NodePingHistoryPoint {
     && (point.loss === null || typeof point.loss === 'number')
 }
 
+function isValidPerTaskStat(value: unknown): value is NodePingPerTaskStat {
+  if (!value || typeof value !== 'object')
+    return false
+
+  const stat = value as Record<string, unknown>
+  return Number.isInteger(stat.taskId)
+    && typeof stat.name === 'string'
+    && typeof stat.avgLatency === 'number'
+    && typeof stat.loss === 'number'
+}
+
 function isValidStatsState(value: unknown): value is NodePingStatsState {
   if (!value || typeof value !== 'object')
     return false
@@ -122,6 +160,8 @@ function isValidStatsState(value: unknown): value is NodePingStatsState {
     && typeof state.hasData === 'boolean'
     && Array.isArray(state.history)
     && state.history.every(isValidHistoryPoint)
+    && Array.isArray(state.perTaskStats)
+    && state.perTaskStats.every(isValidPerTaskStat)
 }
 
 function readStatsCache(uuid: string, hours: number): NodePingStatsState | null {
@@ -209,6 +249,24 @@ function buildRecordsByClient(records: PingRecord[]): Map<string, PingRecord[]> 
   return grouped
 }
 
+function normalizePingTasks(value: unknown): PingTaskInfo[] {
+  if (!Array.isArray(value))
+    return []
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object')
+      return []
+
+    const raw = item as Record<string, unknown>
+    const id = Number(raw.id)
+    if (!Number.isInteger(id))
+      return []
+
+    const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : `Ping ${id}`
+    return [{ id, name }]
+  })
+}
+
 async function loadSharedPingRecords(entry: SharedPingRecordsEntry, hours: number): Promise<void> {
   if (entry.promise)
     return entry.promise
@@ -227,6 +285,7 @@ async function loadSharedPingRecords(entry: SharedPingRecordsEntry, hours: numbe
 
       entry.data = {
         recordsByClient: buildRecordsByClient(result?.records ?? []),
+        tasks: normalizePingTasks(result?.tasks),
       }
       entry.lastFetchedAt = Date.now()
     }
@@ -320,7 +379,7 @@ function getPercentile(values: number[], percentile: number): number | null {
   return lowerValue + (upperValue - lowerValue) * (position - lowerIndex)
 }
 
-function buildStats(records: PingRecord[]): NodePingStatsState {
+function buildStats(records: PingRecord[], tasks: PingTaskInfo[]): NodePingStatsState {
   const includedTaskIds = getIncludedTaskIds(records)
 
   if (!includedTaskIds.size)
@@ -339,6 +398,22 @@ function buildStats(records: PingRecord[]): NodePingStatsState {
   const latencyValues: number[] = []
   const taskLossValues: number[] = []
   const volatilityValues: number[] = []
+  const taskNameMap = new Map(tasks.map(task => [task.id, task.name]))
+  const taskOrderMap = new Map(tasks.map((task, index) => [task.id, index]))
+
+  const perTaskStats: NodePingPerTaskStat[] = Array.from(taskRecords.entries(), ([taskId, recordsByTask]) => {
+    const validValues = recordsByTask.map(record => record.value).filter(value => value >= 0)
+    const avgLatency = validValues.length ? average(validValues) : -1
+    const loss = recordsByTask.length
+      ? (recordsByTask.length - validValues.length) / recordsByTask.length * 100
+      : 100
+    return {
+      taskId,
+      name: taskNameMap.get(taskId) ?? `Ping ${taskId}`,
+      avgLatency,
+      loss,
+    }
+  }).sort((left, right) => (taskOrderMap.get(left.taskId) ?? Number.MAX_SAFE_INTEGER) - (taskOrderMap.get(right.taskId) ?? Number.MAX_SAFE_INTEGER))
 
   for (const recordsByTask of taskRecords.values()) {
     const validValues = recordsByTask
@@ -376,6 +451,7 @@ function buildStats(records: PingRecord[]): NodePingStatsState {
     avgLoss,
     avgVolatility,
     history,
+    perTaskStats,
     hasData,
   }
 }
@@ -386,7 +462,7 @@ export function useNodePingStats(
     hours?: number
     enabled?: boolean
   },
-) {
+): NodePingStatsResult {
   const hours = Math.max(1, Math.floor(options?.hours ?? 24))
   const enabled = options?.enabled ?? true
   const [, forceRender] = useState(0)
@@ -420,7 +496,7 @@ export function useNodePingStats(
       return readStatsCache(uuid, hours) ?? createEmptyStats()
 
     const records = entry.data.recordsByClient.get(uuid) ?? []
-    return records.length ? buildStats(records) : createEmptyStats()
+    return records.length ? buildStats(records, entry.data.tasks) : createEmptyStats()
   }, [enabled, entry.data, hours, uuid])
 
   useEffect(() => {
@@ -443,6 +519,7 @@ export function useNodePingStats(
     avgLatency: stats.avgLatency,
     avgLoss: stats.avgLoss,
     avgVolatility: stats.avgVolatility,
+    perTaskStats: stats.perTaskStats,
     hasData: stats.hasData,
   }
 }

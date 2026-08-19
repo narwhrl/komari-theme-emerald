@@ -1,5 +1,6 @@
 import type { NodeData } from '@/stores/nodes'
 import dayjs from 'dayjs'
+import { CURRENCY_SYMBOLS, normalizeCurrency } from '@/utils/financeHelper'
 
 /** 计费周期类型 */
 export type BillingCycleType = 'monthly' | 'quarterly' | 'semi_annual' | 'annual' | 'biennial' | 'triennial' | 'quinquennial' | 'once' | 'custom'
@@ -335,35 +336,33 @@ export function parseTags(tags: string | undefined): Array<{ id: string, text: s
 /**
  * 格式化价格显示
  * @param price 价格
- * @param currency 货币符号
+ * @param currency 货币代码或符号
  * @param lang 语言
  * @returns 价格显示文本
  */
-export function formatPrice(price: number, currency: string = '￥', lang: 'zh-CN' | 'en-US' = 'zh-CN'): string {
-  if (price === 0)
+export function formatPrice(price: number, currency: string = 'CNY', lang: 'zh-CN' | 'en-US' = 'zh-CN'): string {
+  if (price === 0 || price === -1)
     return lang === 'zh-CN' ? '免费' : 'Free'
-  if (price === -1)
-    return lang === 'zh-CN' ? '免费' : 'Free'
-  return `${currency}${price}`
+  const code = normalizeCurrency(currency)
+  return `${CURRENCY_SYMBOLS[code]}${price}`
 }
 
 /**
  * 格式化价格和计费周期
  * @param price 价格
  * @param billingCycle 计费周期（天）
- * @param currency 货币符号
+ * @param currency 货币代码或符号
  * @param lang 语言
  * @returns 完整的价格显示文本
  */
 export function formatPriceWithCycle(
   price: number,
   billingCycle: number,
-  currency: string = '￥',
+  currency: string = 'CNY',
   lang: 'zh-CN' | 'en-US' = 'zh-CN',
 ): string {
   const priceText = formatPrice(price, currency, lang)
-  const cycleText = getBillingCycleText(billingCycle, lang)
-  return `${priceText} / ${cycleText}`
+  return price > 0 ? `${priceText} / ${getBillingCycleText(billingCycle, lang)}` : priceText
 }
 
 export interface NodePriceTag {
@@ -375,13 +374,17 @@ export interface NodePriceTag {
 }
 
 export function getNodePriceTags(node: NodeData, lang: 'zh-CN' | 'en-US'): NodePriceTag[] {
-  if (node.price === 0)
-    return []
+  const priceText = formatPriceWithCycle(node.price, node.billing_cycle, node.currency, lang)
+  const tags: NodePriceTag[] = []
+
+  if (node.price !== 0)
+    tags.push({ id: 'price', text: priceText })
+
+  if (!node.expired_at || !dayjs(node.expired_at).isValid())
+    return tags
 
   const days = getDaysUntilExpired(node.expired_at)
   const status = getExpireStatus(node.expired_at)
-  const priceText = formatPriceWithCycle(node.price, node.billing_cycle, node.currency, lang)
-  const tags: NodePriceTag[] = [{ id: 'price', text: priceText }]
 
   if (status === 'expired')
     tags.push({ id: 'status', text: lang === 'zh-CN' ? '已过期' : 'Expired' })

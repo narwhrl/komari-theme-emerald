@@ -1,8 +1,9 @@
 'use client'
 
+import type { NodePingPerTaskStat, NodePingStatsResult } from '@/composables/useNodePingStats'
 import { useCallback, useMemo } from 'react'
 import { NODE_PING_BAR_COUNT, useNodePingStats } from '@/composables/useNodePingStats'
-import { useAppStore } from '@/stores/app'
+import { useAppDerived } from '@/stores/app'
 import { formatDateTime } from '@/utils/helper'
 
 export type NodePingMetric = 'latency' | 'loss'
@@ -21,14 +22,51 @@ interface UseNodePingDisplayOptions {
   emptyPanelTooltipText?: Partial<Record<NodePingMetric, string>>
 }
 
+export interface NodePingNetworkDisplay {
+  taskId: number
+  name: string
+  latency: string
+  toneClass: string
+}
+
+export interface UseNodePingDisplayResult {
+  pingStats: NodePingStatsResult
+  pingStatsEnabled: boolean
+  pingStatsHours: number
+  latencyRenderBars: NodePingBar[]
+  lossRenderBars: NodePingBar[]
+  latencyDisplay: string
+  lossDisplay: string
+  latencyPanelTooltip: string
+  lossPanelTooltip: string
+  topPingNetworks: NodePingNetworkDisplay[]
+}
+const RECENT_PING_RECORDS_QUERY_HOURS = 1
+
+const PING_NETWORK_DISPLAY_COUNT = 3
+
+export function getPingToneClass(value: number): string {
+  if (!value)
+    return 'text-muted-foreground'
+  if (value <= 60)
+    return 'text-emerald-600 dark:text-emerald-400'
+  if (value <= 120)
+    return 'text-green-600 dark:text-green-400'
+  if (value <= 180)
+    return 'text-lime-600 dark:text-lime-400'
+  if (value <= 240)
+    return 'text-amber-600 dark:text-amber-400'
+  return 'text-rose-600 dark:text-rose-400'
+}
+
 function getLatencyToneClass(latency: number): string {
   if (latency <= 60)
     return 'bg-emerald-600/90'
-  if (latency <= 100)
-    return 'bg-green-400/80'
-  if (latency <= 160)
+  if (latency <= 120)
+    return 'bg-green-500/80'
+  if (latency <= 180)
     return 'bg-lime-400/80'
-  if (latency <= 200)
+  if (latency <= 240)
     return 'bg-yellow-400/80'
   return 'bg-rose-500/80'
 }
@@ -37,26 +75,30 @@ function getLossToneClass(loss: number): string {
   if (loss <= 1)
     return 'bg-emerald-600/90'
   if (loss <= 3)
-    return 'bg-green-400/90'
+    return 'bg-green-500/80'
   if (loss <= 6)
-    return 'bg-lime-400/90'
+    return 'bg-lime-400/80'
   if (loss <= 9)
-    return 'bg-yellow-400/90'
+    return 'bg-yellow-400/80'
   return 'bg-rose-500/80'
+}
+
+function toNetworkDisplay(stat: NodePingPerTaskStat): NodePingNetworkDisplay {
+  return {
+    taskId: stat.taskId,
+    name: stat.name,
+    latency: stat.avgLatency >= 0 ? `${Math.round(stat.avgLatency)}ms` : '--',
+    toneClass: stat.avgLatency >= 0 ? getPingToneClass(stat.avgLatency) : 'text-rose-500',
+  }
 }
 
 export function useNodePingDisplay(
   uuid: string,
   options: UseNodePingDisplayOptions = {},
-) {
-  const publicSettings = useAppStore(state => state.publicSettings)
-  const pingStatsEnabled = (options.enabled ?? true)
-    && publicSettings?.record_enabled !== false
-    && publicSettings?.ping_record_preserve_time !== 0
-  const preserveTime = publicSettings?.ping_record_preserve_time
-  const pingStatsHours = typeof preserveTime === 'number' && preserveTime > 0
-    ? Math.min(preserveTime, 1)
-    : 1
+): UseNodePingDisplayResult {
+  const { pingNetworkOrder } = useAppDerived()
+  const pingStatsEnabled = options.enabled ?? true
+  const pingStatsHours = RECENT_PING_RECORDS_QUERY_HOURS
 
   const pingStats = useNodePingStats(uuid, {
     hours: pingStatsHours,
@@ -94,9 +136,7 @@ export function useNodePingDisplay(
         ? '加载失败'
         : !pingStatsEnabled
             ? '未启用记录'
-            : metric === 'latency'
-              ? 'N/A'
-              : 'N/A'
+            : 'N/A'
 
     return Array.from({ length: NODE_PING_BAR_COUNT }, (_, index) => ({
       key: `${metric}-empty-${index}`,
@@ -139,6 +179,37 @@ export function useNodePingDisplay(
       : options.emptyPanelTooltipText?.loss ?? ''
     : `平均丢包 ${pingStats.avgLoss.toFixed(1)}%${pingStats.avgVolatility > 0 ? `，平均波动 ${pingStats.avgVolatility.toFixed(2)}` : ''}`
 
+  const topPingNetworks = useMemo(() => {
+    const perTaskStats = pingStats.perTaskStats
+    if (!pingNetworkOrder.length)
+      return perTaskStats.slice(0, PING_NETWORK_DISPLAY_COUNT).map(toNetworkDisplay)
+
+    const statsByName = new Map(perTaskStats.map(stat => [stat.name, stat]))
+    const selected: NodePingPerTaskStat[] = []
+    const usedTaskIds = new Set<number>()
+
+    for (const name of pingNetworkOrder) {
+      if (selected.length >= PING_NETWORK_DISPLAY_COUNT)
+        break
+      const stat = statsByName.get(name)
+      if (stat && !usedTaskIds.has(stat.taskId)) {
+        selected.push(stat)
+        usedTaskIds.add(stat.taskId)
+      }
+    }
+
+    for (const stat of perTaskStats) {
+      if (selected.length >= PING_NETWORK_DISPLAY_COUNT)
+        break
+      if (!usedTaskIds.has(stat.taskId)) {
+        selected.push(stat)
+        usedTaskIds.add(stat.taskId)
+      }
+    }
+
+    return selected.map(toNetworkDisplay)
+  }, [pingNetworkOrder, pingStats.perTaskStats])
+
   return {
     pingStats,
     pingStatsEnabled,
@@ -149,5 +220,6 @@ export function useNodePingDisplay(
     lossDisplay,
     latencyPanelTooltip,
     lossPanelTooltip,
+    topPingNetworks,
   }
 }

@@ -4,7 +4,7 @@ import { DataTooltip } from '@/components/ui/tooltip'
 import { useNodePingDisplay } from '@/composables/useNodePingDisplay'
 
 export default function NodePingListCell({ uuid }: { uuid: string, online: boolean }) {
-  const { latencyRenderBars, lossRenderBars } = useNodePingDisplay(uuid)
+  const { latencyRenderBars, lossRenderBars, topPingNetworks } = useNodePingDisplay(uuid)
 
   const renderBars = (bars: typeof latencyRenderBars) => (
     <div
@@ -20,7 +20,22 @@ export default function NodePingListCell({ uuid }: { uuid: string, online: boole
   )
 
   return (
-    <div className="group flex flex-col gap-[1px] pr-4">
+    <div className="group flex flex-col gap-0.5 pr-4">
+      <div className="flex min-w-0 items-center text-[10px] leading-none">
+        {topPingNetworks.length > 0
+          ? topPingNetworks.map((network, index) => (
+              <DataTooltip
+                key={network.taskId}
+                as="span"
+                placement="top"
+                content={`${network.name}\n${network.latency}`}
+                className={`min-w-0 truncate ${index ? 'ml-1' : ''}`}
+              >
+                <span className={network.toneClass}>{index ? `· ${network.latency}` : network.latency}</span>
+              </DataTooltip>
+            ))
+          : <span className="truncate text-muted-foreground">N/A</span>}
+      </div>
       <div className="group/panel relative items-center gap-1 opacity-80 hover:opacity-100">
         {renderBars(latencyRenderBars)}
       </div>
