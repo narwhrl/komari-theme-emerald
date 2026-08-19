@@ -3,6 +3,7 @@
 import { Icon } from '@iconify/react'
 import { useEffect, useMemo, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAppStore } from '@/stores/app'
 
 interface VisitorGeoData {
   ip: string
@@ -166,6 +167,7 @@ async function fetchVisitorGeo(): Promise<VisitorGeoData | null> {
 }
 
 export default function VisitorInfoCard() {
+  const setVisitorCountryCode = useAppStore(state => state.setVisitorCountryCode)
   const [loading, setLoading] = useState(true)
   const [device, setDevice] = useState('检测中')
   const [browser, setBrowser] = useState('检测中')
@@ -192,15 +194,17 @@ export default function VisitorInfoCard() {
         setIsp(geo.isp)
         setLocation(geo.location)
         setCountryCode(geo.countryCode.toUpperCase())
+        setVisitorCountryCode(geo.countryCode.toUpperCase() || null)
       }
       else {
         setIp('暂无法获取')
         setIsp('网络信息不可用')
         setLocation('网络访客')
+        setVisitorCountryCode(null)
       }
       setLoading(false)
     })
-  }, [])
+  }, [setVisitorCountryCode])
 
   const subtitle = loading ? '检测中' : location || '网络访客'
   const flagSrc = countryCode ? `/images/flags/${countryCode}.svg` : ''

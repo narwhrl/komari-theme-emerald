@@ -1,10 +1,10 @@
 'use client'
 
-import type { COBEOptions, Globe, Marker } from 'cobe'
+import type { Arc, COBEOptions, Globe, Marker } from 'cobe'
 import type { NodeData } from '@/stores/nodes'
 import createGlobe from 'cobe'
 import { useEffect, useMemo, useRef } from 'react'
-import { useAppDerived } from '@/stores/app'
+import { useAppDerived, useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { getCoordByCode, getCountryCodeFromRegion } from '@/utils/geoHelper'
 
@@ -61,7 +61,13 @@ export default function NodeEarthGlobe({
 }) {
   const fallbackNodes = useNodesStore(state => state.earthNodes)
   const displayNodes = nodes ?? fallbackNodes
-  const { isDark } = useAppDerived()
+  const { isDark, visitorInfoCardEnabled } = useAppDerived()
+  const visitorCountryCode = useAppStore(state => state.visitorCountryCode)
+  const visitorCoord = useMemo<[number, number] | null>(() => {
+    if (!visitorInfoCardEnabled || !visitorCountryCode)
+      return null
+    return getCoordByCode(visitorCountryCode) ?? null
+  }, [visitorCountryCode, visitorInfoCardEnabled])
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const globeRef = useRef<Globe | null>(null)
   const labelMapRef = useRef(new Map<string, HTMLDivElement>())
@@ -90,6 +96,11 @@ export default function NodeEarthGlobe({
     location: cluster.coord,
     size: 0,
   })), [clusters])
+  const arcs = useMemo<Arc[]>(() => {
+    if (!visitorCoord || clusters.length === 0)
+      return []
+    return clusters.map(cluster => ({ from: visitorCoord, to: cluster.coord }))
+  }, [clusters, visitorCoord])
 
   const totalServers = displayNodes.length
   const onlineServers = displayNodes.filter(node => node.online).length
@@ -109,6 +120,7 @@ export default function NodeEarthGlobe({
           baseColor: [0.32, 0.33, 0.4] as [number, number, number],
           markerColor: [0.4, 0.7, 1.0] as [number, number, number],
           glowColor: [0.2, 0.25, 0.45] as [number, number, number],
+          arcColor: [0.45, 0.75, 1.0] as [number, number, number],
         }
       : {
           dark: 0,
@@ -116,6 +128,7 @@ export default function NodeEarthGlobe({
           baseColor: [1, 1, 1] as [number, number, number],
           markerColor: [0.21, 0.51, 0.93] as [number, number, number],
           glowColor: [1, 1, 1] as [number, number, number],
+          arcColor: [0.21, 0.51, 0.93] as [number, number, number],
         }
 
     const getSize = () => {
@@ -155,6 +168,10 @@ export default function NodeEarthGlobe({
       glowColor: colors.glowColor,
       markers,
       markerElevation: 0,
+      arcs,
+      arcColor: colors.arcColor,
+      arcWidth: 0.8,
+      arcHeight: 0.4,
     }
 
     globeRef.current = createGlobe(canvas, options)
@@ -185,7 +202,7 @@ export default function NodeEarthGlobe({
       globeRef.current?.destroy()
       globeRef.current = null
     }
-  }, [clusters, isDark, markers, spinning])
+  }, [arcs, clusters, isDark, markers, spinning])
 
   function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
     pointerRef.current = { down: true, x: event.clientX, y: event.clientY }

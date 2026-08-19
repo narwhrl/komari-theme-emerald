@@ -16,6 +16,7 @@ import { useNodesStore } from '@/stores/nodes'
 import * as financeHelper from '@/utils/financeHelper'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
 import { navigateTo } from '@/utils/navigation'
+import { getTrafficUsed, getTrafficUsedPercentage, hasTrafficLimit as nodeHasTrafficLimit } from '@/utils/nodeHelpers'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
 import { getBillingCycleText, getExpireText, getExpireTextClass } from '@/utils/tagHelper'
@@ -76,18 +77,6 @@ function splitMetricValue(value: string): { value: string, unit?: string } {
   if (currencyMatch)
     return { value: currencyMatch[1] ?? value, unit: currencyMatch[2] ?? undefined }
   return { value }
-}
-
-function getTrafficUsed(node: NodeData): number {
-  const { net_total_up = 0, net_total_down = 0, traffic_limit_type } = node
-  switch (traffic_limit_type) {
-    case 'up': return net_total_up
-    case 'down': return net_total_down
-    case 'min': return Math.min(net_total_up, net_total_down)
-    case 'max': return Math.max(net_total_up, net_total_down)
-    case 'sum':
-    default: return net_total_up + net_total_down
-  }
 }
 
 export default function InstanceDetail({ id }: { id: string }) {
@@ -172,8 +161,8 @@ export default function InstanceDetail({ id }: { id: string }) {
     { label: '硬盘', value: `${formatBytes(data.disk ?? 0)} / ${formatBytes(data.disk_total ?? 0)}`, icon: 'icon-park-outline:hard-disk' },
   ]
   const trafficUsed = getTrafficUsed(data)
-  const hasTrafficLimit = (data.traffic_limit ?? 0) > 0
-  const trafficUsedPercentage = data.traffic_limit <= 0 ? 0 : Math.min((trafficUsed / data.traffic_limit) * 100, 100)
+  const hasTrafficLimit = nodeHasTrafficLimit(data)
+  const trafficUsedPercentage = getTrafficUsedPercentage(data)
   const trafficUsageText = hasTrafficLimit ? `${formatBytes(trafficUsed)} / ${formatBytes(data.traffic_limit ?? 0)}` : '无限流量'
   const memoryUsagePercentage = getUsedPercentage(data.ram, data.mem_total)
   const swapUsagePercentage = getUsedPercentage(data.swap, data.swap_total)

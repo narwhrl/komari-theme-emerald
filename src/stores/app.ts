@@ -97,6 +97,25 @@ function resolveRpcTransportMode(settings: Record<string, unknown> | null): RpcT
   return settings?.rpcTransportMode === 'http' ? 'http' : 'websocket'
 }
 
+const EMPTY_PING_NETWORK_ORDER: string[] = []
+const pingNetworkOrderCache = new WeakMap<Record<string, unknown>, string[]>()
+
+function getPingNetworkOrder(settings: Record<string, unknown> | null): string[] {
+  if (!settings)
+    return EMPTY_PING_NETWORK_ORDER
+
+  const cached = pingNetworkOrderCache.get(settings)
+  if (cached)
+    return cached
+
+  const source = settings.pingNetworkOrder
+  const order = typeof source === 'string'
+    ? Array.from(new Set(source.split(',').map(item => item.trim()).filter(Boolean)))
+    : EMPTY_PING_NETWORK_ORDER
+  pingNetworkOrderCache.set(settings, order)
+  return order
+}
+
 export interface AppStoreState {
   loading: boolean
   themeMode: ThemeMode
@@ -110,6 +129,7 @@ export interface AppStoreState {
   homeScrollPosition: number
   homeSearchText: string
   byteDecimals: ByteDecimalsConfig
+  visitorCountryCode: string | null
 }
 
 export interface AppStoreActions {
@@ -121,6 +141,7 @@ export interface AppStoreActions {
   setConnectionError: (connectionError: boolean) => void
   setHomeScrollPosition: (position: number) => void
   setHomeSearchText: (text: string) => void
+  setVisitorCountryCode: (countryCode: string | null) => void
   updateThemeMode: (mode?: ThemeMode) => void
   updateLoginState: (loggedIn: boolean) => void
 }
@@ -140,6 +161,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   homeScrollPosition: 0,
   homeSearchText: '',
   byteDecimals: { ...BYTE_DECIMALS },
+  visitorCountryCode: null,
 
   hydrateFromBrowser: () => {
     const themeMode = readStorage<ThemeMode>('themeMode', 'auto')
@@ -175,6 +197,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setConnectionError: connectionError => set({ connectionError }),
   setHomeScrollPosition: position => set({ homeScrollPosition: position }),
   setHomeSearchText: homeSearchText => set({ homeSearchText }),
+  setVisitorCountryCode: visitorCountryCode => set({ visitorCountryCode }),
   updateThemeMode: (mode) => {
     const currentMode = isValidThemeMode(get().themeMode) ? get().themeMode : 'auto'
     const nextMode = getNextThemeMode(currentMode, mode)
@@ -195,6 +218,8 @@ export interface AppDerivedState {
   visitorInfoCardEnabled: boolean
   hideAdminEntryWhenLoggedOut: boolean
   disablePageAnimation: boolean
+  pingNetworkOrder: string[]
+  offlineNodesLast: boolean
   icpEnabled: boolean
   icpNumber: string
   icpUrl: string
@@ -224,6 +249,8 @@ export function selectAppDerived(state: AppStoreState): AppDerivedState {
   const resolvedThemeMode = isDark ? 'dark' : 'light'
   const lightBackgroundUrl = typeof settings?.lightBackgroundUrl === 'string' ? settings.lightBackgroundUrl.trim() : ''
   const darkBackgroundUrl = typeof settings?.darkBackgroundUrl === 'string' ? settings.darkBackgroundUrl.trim() : ''
+  const pingNetworkOrder = getPingNetworkOrder(settings)
+  const offlineNodesLast = typeof settings?.offlineNodesLast === 'boolean' ? settings.offlineNodesLast : false
 
   return {
     defaultViewMode,
@@ -236,6 +263,8 @@ export function selectAppDerived(state: AppStoreState): AppDerivedState {
     visitorInfoCardEnabled: typeof settings?.visitorInfoCardEnabled === 'boolean' ? settings.visitorInfoCardEnabled : true,
     hideAdminEntryWhenLoggedOut: typeof settings?.hideAdminEntryWhenLoggedOut === 'boolean' ? settings.hideAdminEntryWhenLoggedOut : false,
     disablePageAnimation: typeof settings?.disablePageAnimation === 'boolean' ? settings.disablePageAnimation : false,
+    pingNetworkOrder,
+    offlineNodesLast,
     icpEnabled: typeof settings?.icpEnabled === 'boolean' ? settings.icpEnabled : false,
     icpNumber: typeof settings?.icpNumber === 'string' ? settings.icpNumber : '',
     icpUrl: typeof settings?.icpUrl === 'string' && settings.icpUrl.trim() ? settings.icpUrl.trim() : 'https://beian.miit.gov.cn/',

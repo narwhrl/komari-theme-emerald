@@ -3,7 +3,7 @@
 import type { EChartsOption } from 'echarts'
 import { Icon } from '@iconify/react'
 import dayjs from 'dayjs'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import EChart from '@/components/EChart'
 import { Button } from '@/components/ui/button'
 import { Empty } from '@/components/ui/empty'
@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { cutPeakValues, interpolateNullsLinear } from '@/utils/recordHelper'
-import { getSharedRpc } from '@/utils/rpc'
+import { getSharedRpc, RpcError } from '@/utils/rpc'
 
 interface PingRecord {
   client: string
@@ -26,13 +26,63 @@ interface TaskInfo {
   name: string
   interval: number
   loss: number
+  p99?: number
+  p50?: number
+  p99_p50_ratio?: number
+  min?: number
+  max?: number
   avg?: number
+  latest?: number
+  total?: number
+  type?: string
+}
+
+interface MetricPoint {
+  time: string
+  value: number | null
+  tags?: Record<string, string>
+  tag?: Record<string, string>
+}
+
+interface MetricSeries {
+  metric_key: string
+  tags?: Record<string, string>
+  tag?: Record<string, string>
+  points?: MetricPoint[]
+}
+
+interface MetricQueryResponse {
+  series?: MetricSeries[]
+}
+
+interface PingMetricTaskStats {
+  task_id: string | number
+  name?: string
+  type?: string
+  interval?: number
+  loss?: number
+  min?: number
+  max?: number
+  avg?: number
+  latest?: number
+  total?: number
+  p50?: number
+  p99?: number
+  p99_p50_ratio?: number
+}
+
+interface PingMetricStatsResponse {
+  stats?: PingMetricTaskStats[]
 }
 
 interface PingRecordsResponse {
-  count: number
-  records: PingRecord[]
+  records?: PingRecord[]
   tasks?: TaskInfo[]
+}
+
+interface PingChartData {
+  records: PingRecord[]
+  tasks: TaskInfo[]
 }
 
 const presetViews = [
@@ -50,6 +100,103 @@ const pingChartSkeletonPaths = [
   'M0 112 C52 119 94 91 145 99 C202 108 238 134 292 122 C343 111 374 143 426 130 C493 114 543 122 640 104',
   'M0 183 C78 172 109 189 162 176 C217 162 264 181 314 169 C372 155 413 171 466 151 C526 129 574 143 640 122',
 ]
+let metricRpcSupported: boolean | null = null
+
+function isMethodNotFoundError(error: unknown): boolean {
+  return error instanceof RpcError && error.code === -32601
+}
+
+function getMetricTaskId(series: MetricSeries, point: MetricPoint): number | null {
+  const taskId = Number(
+    point.tags?.task_id
+    ?? point.tag?.task_id
+    ?? series.tags?.task_id
+    ?? series.tag?.task_id,
+  )
+  return Number.isInteger(taskId) ? taskId : null
+}
+
+function normalizeMetricTasks(stats: PingMetricTaskStats[] | undefined): TaskInfo[] {
+  return (stats ?? []).flatMap((task) => {
+    const id = Number(task.task_id)
+    if (!Number.isInteger(id))
+      return []
+
+    return [{
+      id,
+      name: task.name?.trim() || `Ping ${task.task_id}`,
+      interval: typeof task.interval === 'number' && task.interval > 0 ? task.interval : 60,
+      loss: typeof task.loss === 'number' && Number.isFinite(task.loss) ? task.loss : 0,
+      p99: task.p99,
+      p50: task.p50,
+      p99_p50_ratio: task.p99_p50_ratio,
+      min: task.min,
+      max: task.max,
+      avg: task.avg,
+      latest: task.latest,
+      total: task.total,
+      type: task.type,
+    }]
+  })
+}
+
+async function fetchMetricRecords(uuid: string, hours: number): Promise<PingChartData> {
+  const rpc = getSharedRpc().getClient()
+  const [metricResult, statsResult] = await Promise.all([
+    rpc.call<MetricQueryResponse>('public:queryMetrics', {
+      metric_keys: ['ping.latency_ms', 'ping.loss'],
+      entity_id: uuid,
+      hours,
+      downsample: true,
+      max_points: 500,
+      aggregation: 'avg',
+    }),
+    rpc.call<PingMetricStatsResponse>('public:getPingMetricStats', {
+      uuid,
+      hours,
+      max_points: 500,
+    }),
+  ])
+
+  const records: PingRecord[] = []
+  for (const series of metricResult?.series ?? []) {
+    if (series.metric_key !== 'ping.latency_ms' && series.metric_key !== 'ping.loss')
+      continue
+
+    for (const point of series.points ?? []) {
+      const taskId = getMetricTaskId(series, point)
+      if (taskId === null || point.value === null || !Number.isFinite(point.value))
+        continue
+      if (series.metric_key === 'ping.loss' && point.value <= 0)
+        continue
+
+      records.push({
+        client: uuid,
+        task_id: taskId,
+        time: point.time,
+        value: series.metric_key === 'ping.loss' ? -1 : point.value,
+      })
+    }
+  }
+
+  return {
+    records,
+    tasks: normalizeMetricTasks(statsResult?.stats),
+  }
+}
+
+async function fetchLegacyRecords(uuid: string, hours: number): Promise<PingChartData> {
+  const result = await getSharedRpc().getClient().call<PingRecordsResponse>('common:getRecords', {
+    type: 'ping',
+    uuid,
+    hours,
+  })
+
+  return {
+    records: result?.records ?? [],
+    tasks: result?.tasks ?? [],
+  }
+}
 
 function formatTime(time: string, showDate: boolean): string {
   const date = dayjs(time)
@@ -110,38 +257,59 @@ export default function PingChart({ uuid, className }: { uuid: string, className
   const [cutPeak, setCutPeak] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const fetchRequestIdRef = useRef(0)
 
   useEffect(() => {
+    const requestId = fetchRequestIdRef.current + 1
+    fetchRequestIdRef.current = requestId
     let cancelled = false
+
     async function fetchRecords() {
       setLoading(true)
       setError(null)
+
       try {
-        const result = await getSharedRpc().getClient().call<PingRecordsResponse>('common:getRecords', {
-          uuid,
-          type: 'ping',
-          hours: selectedHours,
-        })
-        const nextRecords = (result.records ?? []).sort((a, b) => dayjs(a.time).valueOf() - dayjs(b.time).valueOf())
-        const nextTasks = result.tasks ?? []
-        if (!cancelled) {
-          setRecords(nextRecords)
-          setTasks(nextTasks)
-          setSelectedTaskIds(current => current.length ? current.filter(id => nextTasks.some(task => task.id === id)) : nextTasks.map(task => task.id))
+        let result: PingChartData
+        if (metricRpcSupported === false) {
+          result = await fetchLegacyRecords(uuid, selectedHours)
         }
+        else {
+          try {
+            result = await fetchMetricRecords(uuid, selectedHours)
+            metricRpcSupported = true
+          }
+          catch (error) {
+            if (!isMethodNotFoundError(error))
+              throw error
+            metricRpcSupported = false
+            result = await fetchLegacyRecords(uuid, selectedHours)
+          }
+        }
+
+        if (cancelled || requestId !== fetchRequestIdRef.current)
+          return
+
+        const nextRecords = [...result.records].sort((left, right) => dayjs(left.time).valueOf() - dayjs(right.time).valueOf())
+        const nextTasks = result.tasks
+        setRecords(nextRecords)
+        setTasks(nextTasks)
+        setSelectedTaskIds(current => current.length
+          ? current.filter(id => nextTasks.some(task => task.id === id))
+          : nextTasks.map(task => task.id))
       }
-      catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : '获取数据失败')
+      catch (error) {
+        if (!cancelled && requestId === fetchRequestIdRef.current) {
+          setError(error instanceof Error ? error.message : '获取数据失败')
           setRecords([])
           setTasks([])
         }
       }
       finally {
-        if (!cancelled)
+        if (!cancelled && requestId === fetchRequestIdRef.current)
           setLoading(false)
       }
     }
+
     void fetchRecords()
     return () => {
       cancelled = true
@@ -187,8 +355,8 @@ export default function PingChart({ uuid, className }: { uuid: string, className
       }
 
       const row = grouped.get(useTs)
-      if (row)
-        row[String(record.task_id)] = record.value < 0 ? null : record.value
+      if (row && record.value >= 0)
+        row[String(record.task_id)] = record.value
     }
 
     const merged = Array.from(grouped.values()).sort((a, b) => dayjs(a.time as string).valueOf() - dayjs(b.time as string).valueOf())
@@ -367,6 +535,10 @@ export default function PingChart({ uuid, className }: { uuid: string, className
       axisLabel: { color: theme.textSecondary, fontSize: 11, formatter: '{value}' },
       axisLine: { show: false },
       axisTick: { show: false },
+      axisPointer: {
+        lineStyle: { opacity: 0 },
+        label: { show: false },
+      },
       splitLine: { lineStyle: { color: theme.splitLineColor, type: 'dashed' } },
     },
     series: selectedTasks.map((task) => {
