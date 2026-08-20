@@ -242,7 +242,7 @@ function getNumericTooltipValue(value: unknown): number | null {
   return null
 }
 
-export default function PingChart({ uuid, className }: { uuid: string, className?: string }) {
+export default function PingChart({ uuid, className, onReady }: { uuid: string, className?: string, onReady?: () => void }) {
   const publicSettings = useAppStore(state => state.publicSettings)
   const { isDark } = useAppDerived()
   const maxHours = publicSettings?.ping_record_preserve_time || 168
@@ -258,6 +258,10 @@ export default function PingChart({ uuid, className }: { uuid: string, className
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fetchRequestIdRef = useRef(0)
+
+  useEffect(() => {
+    onReady?.()
+  }, [onReady, uuid])
 
   useEffect(() => {
     const requestId = fetchRequestIdRef.current + 1

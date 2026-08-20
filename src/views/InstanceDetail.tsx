@@ -90,7 +90,6 @@ export default function InstanceDetail({ id }: { id: string }) {
   const formatUptime = (seconds: number) => formatUptimeWithFormat(seconds, 'minute')
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' })
     // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Persisted browser settings must hydrate after SSR to avoid an initial markup mismatch.
     setFinanceBaseCurrency(financeHelper.getStoredFinanceCurrency())
     financeHelper.getDailyExchangeRates()

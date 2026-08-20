@@ -78,21 +78,21 @@ class InitManager {
 
     try {
       // 1. 测试后端服务是否正常
-      await this.healthCheck()
+      const healthCheckPassed = await this.healthCheck()
+      if (!healthCheckPassed)
+        return
 
-      // 2. 获取服务端公开属性
-      await this.fetchPublicSettings()
+      // 2. 并行获取公开属性、用户信息和节点数据
+      await Promise.all([
+        this.fetchPublicSettings(),
+        this.fetchUserInfo(),
+        this.fetchNodesData(),
+      ])
 
-      // 3. 获取用户信息
-      await this.fetchUserInfo()
-
-      // 4. 获取节点信息和最新状态
-      await this.fetchNodesData()
-
-      // 5. 解除加载状态
+      // 3. 解除加载状态
       this.appStore.setLoading(false)
 
-      // 6. 建立 WebSocket 连接并开始轮询
+      // 4. 建立 WebSocket 连接并开始轮询
       this.startWebSocketAndPolling()
 
       this.isInitialized = true
@@ -108,12 +108,13 @@ class InitManager {
   /**
    * 健康检查 - 测试后端服务是否正常
    */
-  private async healthCheck(): Promise<void> {
+  private async healthCheck(): Promise<boolean> {
     try {
       const result = await this.rpc.ping()
       if (result !== 'pong') {
         throw new RpcError(-32000, 'Unexpected health check response')
       }
+      return true
     }
     catch (error) {
       if (error instanceof RpcError && error.code === 401) {
@@ -121,7 +122,7 @@ class InitManager {
         this.appStore.updateLoginState(false)
         this.appStore.setLoading(false)
         location.href = '/admin'
-        return
+        return false
       }
       console.error('[InitManager] Health check failed:', error)
       this.appStore.setConnectionError(true)

@@ -3,16 +3,17 @@
 import type { NodeViewMode } from '@/stores/app'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
-import { useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
 import NodeCard from '@/components/NodeCard'
 import NodeGeneralCards from '@/components/NodeGeneralCards'
 import NodeList from '@/components/NodeList'
-import PingChart from '@/components/PingChart'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Empty } from '@/components/ui/empty'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { DataTooltip } from '@/components/ui/tooltip'
@@ -24,6 +25,31 @@ import { isRegionMatch } from '@/utils/regionHelper'
 
 const nodeItemStaggerMs = 35
 const nodeItemStaggerLimit = 12
+const homePingChartFallbackItems = ['task-1', 'task-2', 'task-3', 'task-4']
+
+function HomePingChartFallback() {
+  return (
+    <div className="flex flex-col gap-4" role="status" aria-label="正在加载">
+      <Skeleton className="h-8 w-64 max-w-full rounded-md" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Skeleton className="h-7 w-28 rounded-sm" />
+        <Skeleton className="h-3 w-18" />
+      </div>
+      <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+        {homePingChartFallbackItems.map(item => (
+          <Skeleton key={item} className="h-14 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-7 w-48 rounded-sm" />
+      <Skeleton className="h-80 rounded-2xl" />
+    </div>
+  )
+}
+
+const PingChart = dynamic(() => import('@/components/PingChart'), {
+  loading: HomePingChartFallback,
+})
+
 const nodeViewModeOptions: Array<{ mode: NodeViewMode, label: string, icon: string }> = [
   { mode: 'card', label: '卡片视图', icon: 'tabler:layout-grid' },
   { mode: 'list', label: '列表视图', icon: 'tabler:table' },
@@ -67,6 +93,19 @@ export default function HomeView() {
   const derived = useAppDerived()
   const [debouncedSearchText, setDebouncedSearchText] = useState('')
   const [selectedPingNodeUuid, setSelectedPingNodeUuid] = useState<string | null>(null)
+  const pingChartTitleRef = useRef<HTMLHeadingElement>(null)
+
+  const handlePingChartReady = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      const title = pingChartTitleRef.current
+      if (document.activeElement !== title)
+        return
+
+      const firstTab = title?.closest('[role=\"dialog\"]')?.querySelector('[role=\"tab\"]')
+      if (firstTab instanceof HTMLElement)
+        firstTab.focus()
+    })
+  }, [])
 
   useEffect(() => {
     const timer = setTimeout(setDebouncedSearchText, 180, homeSearchText)
@@ -76,7 +115,10 @@ export default function HomeView() {
   useEffect(() => {
     if (homeScrollPosition > 0)
       window.scrollTo({ top: homeScrollPosition, behavior: 'instant' })
-    return () => setHomeScrollPosition(window.scrollY)
+    return () => {
+      if (!window.location.pathname.startsWith('/instance/'))
+        setHomeScrollPosition(window.scrollY)
+    }
   }, [homeScrollPosition, setHomeScrollPosition])
 
   useEffect(() => {
@@ -225,16 +267,17 @@ export default function HomeView() {
               <DialogContent
                 className="max-w-6xl gap-0 overflow-hidden border-input bg-popover p-0 shadow-lg/5"
                 overlayClass="bg-black/32"
+                initialFocus={pingChartTitleRef}
               >
                 <DialogHeader className="flex h-13 flex-row items-center px-4">
-                  <DialogTitle className="truncate">
+                  <DialogTitle ref={pingChartTitleRef} tabIndex={-1} className="truncate">
                     {selectedPingNode.name}
                     {' '}
                     延迟 / 丢包
                   </DialogTitle>
                 </DialogHeader>
                 <div className="max-h-[calc(90vh-4rem)] overflow-y-auto p-4 pt-0">
-                  <PingChart uuid={selectedPingNode.uuid} />
+                  <PingChart uuid={selectedPingNode.uuid} onReady={handlePingChartReady} />
                 </div>
               </DialogContent>
             )
