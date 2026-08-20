@@ -1,17 +1,59 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Background from '@/components/Background'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import LoadingCover from '@/components/LoadingCover'
 import { Provider } from '@/components/Provider'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Toaster } from '@/components/ui/sonner'
 import { selectAppDerived, useAppStore } from '@/stores/app'
 import { destroyInitManager, initApp } from '@/utils/init'
 import { message } from '@/utils/message'
 import HomeView from '@/views/HomeView'
-import InstanceDetail from '@/views/InstanceDetail'
+
+const instanceStatusSkeletonItems = ['cpu', 'memory', 'swap', 'disk', 'uplink', 'downlink', 'traffic', 'connections']
+const instanceFinanceSkeletonItems = ['price', 'monthly', 'remaining-time', 'remaining-value']
+const instanceInfoSkeletonItems = ['hardware', 'system', 'storage', 'network']
+
+function InstanceDetailFallback() {
+  return (
+    <div className="instance-detail space-y-4" role="status" aria-label="正在加载">
+      <div className="flex items-center gap-4 px-4">
+        <Skeleton className="size-8 rounded-lg" />
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-5 w-12 rounded" />
+      </div>
+      <div className="grid grid-cols-2 gap-3 px-4 md:grid-cols-4">
+        {instanceStatusSkeletonItems.map(item => (
+          <Skeleton key={item} className="min-h-26 rounded-2xl" />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-4 px-4 lg:grid-cols-4">
+        {instanceFinanceSkeletonItems.map(item => (
+          <Skeleton key={item} className="min-h-10 rounded-2xl md:min-h-18" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-4 px-4 lg:grid-cols-2">
+        {instanceInfoSkeletonItems.map(item => (
+          <Skeleton key={item} className="min-h-40 rounded-2xl" />
+        ))}
+      </div>
+      <div className="px-4">
+        <Skeleton className="h-80 rounded-2xl" />
+      </div>
+      <div className="px-4">
+        <Skeleton className="h-80 rounded-2xl" />
+      </div>
+    </div>
+  )
+}
+
+const InstanceDetail = dynamic(() => import('@/views/InstanceDetail'), {
+  loading: InstanceDetailFallback,
+})
 
 const INSTANCE_ROUTE_REGEX = /^\/instance\/([^/]+)$/
 
@@ -25,6 +67,7 @@ export default function AppPage() {
   const loading = useAppStore(state => state.loading)
   const disablePageAnimation = useAppStore(state => selectAppDerived(state).disablePageAnimation)
   const [route, setRoute] = useState(() => typeof window === 'undefined' ? '/' : window.location.pathname)
+  const routeRef = useRef(route)
 
   useEffect(() => {
     window.$message = message
@@ -33,7 +76,13 @@ export default function AppPage() {
       useAppStore.getState().setLoading(false)
     })
 
-    const handlePopState = () => setRoute(window.location.pathname)
+    const handlePopState = () => {
+      const nextRoute = window.location.pathname
+      if (!INSTANCE_ROUTE_REGEX.test(routeRef.current) && INSTANCE_ROUTE_REGEX.test(nextRoute))
+        useAppStore.getState().setHomeScrollPosition(window.scrollY)
+      routeRef.current = nextRoute
+      setRoute(nextRoute)
+    }
     window.addEventListener('popstate', handlePopState)
     return () => {
       window.removeEventListener('popstate', handlePopState)
@@ -42,12 +91,23 @@ export default function AppPage() {
   }, [])
 
   useEffect(() => {
-    const handleNavigate = () => setRoute(window.location.pathname)
+    const handleNavigate = () => {
+      const nextRoute = window.location.pathname
+      if (!INSTANCE_ROUTE_REGEX.test(routeRef.current) && INSTANCE_ROUTE_REGEX.test(nextRoute))
+        useAppStore.getState().setHomeScrollPosition(window.scrollY)
+      routeRef.current = nextRoute
+      setRoute(nextRoute)
+    }
     window.addEventListener('komari:navigate', handleNavigate)
     return () => window.removeEventListener('komari:navigate', handleNavigate)
   }, [])
 
   const match = route.match(INSTANCE_ROUTE_REGEX)
+
+  useLayoutEffect(() => {
+    if (INSTANCE_ROUTE_REGEX.test(route))
+      window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [route])
 
   return (
     <Provider>

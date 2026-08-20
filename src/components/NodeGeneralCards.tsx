@@ -4,10 +4,10 @@ import type { KeyboardEvent } from 'react'
 import type { NodeData } from '@/stores/nodes'
 import type { CurrencyCode } from '@/utils/financeHelper'
 import { Icon } from '@iconify/react'
+import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import NodeEarthGlobe from '@/components/NodeEarthGlobe'
-import NodeEarthMaps from '@/components/NodeEarthMaps'
 import { CardX } from '@/components/ui/card-x'
+import { Skeleton } from '@/components/ui/skeleton'
 import { DataTooltip } from '@/components/ui/tooltip'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
@@ -15,6 +15,33 @@ import * as financeHelper from '@/utils/financeHelper'
 import { formatBytesPerSecondSplit, formatBytesSplit } from '@/utils/helper'
 
 const financeRateCurrencies: readonly CurrencyCode[] = financeHelper.DISPLAY_FINANCE_CURRENCIES
+
+function NodeEarthGlobeFallback() {
+  return (
+    <div className="relative mx-auto aspect-square w-full max-w-md overflow-hidden -translate-y-4 lg:-translate-y-8" role="status" aria-label="正在加载">
+      <Skeleton className="absolute inset-0 h-full w-full rounded-full" />
+    </div>
+  )
+}
+
+function NodeEarthMapsFallback() {
+  return (
+    <div className="relative h-full" role="status" aria-label="正在加载">
+      <div className="relative flex h-88 flex-col items-center">
+        <div className="relative w-full flex-1 -translate-y-1/5 md:-translate-y-1/6">
+          <Skeleton className="h-full w-full rounded-full opacity-80" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const NodeEarthGlobe = dynamic(() => import('@/components/NodeEarthGlobe'), {
+  loading: NodeEarthGlobeFallback,
+})
+const NodeEarthMaps = dynamic(() => import('@/components/NodeEarthMaps'), {
+  loading: NodeEarthMapsFallback,
+})
 
 export default function NodeGeneralCards({
   nodes,
