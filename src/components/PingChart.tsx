@@ -596,7 +596,7 @@ export default function PingChart({ uuid, className }: { uuid: string, className
       {loading
         ? <PingChartSkeleton />
         : error
-          ? <div className="py-8 text-center text-red-500">{error}</div>
+          ? <div className="py-8 text-center text-destructive-foreground">{error}</div>
           : tasks.length === 0
             ? <Empty description="暂无延迟数据" />
             : (

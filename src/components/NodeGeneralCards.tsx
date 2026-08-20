@@ -4,7 +4,7 @@ import type { KeyboardEvent } from 'react'
 import type { NodeData } from '@/stores/nodes'
 import type { CurrencyCode } from '@/utils/financeHelper'
 import { Icon } from '@iconify/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import NodeEarthGlobe from '@/components/NodeEarthGlobe'
 import NodeEarthMaps from '@/components/NodeEarthMaps'
 import { CardX } from '@/components/ui/card-x'
@@ -33,6 +33,7 @@ export default function NodeGeneralCards({
   const [exchangeRateBaseCurrency, setExchangeRateBaseCurrency] = useState<CurrencyCode>('CNY')
   const [excludeFreeNodes, setExcludeFreeNodes] = useState(true)
   const [openFinanceCard, setOpenFinanceCard] = useState(false)
+  const financeTriggerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Persisted browser settings must hydrate after SSR to avoid an initial markup mismatch.
@@ -111,11 +112,14 @@ export default function NodeGeneralCards({
   const showMaps = earthViewMode === 'maps'
   const showVisualPanel = showEarth || showMaps
   const wrapperClass = showVisualPanel
-    ? 'grid h-auto grid-cols-12 grid-rows-1 gap-2 p-4 md:h-58'
-    : 'grid h-auto grid-cols-1 gap-2 p-4'
+    ? 'relative isolate overflow-x-clip grid h-auto grid-cols-1 gap-2 p-4 lg:h-58 lg:grid-cols-12 lg:grid-rows-1'
+    : 'relative isolate overflow-x-clip grid h-auto grid-cols-1 gap-2 p-4'
   const cardGridClass = showVisualPanel
-    ? 'z-9 col-span-12 row-start-3 -mt-42 grid h-42 grid-cols-12 grid-rows-2 gap-2 md:col-span-6 md:row-start-1 md:mt-0 md:h-auto'
-    : 'col-span-1 grid grid-cols-3 gap-2 md:grid-cols-6'
+    ? 'relative z-9 col-span-1 grid grid-cols-2 grid-rows-3 gap-2 lg:col-span-6 lg:row-start-1 lg:grid-cols-12 lg:grid-rows-2 lg:h-auto'
+    : 'col-span-1 grid grid-cols-2 gap-2 lg:grid-cols-6'
+  const financeCardClass = showVisualPanel
+    ? 'relative col-span-1 col-start-1 row-start-2 h-full min-w-0 w-full lg:col-span-4 lg:col-start-5 lg:row-start-1'
+    : 'relative col-span-1 col-start-1 row-start-2 min-h-20 min-w-0 lg:col-start-3 lg:row-start-1 lg:min-h-28'
 
   function updateBaseCurrency(value: string) {
     const currency = financeHelper.normalizeCurrency(value)
@@ -123,34 +127,65 @@ export default function NodeGeneralCards({
     financeHelper.setStoredFinanceCurrency(currency)
   }
 
+  function closeFinanceCard() {
+    setOpenFinanceCard(false)
+    financeTriggerRef.current?.focus()
+  }
+
   function toggleFinanceCard() {
-    setOpenFinanceCard(value => !value)
+    if (openFinanceCard)
+      closeFinanceCard()
+    else
+      setOpenFinanceCard(true)
   }
 
   function handleFinanceCardKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape' && openFinanceCard) {
+      event.preventDefault()
+      closeFinanceCard()
+      return
+    }
     if (event.key !== 'Enter' && event.key !== ' ')
       return
     event.preventDefault()
     toggleFinanceCard()
   }
 
+  function handleFinanceDisclosureKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Escape')
+      return
+    event.preventDefault()
+    event.stopPropagation()
+    closeFinanceCard()
+  }
+
   return (
     <div className={wrapperClass}>
-      {showEarth ? <NodeEarthGlobe nodes={globeNodes} spinning={earthViewMode === 'earth'} className="col-span-12 col-start-1 md:col-span-6 md:col-start-7" /> : null}
-      {showMaps ? <NodeEarthMaps nodes={globeNodes} className="col-span-12 col-start-1 md:col-span-6 md:col-start-7" /> : null}
+      {showVisualPanel
+        ? (
+            <div className="relative isolate col-span-1 h-52 min-h-0 overflow-hidden lg:col-span-6 lg:col-start-7 lg:row-start-1 lg:h-full">
+              {showEarth ? <NodeEarthGlobe nodes={globeNodes} spinning={earthViewMode === 'earth'} /> : null}
+              {showMaps ? <NodeEarthMaps nodes={globeNodes} className="h-full" /> : null}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-2 h-24 bg-gradient-to-t from-background from-15% to-transparent" aria-hidden="true" />
+            </div>
+          )
+        : null}
 
       <div className={cardGridClass}>
         <SummaryCard title="内存用量" icon="tabler:cash" value={formattedMemoryUsed.value} unit={`${formattedMemoryUsed.unit} / ${formattedMemoryTotal.value} ${formattedMemoryTotal.unit}`} visual={showVisualPanel} index={0} />
         <SummaryCard title="硬盘用量" icon="tabler:server-2" value={formattedDiskUsed.value} unit={`${formattedDiskUsed.unit} / ${formattedDiskTotal.value} ${formattedDiskTotal.unit}`} visual={showVisualPanel} index={1} />
 
-        <div className={showVisualPanel ? 'relative col-span-4 row-span-1 col-start-5 row-start-1 h-full w-full' : 'relative col-span-1 col-start-2 row-start-1 min-h-18 md:col-start-3 md:row-start-1 md:min-h-28'}>
+        <div className={financeCardClass}>
           <CardX
+            ref={financeTriggerRef}
             interaction="pressable"
             role="button"
             tabIndex={0}
-            aria-label="展开剩余价值详情"
+            aria-label={openFinanceCard ? '收起剩余价值详情' : '展开剩余价值详情'}
             aria-expanded={openFinanceCard}
-            className="motion-stagger-item group h-full rounded-2xl bg-card"
+            aria-controls="finance-disclosure"
+            className="motion-stagger-item group h-full min-w-0 rounded-2xl bg-card"
+            contentClassName="p-3 xl:p-4"
             style={{ animationDelay: `${2 * 45}ms` }}
             onClick={toggleFinanceCard}
             onKeyDown={handleFinanceCardKeyDown}
@@ -158,24 +193,31 @@ export default function NodeGeneralCards({
             <div className="flex h-full min-w-0 flex-col justify-between gap-1">
               <div className="flex items-start justify-between">
                 <span className="text-xs font-medium tracking-wider text-muted-foreground">剩余价值</span>
-                <Icon icon="tabler:cash" width={20} height={20} className="text-muted-foreground/40 transition-colors group-hover:text-foreground/70" />
+                <span className="flex items-center gap-0.5">
+                  <Icon icon="tabler:cash" width={20} height={20} className="text-muted-foreground/40 transition-colors group-hover:text-foreground/70" aria-hidden="true" />
+                  <Icon icon="tabler:chevron-down" width={16} height={16} className={`text-muted-foreground transition-transform duration-200 ${openFinanceCard ? 'rotate-180' : ''}`} aria-hidden="true" />
+                </span>
               </div>
-              <div key={`remaining-${transitionKey}`} className="flex min-w-0 items-baseline gap-1">
-                <span className="vercel-number text-md leading-none font-semibold tracking-tight md:text-2xl">
+              <div key={`remaining-${transitionKey}`} className="flex min-w-0 flex-col gap-0.5 xl:flex-row xl:items-baseline xl:gap-1">
+                <span className="vercel-number text-xl leading-none font-semibold tracking-tight xl:text-2xl">
                   {formattedRemainingValue.symbol}
                   {formattedRemainingValue.value}
                 </span>
-                <span className="block truncate text-[11px] font-medium text-muted-foreground md:text-xs">{formattedRemainingValue.currency}</span>
+                <span className="text-[11px] font-medium text-muted-foreground xl:text-xs">{formattedRemainingValue.currency}</span>
               </div>
             </div>
           </CardX>
           <CardX
             interaction="subtle"
-            className={`absolute top-0 left-1/2 z-50 h-42 w-[260%] max-w-88 -translate-x-[50%] -translate-y-[25%] rounded-2xl bg-popover shadow-lg/5 transition-[opacity,transform,background-color,border-color,box-shadow] duration-200 ease-out ${openFinanceCard ? 'scale-100 opacity-100 -translate-y-[5%]' : 'pointer-events-none scale-50 opacity-0'}`}
+            id="finance-disclosure"
+            inert={!openFinanceCard}
+            aria-hidden={!openFinanceCard}
+            className={`absolute top-0 left-0 z-50 h-42 w-[min(22rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] translate-x-0 rounded-2xl bg-popover shadow-lg/5 transition-[opacity,transform,background-color,border-color,box-shadow] duration-200 ease-out lg:left-1/2 lg:w-[260%] lg:max-w-88 lg:-translate-x-[50%] ${openFinanceCard ? 'scale-100 opacity-100 lg:-translate-y-[5%]' : 'pointer-events-none scale-50 opacity-0 lg:-translate-y-[25%]'}`}
             contentClassName="h-full p-4"
-            onClick={() => setOpenFinanceCard(false)}
+            onClick={closeFinanceCard}
+            onKeyDown={handleFinanceDisclosureKeyDown}
           >
-            <div className="flex h-full min-w-0 flex-col overflow-hidden">
+            <div className="flex h-full min-w-0 flex-col">
               <div className="grid shrink-0 grid-cols-3 gap-1.5">
                 {financeSummaryItems.map(item => (
                   <div key={item.label} className="min-w-0">
@@ -187,13 +229,13 @@ export default function NodeGeneralCards({
                   </div>
                 ))}
               </div>
-              <div className="flex-1" />
-              <div className="flex shrink-0 flex-1 flex-col">
-                <div className="mb-1 flex items-center justify-between gap-2">
+              <div className="mt-2 flex min-h-0 flex-1 flex-col">
+                <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
                   <div className="flex items-center gap-1 text-xs font-medium tracking-wider text-muted-foreground">今日汇率</div>
                   <div className="relative shrink-0">
                     <select
                       value={exchangeRateBaseCurrency}
+                      tabIndex={openFinanceCard ? 0 : -1}
                       className="h-7 min-w-18 appearance-none rounded-lg border border-input bg-popover py-1 pr-7 pl-2.5 text-xs font-medium text-muted-foreground shadow-xs/5 outline-none transition-[border-color,color,box-shadow] not-dark:bg-clip-padding hover:bg-accent/50 hover:text-foreground focus-visible:border-ring focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/24 focus-visible:ring-inset dark:bg-input/32 dark:hover:bg-input/64"
                       aria-label="切换汇率基准币种"
                       onClick={event => event.stopPropagation()}
@@ -209,19 +251,26 @@ export default function NodeGeneralCards({
                     />
                   </div>
                 </div>
-                <div className="flex-1" />
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  {exchangeRateRows.map(row => (
-                    <div key={row.currency} className="flex items-center text-[11px]">
-                      <div className="flex flex-1 justify-between">
-                        <span className="text-muted-foreground">{row.currency}</span>
-                        <span>
-                          {row.targetSymbol}
-                          {row.rate}
-                        </span>
+                <div
+                  role="region"
+                  aria-label="今日汇率列表"
+                  tabIndex={openFinanceCard ? 0 : -1}
+                  className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                  onClick={event => event.stopPropagation()}
+                >
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    {exchangeRateRows.map(row => (
+                      <div key={row.currency} className="flex items-center text-[11px]">
+                        <div className="flex flex-1 justify-between">
+                          <span className="text-muted-foreground">{row.currency}</span>
+                          <span>
+                            {row.targetSymbol}
+                            {row.rate}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -247,20 +296,20 @@ export default function NodeGeneralCards({
 function SummaryCard({ title, icon, value, unit, visual, index, tooltip }: { title: string, icon: string, value: string, unit: string, visual: boolean, index: number, tooltip?: string }) {
   const positions = visual
     ? [
-        'col-span-4 row-span-1 col-start-1 row-start-1',
-        'col-span-4 row-span-1 col-start-1 row-start-2',
-        'col-span-4 row-span-1 col-start-5 row-start-1',
-        'col-span-4 row-span-1 col-start-5 row-start-2',
-        'col-span-4 row-span-1 col-start-9 row-start-1',
-        'col-span-4 row-span-1 col-start-9 row-start-2',
+        'col-span-1 col-start-1 row-start-1 min-w-0 lg:col-span-4 lg:col-start-1 lg:row-start-1',
+        'col-span-1 col-start-2 row-start-1 min-w-0 lg:col-span-4 lg:col-start-1 lg:row-start-2',
+        'col-span-1 col-start-1 row-start-2 min-w-0 lg:col-span-4 lg:col-start-5 lg:row-start-1',
+        'col-span-1 col-start-2 row-start-2 min-w-0 lg:col-span-4 lg:col-start-5 lg:row-start-2',
+        'col-span-1 col-start-1 row-start-3 min-w-0 lg:col-span-4 lg:col-start-9 lg:row-start-1',
+        'col-span-1 col-start-2 row-start-3 min-w-0 lg:col-span-4 lg:col-start-9 lg:row-start-2',
       ]
     : [
-        'col-span-1 col-start-1 row-start-1 min-h-18 md:col-start-1 md:row-start-1 md:min-h-28',
-        'col-span-1 col-start-1 row-start-2 min-h-18 md:col-start-2 md:row-start-1 md:min-h-28',
-        'col-span-1 col-start-2 row-start-1 min-h-18 md:col-start-3 md:row-start-1 md:min-h-28',
-        'col-span-1 col-start-2 row-start-2 min-h-18 md:col-start-4 md:row-start-1 md:min-h-28',
-        'col-span-1 col-start-3 row-start-1 min-h-18 md:col-start-5 md:row-start-1 md:min-h-28',
-        'col-span-1 col-start-3 row-start-2 min-h-18 md:col-start-6 md:row-start-1 md:min-h-28',
+        'col-span-1 col-start-1 row-start-1 min-h-20 min-w-0 lg:col-start-1 lg:row-start-1 lg:min-h-28',
+        'col-span-1 col-start-2 row-start-1 min-h-20 min-w-0 lg:col-start-2 lg:row-start-1 lg:min-h-28',
+        'col-span-1 col-start-1 row-start-2 min-h-20 min-w-0 lg:col-start-3 lg:row-start-1 lg:min-h-28',
+        'col-span-1 col-start-2 row-start-2 min-h-20 min-w-0 lg:col-start-4 lg:row-start-1 lg:min-h-28',
+        'col-span-1 col-start-1 row-start-3 min-h-20 min-w-0 lg:col-start-5 lg:row-start-1 lg:min-h-28',
+        'col-span-1 col-start-2 row-start-3 min-h-20 min-w-0 lg:col-start-6 lg:row-start-1 lg:min-h-28',
       ]
 
   const content = (
@@ -269,15 +318,15 @@ function SummaryCard({ title, icon, value, unit, visual, index, tooltip }: { tit
         <span className="text-xs font-medium tracking-wider text-muted-foreground">{title}</span>
         <Icon icon={icon} width={20} height={20} className="text-muted-foreground/40 transition-colors group-hover:text-foreground/70" />
       </div>
-      <div className="flex min-w-0 items-baseline gap-1">
-        <span className="vercel-number text-md leading-none font-semibold tracking-tight md:text-2xl">{value}</span>
-        <span className="truncate text-[11px] font-medium text-muted-foreground md:text-xs">{unit}</span>
+      <div className="flex min-w-0 flex-col gap-0.5 xl:flex-row xl:items-baseline xl:gap-1">
+        <span className="vercel-number text-xl leading-none font-semibold tracking-tight xl:text-2xl">{value}</span>
+        <span className="text-[11px] font-medium text-muted-foreground xl:text-xs">{unit}</span>
       </div>
     </div>
   )
 
   return (
-    <CardX interaction="subtle" className={`motion-stagger-item group h-full rounded-2xl bg-card ${positions[index]}`} style={{ animationDelay: `${index * 45}ms` }}>
+    <CardX interaction="subtle" className={`motion-stagger-item group h-full min-w-0 rounded-2xl bg-card ${positions[index]}`} contentClassName="p-3 xl:p-4" style={{ animationDelay: `${index * 45}ms` }}>
       {tooltip
         ? (
             <DataTooltip as="span" placement="top" content={tooltip} className="min-w-0" contentClass="whitespace-pre px-2 py-1 left-0 -translate-x-0 leading-normal">

@@ -49,14 +49,14 @@ export function getPingToneClass(value: number): string {
   if (!value)
     return 'text-muted-foreground'
   if (value <= 60)
-    return 'text-emerald-600 dark:text-emerald-400'
+    return 'text-emerald-700 dark:text-emerald-400'
   if (value <= 120)
-    return 'text-green-600 dark:text-green-400'
+    return 'text-green-700 dark:text-green-400'
   if (value <= 180)
-    return 'text-lime-600 dark:text-lime-400'
+    return 'text-lime-700 dark:text-lime-400'
   if (value <= 240)
-    return 'text-amber-600 dark:text-amber-400'
-  return 'text-rose-600 dark:text-rose-400'
+    return 'text-amber-700 dark:text-amber-400'
+  return 'text-rose-700 dark:text-rose-400'
 }
 
 function getLatencyToneClass(latency: number): string {
@@ -88,7 +88,7 @@ function toNetworkDisplay(stat: NodePingPerTaskStat): NodePingNetworkDisplay {
     taskId: stat.taskId,
     name: stat.name,
     latency: stat.avgLatency >= 0 ? `${Math.round(stat.avgLatency)}ms` : '--',
-    toneClass: stat.avgLatency >= 0 ? getPingToneClass(stat.avgLatency) : 'text-rose-500',
+    toneClass: stat.avgLatency >= 0 ? getPingToneClass(stat.avgLatency) : 'text-rose-700 dark:text-rose-400',
   }
 }
 

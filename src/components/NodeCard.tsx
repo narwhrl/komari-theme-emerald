@@ -90,7 +90,7 @@ export default function NodeCard({
       onClick={onClick}
       header={(
         <div className="flex min-w-0 items-center gap-2">
-          <DataTooltip placement="right" content={formatUptime(node.uptime ?? 0)} className={`status-pulse relative size-2 rounded-full ${node.online ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`} contentClass="whitespace-nowrap">
+          <DataTooltip placement="right" content={formatUptime(node.uptime ?? 0)} className={`status-pulse relative size-2 rounded-full ${node.online ? 'text-success-foreground' : 'text-destructive-foreground'}`} contentClass="whitespace-nowrap">
             <span className="block size-full rounded-full bg-current" />
           </DataTooltip>
           <span className="text-md min-w-0 flex-1 truncate font-semibold tracking-tight">{node.name}</span>
@@ -126,17 +126,17 @@ export default function NodeCard({
           {!node.online
             ? (
                 <div className="absolute inset-0 z-1 flex flex-col items-center justify-center gap-1 text-center" aria-hidden="true">
-                  <div className="text-sm font-medium text-destructive">离线</div>
+                  <div className="text-sm font-medium text-destructive-foreground">离线</div>
                   <div className="text-xs text-muted-foreground">{formatDateTime(node.time)}</div>
                 </div>
               )
             : null}
           <InfoBlock className={priceTags.length ? 'col-span-2' : 'col-span-3'} muted={!node.online}>
-            <span className="flex flex-row items-center gap-1 text-emerald-600 dark:text-emerald-400">
+            <span className="flex flex-row items-center gap-1 text-success-foreground">
               <Icon icon="tabler:chevron-up" width={12} height={12} />
               {formatBytesPerSecond(node.net_out ?? 0)}
             </span>
-            <span className="flex flex-row items-center gap-1 text-blue-600 dark:text-blue-400">
+            <span className="flex flex-row items-center gap-1 text-info-foreground">
               <Icon icon="tabler:chevron-down" width={12} height={12} />
               {formatBytesPerSecond(node.net_in ?? 0)}
             </span>

@@ -277,8 +277,8 @@ function MapSkeleton() {
 }
 
 function LegendDot({ color, value }: { color: 'green' | 'yellow', value: number }) {
-  const dot = color === 'green' ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-yellow-600'
-  const text = color === 'green' ? 'text-emerald-600 dark:text-emerald-400' : 'text-yellow-600'
+  const dot = color === 'green' ? 'bg-success-foreground' : 'bg-warning-foreground'
+  const text = color === 'green' ? 'text-success-foreground' : 'text-warning-foreground'
   return (
     <div className="flex items-center gap-1">
       <span className={`inline-block size-1.5 animate-pulse rounded-full ${dot}`} />

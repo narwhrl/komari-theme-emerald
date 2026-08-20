@@ -141,7 +141,7 @@ export default function HomeView() {
           )
         : null}
 
-      <div className={`node-info relative z-1 flex flex-col gap-4 p-4 pt-0 md:pointer-events-none ${derived.earthViewMode === 'hide' ? 'pt-4' : ''}`}>
+      <div className={`node-info relative z-10 flex flex-col gap-4 bg-background p-4 pt-0 md:pointer-events-none ${derived.earthViewMode === 'hide' ? 'pt-4' : ''}`}>
         <div className="nodes">
           <Tabs value={nodeSelectedGroup} onValueChange={value => setNodeSelectedGroup(String(value))} className="flex w-full flex-col gap-4">
             <div className="flex min-w-0 items-center gap-2 max-[359px]:gap-1">
