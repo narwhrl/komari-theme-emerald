@@ -190,10 +190,9 @@ export default function NodeGeneralCards({
     <div className={wrapperClass}>
       {showVisualPanel
         ? (
-            <div className="relative isolate col-span-1 h-52 min-h-0 overflow-hidden lg:col-span-6 lg:col-start-7 lg:row-start-1 lg:h-full">
+            <div className="relative isolate col-span-1 h-52 min-h-0 overflow-hidden [mask-image:linear-gradient(to_bottom,black_0%,black_55%,transparent_100%)] lg:col-span-6 lg:col-start-7 lg:row-start-1 lg:h-full">
               {showEarth ? <NodeEarthGlobe nodes={globeNodes} spinning={earthViewMode === 'earth'} /> : null}
               {showMaps ? <NodeEarthMaps nodes={globeNodes} className="h-full" /> : null}
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-2 h-24 bg-gradient-to-t from-background from-15% to-transparent" aria-hidden="true" />
             </div>
           )
         : null}
