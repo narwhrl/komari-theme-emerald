@@ -91,4 +91,3 @@ Renaming, moving, or removing files under `public/images/` is a **code change**:
 - Do not duplicate AGENTS.md content here. The nearest `AGENTS.md` overrides this file for its subtree:
   - [AGENTS.md](AGENTS.md) - root build/packaging
   - [src/AGENTS.md](src/AGENTS.md) - app code rules
-  - [public/images/AGENTS.md](public/images/AGENTS.md) - asset filename contract
