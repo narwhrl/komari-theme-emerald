@@ -166,8 +166,10 @@ export default function NodeEarthGlobe({
   const arcs = useMemo<Arc[]>(() => {
     if (!visitorCoord || clusters.length === 0)
       return []
-    return clusters.map(cluster => ({ from: visitorCoord, to: cluster.coord }))
-  }, [clusters, visitorCoord])
+    return clusters
+      .filter(cluster => cluster.code !== visitorCountryCode)
+      .map(cluster => ({ from: visitorCoord, to: cluster.coord }))
+  }, [clusters, visitorCoord, visitorCountryCode])
 
   clustersRef.current = clusters
   spinningRef.current = spinning
