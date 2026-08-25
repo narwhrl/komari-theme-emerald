@@ -16,7 +16,7 @@ import { toRegionLanguage } from '@/i18n'
 import { useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import * as financeHelper from '@/utils/financeHelper'
-import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
+import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatTemperature, formatUptimeWithFormat, getStatus, isTemperatureAvailable } from '@/utils/helper'
 import { navigateTo } from '@/utils/navigation'
 import { getTrafficUsed, getTrafficUsedPercentage, hasTrafficLimit as nodeHasTrafficLimit } from '@/utils/nodeHelpers'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
@@ -162,6 +162,14 @@ export default function InstanceDetail({ id }: { id: string }) {
     { id: 'virtualization', label: t('detail.virtualization'), value: data.virtualization ?? '-', icon: 'icon-park-outline:server' },
     { id: 'gpu', label: 'GPU', value: data.gpu_name || '-', icon: 'icon-park-outline:video-one' },
   ]
+  if (isTemperatureAvailable(data.temp)) {
+    hardwareInfo.push({
+      id: 'temperature',
+      label: t('node.temperature'),
+      value: formatTemperature(data.temp),
+      icon: 'icon-park-outline:thermometer',
+    })
+  }
   const systemInfo: InfoItem[] = [
     { id: 'os', label: t('detail.operatingSystem'), value: hasOs ? data.os : unknownOsLabel, icon: 'icon-park-outline:computer', osIcon: true, osAlt: hasOs ? getOSName(data.os) : unknownOsLabel },
     { id: 'kernel', label: t('detail.kernelVersion'), value: data.kernel_version ?? '-', icon: 'icon-park-outline:code' },

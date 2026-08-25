@@ -24,7 +24,7 @@ import {
   parseLoadRangeTabValue,
 } from '@/utils/chartRange'
 import { getDisplayErrorMessage } from '@/utils/displayError'
-import { formatBytesSplit, formatBytesWithConfig, formatDateTime } from '@/utils/helper'
+import { formatBytesSplit, formatBytesWithConfig, formatDateTime, formatTemperature, isTemperatureAvailable } from '@/utils/helper'
 import { fillMissingTimePoints } from '@/utils/recordHelper'
 import { getSharedRpc } from '@/utils/rpc'
 
@@ -313,6 +313,16 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     return `${formatted.value} ${formatted.unit}${suffix}`
   }
 
+  const temperatureSeries: Array<number | null> = []
+  let lastValidTemperature: number | null = null
+  for (const record of chartData) {
+    const temperature = isTemperatureAvailable(record.temp) ? record.temp : null
+    temperatureSeries.push(temperature)
+    if (temperature != null)
+      lastValidTemperature = temperature
+  }
+  const hasTemperature = lastValidTemperature != null
+
   const baseTooltipConfig = {
     trigger: 'axis' as const,
     confine: false,
@@ -456,6 +466,65 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
         showSymbol: false,
         yAxisIndex: 1,
         lineStyle: { width: 1.5, color: chartColors.secondary },
+      },
+    ],
+  }
+
+  const temperatureChartOption: EChartsOption = {
+    animation: false,
+    color: [chartColors.secondary],
+    tooltip: {
+      ...baseTooltipConfig,
+      formatter: (params: unknown) => {
+        const items = normalizeTooltipParams(params)
+        const firstParam = items[0]
+        if (!firstParam)
+          return ''
+        const record = chartData[firstParam.dataIndex]
+        if (!record)
+          return ''
+
+        const timeStr = formatChartTooltipTime(record.time, tooltipHours, lang)
+        let html = `<div style="font-weight:600;margin-bottom:6px;color:${chartThemeColors.textSecondary}">${timeStr}</div>`
+        html += '<div style="display:flex;flex-direction:column;gap:4px">'
+        html += `<div style="display:flex;align-items:center">${colorDot(firstParam.color)}<span>${t('node.temperature')}</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${formatTemperature(record.temp)}</span></div>`
+        html += '</div>'
+        return html
+      },
+    },
+    grid: chartMargin,
+    xAxis: baseXAxisConfig,
+    yAxis: {
+      ...baseYAxisConfig,
+      name: t('node.temperature'),
+      nameTextStyle: { color: chartThemeColors.textSecondary, padding: [0, 40, 0, 0] },
+      min: 0,
+      axisLabel: {
+        ...baseYAxisConfig.axisLabel,
+        formatter: '{value}°',
+      },
+    },
+    series: [
+      {
+        id: 'temp',
+        name: t('node.temperature'),
+        type: 'line',
+        data: temperatureSeries,
+        showSymbol: false,
+        lineStyle: { width: 1.5, color: chartColors.secondary },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(255, 179, 71, 0.25)' },
+              { offset: 1, color: 'rgba(255, 179, 71, 0.02)' },
+            ],
+          },
+        },
       },
     ],
   }
@@ -854,6 +923,16 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
                     )}
                     option={cpuChartOption}
                   />
+
+                  {hasTemperature
+                    ? (
+                        <ChartCard
+                          title={t('node.temperature')}
+                          headerValue={<span>{formatTemperature(lastValidTemperature)}</span>}
+                          option={temperatureChartOption}
+                        />
+                      )
+                    : null}
 
                   <ChartCard
                     title={t('load.memory')}
