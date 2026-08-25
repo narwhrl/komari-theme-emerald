@@ -305,7 +305,7 @@ export default function NodeEarthGlobe({
   }
 
   return (
-    <div className={`relative mx-auto aspect-square w-full max-w-md overflow-hidden -translate-y-4 md:max-w-104 md:translate-y-0 ${className ?? ''}`}>
+    <div className={`relative mx-auto aspect-square h-full w-auto max-w-full overflow-hidden ${className ?? ''}`}>
       <div aria-hidden="true" className="pointer-events-none absolute inset-[10%] rounded-full bg-muted/80 shadow-sm/5 ring-1 ring-border/60 backdrop-blur-sm" />
       <canvas
         ref={canvasRef}
