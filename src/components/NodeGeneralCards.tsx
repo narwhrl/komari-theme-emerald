@@ -20,8 +20,8 @@ const financeRateCurrencies: readonly CurrencyCode[] = financeHelper.DISPLAY_FIN
 function NodeEarthGlobeFallback() {
   const { t } = useI18n()
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-md overflow-hidden -translate-y-4 lg:-translate-y-8" role="status" aria-label={t('common.loading')}>
-      <Skeleton className="absolute inset-0 h-full w-full rounded-full" />
+    <div className="relative mx-auto aspect-square w-full max-w-md overflow-hidden -translate-y-4 md:max-w-88 md:-translate-y-8" role="status" aria-label={t('common.loading')}>
+      <Skeleton className="absolute inset-[10%] rounded-full" />
     </div>
   )
 }
