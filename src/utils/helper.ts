@@ -5,6 +5,7 @@ import { translate } from '@/i18n'
 /** 字节单位常量 */
 const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'] as const
 const LAST_BYTE_UNIT = BYTE_UNITS.at(-1)
+const TRAILING_DECIMAL_ZERO_REGEX = /\.0$/
 
 /** 运行时间格式化精度类型 */
 export type UptimeFormat = 'day' | 'hour' | 'minute' | 'second'
@@ -306,4 +307,24 @@ export function formatDateTime(
     return '-'
 
   return getDateTimeFormatter(style, lang).format(date.toDate())
+}
+
+/**
+ * 判断温度读数是否可用
+ * @param value 温度读数
+ * @returns 有限且大于 0 的读数视为可用
+ */
+export function isTemperatureAvailable(value: number | null | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+}
+
+/**
+ * 格式化温度读数
+ * @param value 温度读数
+ * @returns 最多一位小数并去掉末尾 `.0`，后缀为 `°`；不可用返回 `-`
+ */
+export function formatTemperature(value: number | null | undefined): string {
+  if (!isTemperatureAvailable(value))
+    return '-'
+  return `${value.toFixed(1).replace(TRAILING_DECIMAL_ZERO_REGEX, '')}°`
 }
