@@ -18,7 +18,8 @@ interface RegionCluster {
   onlineServers: number
 }
 
-const GLOBE_RADIUS = 0.8
+const GLOBE_SCALE = 1.15
+const GLOBE_RADIUS = 0.8 * GLOBE_SCALE
 const INITIAL_THETA = 0.22
 const AUTO_ROTATION_SPEED = 0.0015
 const CHINA_COORD = getCoordByCode('CN') ?? [35.8617, 104.1954]
@@ -221,6 +222,7 @@ export default function NodeEarthGlobe({
       theta: thetaRef.current,
       dark: theme.dark,
       diffuse: 1.2,
+      scale: GLOBE_SCALE,
       mapSamples: 10000,
       mapBrightness: theme.mapBrightness,
       baseColor: theme.baseColor,
