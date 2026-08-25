@@ -18,8 +18,7 @@ interface RegionCluster {
   onlineServers: number
 }
 
-const GLOBE_SCALE = 1.15
-const GLOBE_RADIUS = 0.8 * GLOBE_SCALE
+const GLOBE_RADIUS = 0.8
 const INITIAL_THETA = 0.22
 const AUTO_ROTATION_SPEED = 0.0015
 const CHINA_COORD = getCoordByCode('CN') ?? [35.8617, 104.1954]
@@ -222,7 +221,6 @@ export default function NodeEarthGlobe({
       theta: thetaRef.current,
       dark: theme.dark,
       diffuse: 1.2,
-      scale: GLOBE_SCALE,
       mapSamples: 10000,
       mapBrightness: theme.mapBrightness,
       baseColor: theme.baseColor,
@@ -307,7 +305,7 @@ export default function NodeEarthGlobe({
   }
 
   return (
-    <div className={`relative mx-auto aspect-square h-full w-auto max-w-full overflow-hidden ${className ?? ''}`}>
+    <div className={`relative mx-auto aspect-square w-full max-w-md overflow-hidden -translate-y-4 md:max-w-104 md:translate-y-0 ${className ?? ''}`}>
       <div aria-hidden="true" className="pointer-events-none absolute inset-[10%] rounded-full bg-muted/80 shadow-sm/5 ring-1 ring-border/60 backdrop-blur-sm" />
       <canvas
         ref={canvasRef}
