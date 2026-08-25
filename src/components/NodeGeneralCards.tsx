@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { CardX } from '@/components/ui/card-x'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DataTooltip } from '@/components/ui/tooltip'
+import { useI18n } from '@/composables/useI18n'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import * as financeHelper from '@/utils/financeHelper'
@@ -17,16 +18,18 @@ import { formatBytesPerSecondSplit, formatBytesSplit } from '@/utils/helper'
 const financeRateCurrencies: readonly CurrencyCode[] = financeHelper.DISPLAY_FINANCE_CURRENCIES
 
 function NodeEarthGlobeFallback() {
+  const { t } = useI18n()
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-md overflow-hidden -translate-y-4 lg:-translate-y-8" role="status" aria-label="正在加载">
+    <div className="relative mx-auto aspect-square w-full max-w-md overflow-hidden -translate-y-4 lg:-translate-y-8" role="status" aria-label={t('common.loading')}>
       <Skeleton className="absolute inset-0 h-full w-full rounded-full" />
     </div>
   )
 }
 
 function NodeEarthMapsFallback() {
+  const { t } = useI18n()
   return (
-    <div className="relative h-full" role="status" aria-label="正在加载">
+    <div className="relative h-full" role="status" aria-label={t('common.loading')}>
       <div className="relative flex h-88 flex-col items-center">
         <div className="relative w-full flex-1 -translate-y-1/5 md:-translate-y-1/6">
           <Skeleton className="h-full w-full rounded-full opacity-80" />
@@ -54,6 +57,7 @@ export default function NodeGeneralCards({
 }) {
   const allNodes = useNodesStore(state => state.nodes)
   const byteDecimals = useAppStore(state => state.byteDecimals)
+  const { lang, t } = useI18n()
   const { earthViewMode } = useAppDerived()
   const summaryNodes = nodes ?? allNodes
   const [exchangeRates, setExchangeRates] = useState(financeHelper.DEFAULT_EXCHANGE_RATES)
@@ -116,13 +120,13 @@ export default function NodeGeneralCards({
   const remainingValue = financeHelper.calculateTotalRemainingValueCNY(summaryNodes, exchangeRates, excludeFreeNodes) * targetExchangeRate
   const totalValue = financeHelper.calculateTotalValueCNY(summaryNodes, exchangeRates, excludeFreeNodes) * targetExchangeRate
   const monthlyAverageCost = financeHelper.calculateTotalMonthlyAverageCostCNY(summaryNodes, exchangeRates, excludeFreeNodes) * targetExchangeRate
-  const formattedRemainingValue = financeHelper.formatFinanceAmount(remainingValue, exchangeRateBaseCurrency)
-  const formattedTotalValue = financeHelper.formatFinanceAmount(totalValue, exchangeRateBaseCurrency)
-  const formattedMonthlyAverageCost = financeHelper.formatFinanceAmount(monthlyAverageCost, exchangeRateBaseCurrency)
+  const formattedRemainingValue = financeHelper.formatFinanceAmount(remainingValue, exchangeRateBaseCurrency, lang)
+  const formattedTotalValue = financeHelper.formatFinanceAmount(totalValue, exchangeRateBaseCurrency, lang)
+  const formattedMonthlyAverageCost = financeHelper.formatFinanceAmount(monthlyAverageCost, exchangeRateBaseCurrency, lang)
   const financeSummaryItems = [
-    { label: '总价值', value: formattedTotalValue.value, symbol: formattedTotalValue.symbol, currency: formattedTotalValue.currency },
-    { label: '月均支出', value: formattedMonthlyAverageCost.value, symbol: formattedMonthlyAverageCost.symbol, currency: `${formattedMonthlyAverageCost.currency}/月` },
-    { label: '剩余价值', value: formattedRemainingValue.value, symbol: formattedRemainingValue.symbol, currency: formattedRemainingValue.currency },
+    { id: 'total-value' as const, label: t('summary.totalValue'), value: formattedTotalValue.value, symbol: formattedTotalValue.symbol, currency: formattedTotalValue.currency },
+    { id: 'monthly-spend' as const, label: t('summary.monthlySpend'), value: formattedMonthlyAverageCost.value, symbol: formattedMonthlyAverageCost.symbol, currency: `${formattedMonthlyAverageCost.currency}${t('summary.perMonth')}` },
+    { id: 'remaining-value' as const, label: t('summary.remainingValue'), value: formattedRemainingValue.value, symbol: formattedRemainingValue.symbol, currency: formattedRemainingValue.currency },
   ]
   const exchangeRateRows = financeRateCurrencies.map((currency) => {
     const baseRate = exchangeRates[exchangeRateBaseCurrency] || 1
@@ -131,7 +135,7 @@ export default function NodeGeneralCards({
     return {
       currency,
       targetSymbol: financeHelper.CURRENCY_SYMBOLS[currency],
-      rate: new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 6, minimumFractionDigits: 6 }).format(rate),
+      rate: financeHelper.formatExchangeRate(rate, lang),
     }
   })
 
@@ -198,8 +202,8 @@ export default function NodeGeneralCards({
         : null}
 
       <div className={cardGridClass}>
-        <SummaryCard title="内存用量" icon="tabler:cash" value={formattedMemoryUsed.value} unit={`${formattedMemoryUsed.unit} / ${formattedMemoryTotal.value} ${formattedMemoryTotal.unit}`} visual={showVisualPanel} index={0} />
-        <SummaryCard title="硬盘用量" icon="tabler:server-2" value={formattedDiskUsed.value} unit={`${formattedDiskUsed.unit} / ${formattedDiskTotal.value} ${formattedDiskTotal.unit}`} visual={showVisualPanel} index={1} />
+        <SummaryCard title={t('summary.memoryUsage')} icon="tabler:cash" value={formattedMemoryUsed.value} unit={`${formattedMemoryUsed.unit} / ${formattedMemoryTotal.value} ${formattedMemoryTotal.unit}`} visual={showVisualPanel} index={0} />
+        <SummaryCard title={t('summary.diskUsage')} icon="tabler:server-2" value={formattedDiskUsed.value} unit={`${formattedDiskUsed.unit} / ${formattedDiskTotal.value} ${formattedDiskTotal.unit}`} visual={showVisualPanel} index={1} />
 
         <div className={financeCardClass}>
           <CardX
@@ -207,7 +211,7 @@ export default function NodeGeneralCards({
             interaction="pressable"
             role="button"
             tabIndex={0}
-            aria-label={openFinanceCard ? '收起剩余价值详情' : '展开剩余价值详情'}
+            aria-label={openFinanceCard ? t('summary.collapseFinance') : t('summary.expandFinance')}
             aria-expanded={openFinanceCard}
             aria-controls="finance-disclosure"
             className="motion-stagger-item group h-full min-w-0 rounded-2xl bg-card"
@@ -218,7 +222,7 @@ export default function NodeGeneralCards({
           >
             <div className="flex h-full min-w-0 flex-col justify-between gap-1">
               <div className="flex items-start justify-between">
-                <span className="text-xs font-medium tracking-wider text-muted-foreground">剩余价值</span>
+                <span className="text-xs font-medium tracking-wider text-muted-foreground">{t('summary.remainingValue')}</span>
                 <span className="flex items-center gap-0.5">
                   <Icon icon="tabler:cash" width={20} height={20} className="text-muted-foreground/40 transition-colors group-hover:text-foreground/70" aria-hidden="true" />
                   <Icon icon="tabler:chevron-down" width={16} height={16} className={`text-muted-foreground transition-transform duration-200 ${openFinanceCard ? 'rotate-180' : ''}`} aria-hidden="true" />
@@ -246,7 +250,7 @@ export default function NodeGeneralCards({
             <div className="flex h-full min-w-0 flex-col">
               <div className="grid shrink-0 grid-cols-3 gap-1.5">
                 {financeSummaryItems.map(item => (
-                  <div key={item.label} className="min-w-0">
+                  <div key={item.id} className="min-w-0">
                     <div className="mb-1.5 flex items-center text-xs font-medium text-muted-foreground">{item.label}</div>
                     <div className="flex min-w-0 items-baseline truncate">
                       <span className="mr-0.5 shrink-0 text-xs leading-none font-semibold text-muted-foreground">{item.symbol}</span>
@@ -257,13 +261,13 @@ export default function NodeGeneralCards({
               </div>
               <div className="mt-2 flex min-h-0 flex-1 flex-col">
                 <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
-                  <div className="flex items-center gap-1 text-xs font-medium tracking-wider text-muted-foreground">今日汇率</div>
+                  <div className="flex items-center gap-1 text-xs font-medium tracking-wider text-muted-foreground">{t('summary.todayRates')}</div>
                   <div className="relative shrink-0">
                     <select
                       value={exchangeRateBaseCurrency}
                       tabIndex={openFinanceCard ? 0 : -1}
                       className="h-7 min-w-18 appearance-none rounded-lg border border-input bg-popover py-1 pr-7 pl-2.5 text-xs font-medium text-muted-foreground shadow-xs/5 outline-none transition-[border-color,color,box-shadow] not-dark:bg-clip-padding hover:bg-accent/50 hover:text-foreground focus-visible:border-ring focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/24 focus-visible:ring-inset dark:bg-input/32 dark:hover:bg-input/64"
-                      aria-label="切换汇率基准币种"
+                      aria-label={t('summary.changeBaseCurrency')}
                       onClick={event => event.stopPropagation()}
                       onChange={event => updateBaseCurrency(event.target.value)}
                     >
@@ -279,7 +283,7 @@ export default function NodeGeneralCards({
                 </div>
                 <div
                   role="region"
-                  aria-label="今日汇率列表"
+                  aria-label={t('summary.rateList')}
                   tabIndex={openFinanceCard ? 0 : -1}
                   className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
                   onClick={event => event.stopPropagation()}
@@ -304,7 +308,7 @@ export default function NodeGeneralCards({
         </div>
 
         <SummaryCard
-          title="累计流量"
+          title={t('summary.totalTraffic')}
           icon="tabler:download"
           value={totalTrafficTooltip.value}
           unit={totalTrafficTooltip.unit}
@@ -312,8 +316,8 @@ export default function NodeGeneralCards({
           index={3}
           tooltip={`↑ ${formattedTrafficUp.value} ${formattedTrafficUp.unit}\n↓ ${formattedTrafficDown.value} ${formattedTrafficDown.unit}`}
         />
-        <SummaryCard title="实时上行" icon="tabler:chevrons-up" value={formattedSpeedUp.value} unit={formattedSpeedUp.unit} visual={showVisualPanel} index={4} />
-        <SummaryCard title="实时下行" icon="tabler:chevrons-down" value={formattedSpeedDown.value} unit={formattedSpeedDown.unit} visual={showVisualPanel} index={5} />
+        <SummaryCard title={t('summary.realtimeUpload')} icon="tabler:chevrons-up" value={formattedSpeedUp.value} unit={formattedSpeedUp.unit} visual={showVisualPanel} index={4} />
+        <SummaryCard title={t('summary.realtimeDownload')} icon="tabler:chevrons-down" value={formattedSpeedDown.value} unit={formattedSpeedDown.unit} visual={showVisualPanel} index={5} />
       </div>
     </div>
   )

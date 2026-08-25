@@ -4,9 +4,12 @@ import type { Arc, COBEOptions, Globe, Marker } from 'cobe'
 import type { NodeData } from '@/stores/nodes'
 import createGlobe from 'cobe'
 import { useEffect, useMemo, useRef } from 'react'
+import { useI18n } from '@/composables/useI18n'
+import { toRegionLanguage } from '@/i18n'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { getCoordByCode, getCountryCodeFromRegion } from '@/utils/geoHelper'
+import { getRegionDisplayName } from '@/utils/regionHelper'
 
 interface RegionCluster {
   code: string
@@ -109,6 +112,7 @@ export default function NodeEarthGlobe({
   const fallbackNodes = useNodesStore(state => state.earthNodes)
   const displayNodes = nodes ?? fallbackNodes
   const { isDark, visitorInfoCardEnabled } = useAppDerived()
+  const { lang, t } = useI18n()
   const visitorCountryCode = useAppStore(state => state.visitorCountryCode)
   const visitorCoord = useMemo<[number, number] | null>(() => {
     if (!visitorInfoCardEnabled || !visitorCountryCode)
@@ -322,12 +326,13 @@ export default function NodeEarthGlobe({
             className="pointer-events-none absolute -top-3.5 left-0 rounded opacity-0 backdrop-blur-sm transition-[opacity,filter] duration-500 ease-out will-change-transform"
             style={{ transform: 'translate3d(-999px, -999px, 0)' }}
           >
-            <img src={`/images/flags/${cluster.code}.svg`} alt={cluster.code} className="absolute -bottom-2 -left-2 z-1 block size-4" />
+            <img src={`/images/flags/${cluster.code}.svg`} alt={getRegionDisplayName(cluster.code, toRegionLanguage(lang))} className="absolute -bottom-2 -left-2 z-1 block size-4" />
             <div className="relative z-2 items-start justify-center rounded bg-background/60 px-2 py-0.5 text-xs text-nowrap [zoom:.8]">
               {cluster.onlineServers > 0
                 ? (
                     <div className="flex items-center gap-1">
-                      <span className="inline-block size-1.5 rounded-full bg-success-foreground" />
+                      <span aria-hidden="true" className="inline-block size-1.5 rounded-full bg-success-foreground" />
+                      <span className="sr-only">{t('common.online')}</span>
                       <span className="text-success-foreground">{cluster.onlineServers}</span>
                     </div>
                   )
@@ -335,7 +340,8 @@ export default function NodeEarthGlobe({
               {cluster.servers - cluster.onlineServers > 0
                 ? (
                     <div className="flex items-center gap-1">
-                      <span className="inline-block size-1.5 rounded-full bg-warning-foreground" />
+                      <span aria-hidden="true" className="inline-block size-1.5 rounded-full bg-warning-foreground" />
+                      <span className="sr-only">{t('common.offline')}</span>
                       <span className="text-warning-foreground">{cluster.servers - cluster.onlineServers}</span>
                     </div>
                   )
@@ -347,8 +353,8 @@ export default function NodeEarthGlobe({
       {totalServers > 0
         ? (
             <div className="pointer-events-none absolute top-6 left-0 flex items-center gap-2 rounded border border-border bg-background/90 px-2 py-0.5 text-[10px] text-muted-foreground shadow-xs md:top-12">
-              {onlineServers > 0 ? <LegendDot color="green" value={onlineServers} /> : null}
-              {offlineServers > 0 ? <LegendDot color="yellow" value={offlineServers} /> : null}
+              {onlineServers > 0 ? <LegendDot color="green" value={onlineServers} label={t('common.online')} /> : null}
+              {offlineServers > 0 ? <LegendDot color="yellow" value={offlineServers} label={t('common.offline')} /> : null}
             </div>
           )
         : null}
@@ -356,12 +362,13 @@ export default function NodeEarthGlobe({
   )
 }
 
-function LegendDot({ color, value }: { color: 'green' | 'yellow', value: number }) {
+function LegendDot({ color, value, label }: { color: 'green' | 'yellow', value: number, label: string }) {
   const dot = color === 'green' ? 'bg-success-foreground' : 'bg-warning-foreground'
   const text = color === 'green' ? 'text-success-foreground' : 'text-warning-foreground'
   return (
     <div className="flex items-center gap-1">
-      <span className={`inline-block size-1.5 animate-pulse rounded-full ${dot}`} />
+      <span aria-hidden="true" className={`inline-block size-1.5 animate-pulse rounded-full ${dot}`} />
+      <span className="sr-only">{label}</span>
       <span className={text}>{value}</span>
     </div>
   )

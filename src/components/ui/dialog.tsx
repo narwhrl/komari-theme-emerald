@@ -21,8 +21,9 @@ export function DialogContent({
   className,
   children,
   overlayClass,
+  closeLabel,
   ...props
-}: ComponentProps<typeof DialogPrimitive.Popup> & { overlayClass?: string }) {
+}: ComponentProps<typeof DialogPrimitive.Popup> & { overlayClass?: string, closeLabel: string }) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Backdrop
@@ -41,7 +42,7 @@ export function DialogContent({
         {children}
         <DialogPrimitive.Close className="absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-lg opacity-70 transition-[background-color,opacity,box-shadow,transform] duration-150 ease-out hover:bg-accent hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background active:scale-95">
           <Icon icon="lucide:x" width={16} height={16} aria-hidden="true" />
-          <span className="sr-only">关闭</span>
+          <span className="sr-only">{closeLabel}</span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Popup>
     </DialogPrimitive.Portal>

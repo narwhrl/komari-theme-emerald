@@ -1,6 +1,7 @@
 'use client'
 
 import { Skeleton } from '@/components/ui/skeleton'
+import { useI18n } from '@/composables/useI18n'
 import { useAppDerived } from '@/stores/app'
 
 const summarySkeletonItems = ['memory', 'disk', 'traffic']
@@ -9,11 +10,12 @@ const cardStaggerMs = 35
 
 export default function LoadingCover() {
   const { isDark } = useAppDerived()
+  const { t } = useI18n()
 
   return (
     <div
       role="status"
-      aria-label="正在加载"
+      aria-label={t('common.loading')}
       className={`fixed inset-0 z-20 overflow-hidden backdrop-blur-[2px] ${isDark ? 'bg-background/74' : 'bg-background/82'}`}
     >
       <div className="mx-auto min-h-full max-w-[1280px] px-4 pt-18 pb-6">

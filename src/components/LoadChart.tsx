@@ -2,6 +2,8 @@
 
 import type { EChartsOption } from 'echarts'
 import type { ReactNode } from 'react'
+import type { Lang, Translate } from '@/i18n'
+import type { LoadRangeSelection } from '@/utils/chartRange'
 import type { RecordFormat } from '@/utils/recordHelper'
 import type { StatusRecord } from '@/utils/rpc'
 import { Icon } from '@iconify/react'
@@ -12,18 +14,19 @@ import { CardX } from '@/components/ui/card-x'
 import { Empty } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs'
+import { useI18n } from '@/composables/useI18n'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
-import { formatBytesSplit, formatBytesWithConfig } from '@/utils/helper'
+import {
+  getEffectiveRangeSelection,
+  getLoadRangeCandidates,
+  getLoadRangeTabValue,
+  parseLoadRangeTabValue,
+} from '@/utils/chartRange'
+import { getDisplayErrorMessage } from '@/utils/displayError'
+import { formatBytesSplit, formatBytesWithConfig, formatDateTime } from '@/utils/helper'
 import { fillMissingTimePoints } from '@/utils/recordHelper'
 import { getSharedRpc } from '@/utils/rpc'
-
-const presetViews = [
-  { label: '4 小时', hours: 4 },
-  { label: '1 天', hours: 24 },
-  { label: '7 天', hours: 168 },
-  { label: '30 天', hours: 720 },
-]
 
 const chartColors = {
   primary: '#FF6B6B',
@@ -44,6 +47,7 @@ const loadChartSkeletonPaths = [
 
 interface ChartTooltipParam {
   dataIndex: number
+  seriesId?: string | number
   seriesName: string
   value: unknown
   color: string
@@ -112,37 +116,18 @@ function statusToRecordFormat(records: StatusRecord[]): RecordFormat[] {
   }))
 }
 
-function getAvailableViews(maxHours: number): { label: string, hours?: number }[] {
-  const views: { label: string, hours?: number }[] = [{ label: '实时' }]
-
-  for (const view of presetViews) {
-    if (maxHours >= view.hours)
-      views.push({ label: view.label, hours: view.hours })
-  }
-
-  const maxPreset = presetViews.at(-1)
-  if (maxPreset && maxHours > maxPreset.hours) {
-    views.push({ label: formatHoursLabel(maxHours), hours: maxHours })
-  }
-  else if (maxHours > 4 && !presetViews.some(view => view.hours === maxHours)) {
-    views.push({ label: formatHoursLabel(maxHours), hours: maxHours })
-  }
-
-  return views
+function formatLoadRangeLabel(hours: number, t: Translate): string {
+  return hours % 24 === 0
+    ? t('range.days', { count: Math.floor(hours / 24) })
+    : t('range.hours', { count: hours })
 }
 
-function formatHoursLabel(hours: number): string {
-  return hours % 24 === 0 ? `${Math.floor(hours / 24)} 天` : `${hours} 小时`
+function formatChartAxisTime(time: string, showDate: boolean, lang: Lang): string {
+  return formatDateTime(time, showDate ? 'chart' : 'time', lang)
 }
 
-function formatTime(time: string, showDate: boolean): string {
-  const date = dayjs(time)
-  return showDate ? date.format('M/D HH:mm') : date.format('HH:mm')
-}
-
-function formatTimeForTooltip(time: string, hours: number): string {
-  const date = dayjs(time)
-  return hours < 24 ? date.format('HH:mm:ss') : date.format('MM/DD HH:mm')
+function formatChartTooltipTime(time: string, hours: number, lang: Lang): string {
+  return formatDateTime(time, hours < 24 ? 'time' : 'chart', lang)
 }
 
 function normalizeTooltipParams(params: unknown): ChartTooltipParam[] {
@@ -169,50 +154,70 @@ function colorDot(color: string): string {
   return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:8px;flex-shrink:0"></span>`
 }
 
+function seriesIdOf(item: ChartTooltipParam): string {
+  return typeof item.seriesId === 'string' || typeof item.seriesId === 'number'
+    ? String(item.seriesId)
+    : ''
+}
+
+async function queryLoadRecords(uuid: string, hours: LoadRangeSelection): Promise<StatusRecord[]> {
+  const rpc = getSharedRpc()
+  const result = hours === null
+    ? await rpc.getNodeRecentStatus(uuid, 150)
+    : await rpc.getLoadRecords(uuid, hours)
+  return normalizeLoadRecordsResponse(result, uuid)
+    .sort((a, b) => dayjs(a.time).valueOf() - dayjs(b.time).valueOf())
+}
+
 export default function LoadChart({ uuid, className }: { uuid: string, className?: string }) {
   const publicSettings = useAppStore(state => state.publicSettings)
   const byteDecimals = useAppStore(state => state.byteDecimals)
   const nodeInfo = useNodesStore(state => state.nodes.find(node => node.uuid === uuid))
   const { isDark } = useAppDerived()
-  const maxRecordPreserveTime = publicSettings?.record_preserve_time || 720
+  const { lang, t } = useI18n()
   const dataUpdateInterval = useMemo(() => {
     const interval = publicSettings?.theme_settings?.dataUpdateInterval
     return typeof interval === 'number' && interval >= 1 && interval <= 60 ? interval * 1000 : 3000
   }, [publicSettings?.theme_settings])
-  const availableViews = useMemo(() => getAvailableViews(maxRecordPreserveTime), [maxRecordPreserveTime])
-  const [selectedView, setSelectedView] = useState('实时')
-  const activeView = availableViews.some(view => view.label === selectedView) ? selectedView : availableViews[0]?.label ?? '实时'
-  const selectedHours = availableViews.find(view => view.label === activeView)?.hours
-  const isRealtime = selectedHours === undefined
+  const rangeCandidates = useMemo(
+    () => getLoadRangeCandidates(publicSettings?.record_preserve_time),
+    [publicSettings?.record_preserve_time],
+  )
+  const [rangeState, setRangeState] = useState<{
+    candidates: readonly LoadRangeSelection[]
+    selectedHours: LoadRangeSelection
+  }>(() => ({ candidates: rangeCandidates, selectedHours: null }))
+  if (rangeState.candidates !== rangeCandidates) {
+    setRangeState({
+      candidates: rangeCandidates,
+      selectedHours: getEffectiveRangeSelection(rangeCandidates, rangeState.selectedHours),
+    })
+  }
+  const effectiveHours = getEffectiveRangeSelection(rangeCandidates, rangeState.selectedHours)
+  const isRealtime = effectiveHours === null
+  const tooltipHours = effectiveHours ?? 1
   const [remoteData, setRemoteData] = useState<StatusRecord[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<unknown>(null)
 
   useEffect(() => {
     let cancelled = false
 
-    async function fetchData(showLoading: boolean) {
+    async function fetchRecords() {
       if (!uuid)
         return
 
-      if (showLoading)
-        setLoading(true)
+      setLoading(true)
       setError(null)
 
       try {
-        const rpc = getSharedRpc()
-        const result = isRealtime
-          ? await rpc.getNodeRecentStatus(uuid, 150)
-          : await rpc.getLoadRecords(uuid, selectedHours)
-        const records = normalizeLoadRecordsResponse(result, uuid)
-          .sort((a, b) => dayjs(a.time).valueOf() - dayjs(b.time).valueOf())
-
+        const records = await queryLoadRecords(uuid, effectiveHours)
         if (!cancelled)
           setRemoteData(isRealtime ? records.slice(-150) : records)
       }
       catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : '获取数据失败')
+          setError(err)
           setRemoteData([])
         }
       }
@@ -222,27 +227,48 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
       }
     }
 
-    void fetchData(true)
-
-    if (isRealtime) {
-      const interval = window.setInterval(() => void fetchData(false), dataUpdateInterval)
-      return () => {
-        cancelled = true
-        window.clearInterval(interval)
-      }
-    }
-
+    void fetchRecords()
     return () => {
       cancelled = true
     }
-  }, [dataUpdateInterval, isRealtime, selectedHours, uuid])
+  }, [effectiveHours, isRealtime, uuid])
+
+  useEffect(() => {
+    if (!isRealtime)
+      return
+
+    let cancelled = false
+    const interval = window.setInterval(() => {
+      void (async () => {
+        if (!uuid)
+          return
+        setError(null)
+        try {
+          const records = await queryLoadRecords(uuid, null)
+          if (!cancelled)
+            setRemoteData(records.slice(-150))
+        }
+        catch (err) {
+          if (!cancelled) {
+            setError(err)
+            setRemoteData([])
+          }
+        }
+      })()
+    }, dataUpdateInterval)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [dataUpdateInterval, isRealtime, uuid])
 
   const chartData = useMemo(() => {
     const records = statusToRecordFormat(remoteData)
     if (!records.length || isRealtime)
       return records
 
-    const hours = selectedHours || 4
+    const hours = effectiveHours ?? 4
     const minute = 60
     const hour = minute * 60
     let intervalSec: number
@@ -262,7 +288,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     }
 
     return fillMissingTimePoints(records, intervalSec, hours * 3600, maxGap)
-  }, [isRealtime, remoteData, selectedHours])
+  }, [effectiveHours, isRealtime, remoteData])
 
   const latestStatus = useMemo(() => remoteData.at(-1) ?? null, [remoteData])
 
@@ -277,7 +303,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     crosshairColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
   }), [isDark])
 
-  const showDateInAxis = (selectedHours || 1) >= 24
+  const showDateInAxis = tooltipHours >= 24
   const formatBytesValue = (value: number | null | undefined) =>
     typeof value === 'number' && Number.isFinite(value) ? formatBytesWithConfig(value, byteDecimals) : '-'
   const formatBytesBrief = (value: number | null | undefined, suffix = '') => {
@@ -318,7 +344,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
 
   const baseXAxisConfig = {
     type: 'category' as const,
-    data: chartData.map(record => formatTime(record.time, showDateInAxis)),
+    data: chartData.map(record => formatChartAxisTime(record.time, showDateInAxis, lang)),
     axisLabel: {
       fontSize: 11,
       color: chartThemeColors.textSecondary,
@@ -362,17 +388,18 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
         if (!record)
           return ''
 
-        const timeStr = formatTimeForTooltip(record.time, selectedHours || 1)
+        const timeStr = formatChartTooltipTime(record.time, tooltipHours, lang)
         let html = `<div style="font-weight:600;margin-bottom:6px;color:${chartThemeColors.textSecondary}">${timeStr}</div>`
         html += '<div style="display:flex;flex-direction:column;gap:4px">'
 
         for (const item of items) {
           const value = asNumber(item.value)
-          if (item.seriesName === 'CPU') {
+          const seriesId = seriesIdOf(item)
+          if (seriesId === 'cpu') {
             html += `<div style="display:flex;align-items:center">${colorDot(item.color)}<span>CPU</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${formatNullableFixed(value, 1)}%</span></div>`
           }
-          else if (item.seriesName === '负载') {
-            html += `<div style="display:flex;align-items:center">${colorDot(item.color)}<span>系统负载</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${formatNullableFixed(value, 2)}</span></div>`
+          else if (seriesId === 'load') {
+            html += `<div style="display:flex;align-items:center">${colorDot(item.color)}<span>${t('load.systemLoad')}</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${formatNullableFixed(value, 2)}</span></div>`
           }
         }
         html += '</div>'
@@ -392,7 +419,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
       },
       {
         ...baseYAxisConfig,
-        name: '负载',
+        name: t('load.systemLoad'),
         nameTextStyle: { color: chartThemeColors.textSecondary, padding: [0, 0, 0, 40] },
         min: 0,
         splitLine: { show: false },
@@ -400,6 +427,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     ],
     series: [
       {
+        id: 'cpu',
         name: 'CPU',
         type: 'line',
         data: chartData.map(record => record.cpu),
@@ -421,7 +449,8 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
         },
       },
       {
-        name: '负载',
+        id: 'load',
+        name: t('load.systemLoad'),
         type: 'line',
         data: chartData.map(record => record.load),
         showSymbol: false,
@@ -452,15 +481,16 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
         const ramPercent = ramTotal > 0 ? ((ramUsed / ramTotal) * 100).toFixed(1) : '0'
         const swapPercent = swapTotal > 0 ? ((swapUsed / swapTotal) * 100).toFixed(1) : '0'
 
-        const timeStr = formatTimeForTooltip(record.time, selectedHours || 1)
+        const timeStr = formatChartTooltipTime(record.time, tooltipHours, lang)
         let html = `<div style="font-weight:600;margin-bottom:6px;color:${chartThemeColors.textSecondary}">${timeStr}</div>`
         html += '<div style="display:flex;flex-direction:column;gap:4px">'
 
         for (const item of items) {
-          if (item.seriesName === 'RAM') {
+          const seriesId = seriesIdOf(item)
+          if (seriesId === 'ram') {
             html += `<div style="display:flex;align-items:center">${colorDot(item.color)}<span>RAM</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${formatBytesValue(ramUsed)} (${ramPercent}%)</span></div>`
           }
-          else if (item.seriesName === 'Swap') {
+          else if (seriesId === 'swap') {
             html += `<div style="display:flex;align-items:center">${colorDot(item.color)}<span>Swap</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${formatBytesValue(swapUsed)} (${swapPercent}%)</span></div>`
           }
         }
@@ -472,7 +502,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     xAxis: baseXAxisConfig,
     yAxis: {
       ...baseYAxisConfig,
-      name: '内存',
+      name: t('load.memory'),
       nameTextStyle: { color: chartThemeColors.textSecondary, padding: [0, 40, 0, 0] },
       axisLabel: {
         ...baseYAxisConfig.axisLabel,
@@ -481,6 +511,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     },
     series: [
       {
+        id: 'ram',
         name: 'RAM',
         type: 'line',
         data: chartData.map(record => record.ram ?? null),
@@ -501,6 +532,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
         },
       },
       {
+        id: 'swap',
         name: 'Swap',
         type: 'line',
         data: chartData.map(record => record.swap ?? null),
@@ -527,11 +559,11 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
         const diskUsed = record.disk ?? 0
         const diskTotal = record.disk_total ?? nodeInfo?.disk_total ?? 0
         const diskPercent = diskTotal > 0 ? ((diskUsed / diskTotal) * 100).toFixed(1) : '0'
-        const timeStr = formatTimeForTooltip(record.time, selectedHours || 1)
+        const timeStr = formatChartTooltipTime(record.time, tooltipHours, lang)
 
         let html = `<div style="font-weight:600;margin-bottom:6px;color:${chartThemeColors.textSecondary}">${timeStr}</div>`
         html += '<div style="display:flex;flex-direction:column;gap:4px">'
-        html += `<div style="display:flex;align-items:center">${colorDot(firstParam.color)}<span>磁盘已用</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${formatBytesValue(diskUsed)} (${diskPercent}%)</span></div>`
+        html += `<div style="display:flex;align-items:center">${colorDot(firstParam.color)}<span>${t('load.diskUsed')}</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${formatBytesValue(diskUsed)} (${diskPercent}%)</span></div>`
         html += '</div>'
         return html
       },
@@ -540,7 +572,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     xAxis: baseXAxisConfig,
     yAxis: {
       ...baseYAxisConfig,
-      name: '磁盘',
+      name: t('load.disk'),
       nameTextStyle: { color: chartThemeColors.textSecondary, padding: [0, 40, 0, 0] },
       axisLabel: {
         ...baseYAxisConfig.axisLabel,
@@ -549,7 +581,8 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     },
     series: [
       {
-        name: '磁盘已用',
+        id: 'disk',
+        name: t('load.diskUsed'),
         type: 'line',
         data: chartData.map(record => record.disk ?? null),
         showSymbol: false,
@@ -571,6 +604,8 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     ],
   }
 
+  const downloadLabel = t('load.download')
+  const uploadLabel = t('load.upload')
   const networkChartOption: EChartsOption = {
     animation: false,
     color: [chartColors.quinary, chartColors.quaternary],
@@ -585,13 +620,16 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
         if (!record)
           return ''
 
-        const timeStr = formatTimeForTooltip(record.time, selectedHours || 1)
+        const timeStr = formatChartTooltipTime(record.time, tooltipHours, lang)
         let html = `<div style="font-weight:600;margin-bottom:6px;color:${chartThemeColors.textSecondary}">${timeStr}</div>`
         html += '<div style="display:flex;flex-direction:column;gap:4px">'
 
         for (const item of items) {
           const value = asNumber(item.value)
-          const label = item.seriesName === '下载' ? '↓ 下载' : '↑ 上传'
+          const seriesId = seriesIdOf(item)
+          if (seriesId !== 'download' && seriesId !== 'upload')
+            continue
+          const label = seriesId === 'download' ? `↓ ${downloadLabel}` : `↑ ${uploadLabel}`
           html += `<div style="display:flex;align-items:center">${colorDot(item.color)}<span>${label}</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${formatBytesValue(value)}/s</span></div>`
         }
         html += '</div>'
@@ -599,7 +637,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
       },
     },
     legend: {
-      data: ['下载', '上传'],
+      data: [downloadLabel, uploadLabel],
       bottom: 4,
       itemWidth: 12,
       itemHeight: 12,
@@ -611,7 +649,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     xAxis: baseXAxisConfig,
     yAxis: {
       ...baseYAxisConfig,
-      name: '速度',
+      name: t('load.speed'),
       nameTextStyle: { color: chartThemeColors.textSecondary, padding: [0, 40, 0, 0] },
       axisLabel: {
         ...baseYAxisConfig.axisLabel,
@@ -620,14 +658,16 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     },
     series: [
       {
-        name: '下载',
+        id: 'download',
+        name: downloadLabel,
         type: 'line',
         data: chartData.map(record => record.net_in ?? null),
         showSymbol: false,
         lineStyle: { width: 1.5, color: chartColors.quinary },
       },
       {
-        name: '上传',
+        id: 'upload',
+        name: uploadLabel,
         type: 'line',
         data: chartData.map(record => record.net_out ?? null),
         showSymbol: false,
@@ -650,13 +690,17 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
         if (!record)
           return ''
 
-        const timeStr = formatTimeForTooltip(record.time, selectedHours || 1)
+        const timeStr = formatChartTooltipTime(record.time, tooltipHours, lang)
         let html = `<div style="font-weight:600;margin-bottom:6px;color:${chartThemeColors.textSecondary}">${timeStr}</div>`
         html += '<div style="display:flex;flex-direction:column;gap:4px">'
 
         for (const item of items) {
           const value = asNumber(item.value)
-          html += `<div style="display:flex;align-items:center">${colorDot(item.color)}<span>${item.seriesName}</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${value != null ? Math.round(value) : '-'}</span></div>`
+          const seriesId = seriesIdOf(item)
+          if (seriesId !== 'tcp' && seriesId !== 'udp')
+            continue
+          const label = seriesId === 'tcp' ? 'TCP' : 'UDP'
+          html += `<div style="display:flex;align-items:center">${colorDot(item.color)}<span>${label}</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${value != null ? Math.round(value) : '-'}</span></div>`
         }
         html += '</div>'
         return html
@@ -675,7 +719,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     xAxis: baseXAxisConfig,
     yAxis: {
       ...baseYAxisConfig,
-      name: '连接数',
+      name: t('load.connectionCount'),
       nameTextStyle: { color: chartThemeColors.textSecondary, padding: [0, 40, 0, 0] },
       min: 0,
       axisLabel: {
@@ -685,6 +729,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     },
     series: [
       {
+        id: 'tcp',
         name: 'TCP',
         type: 'line',
         data: chartData.map(record => record.connections ?? null),
@@ -692,6 +737,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
         lineStyle: { width: 1.5, color: chartColors.primary },
       },
       {
+        id: 'udp',
         name: 'UDP',
         type: 'line',
         data: chartData.map(record => record.connections_udp ?? null),
@@ -716,10 +762,10 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
           return ''
 
         const value = asNumber(firstParam.value)
-        const timeStr = formatTimeForTooltip(record.time, selectedHours || 1)
+        const timeStr = formatChartTooltipTime(record.time, tooltipHours, lang)
         let html = `<div style="font-weight:600;margin-bottom:6px;color:${chartThemeColors.textSecondary}">${timeStr}</div>`
         html += '<div style="display:flex;flex-direction:column;gap:4px">'
-        html += `<div style="display:flex;align-items:center">${colorDot(firstParam.color)}<span>进程数</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${value != null ? Math.round(value) : '-'}</span></div>`
+        html += `<div style="display:flex;align-items:center">${colorDot(firstParam.color)}<span>${t('load.processCount')}</span><span style="margin-left:auto;font-weight:600;margin-left:16px">${value != null ? Math.round(value) : '-'}</span></div>`
         html += '</div>'
         return html
       },
@@ -728,7 +774,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     xAxis: baseXAxisConfig,
     yAxis: {
       ...baseYAxisConfig,
-      name: '进程',
+      name: t('load.process'),
       nameTextStyle: { color: chartThemeColors.textSecondary, padding: [0, 40, 0, 0] },
       min: 0,
       axisLabel: {
@@ -738,7 +784,8 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
     },
     series: [
       {
-        name: '进程数',
+        id: 'process',
+        name: t('load.processCount'),
         type: 'line',
         data: chartData.map(record => record.process ?? null),
         showSymbol: false,
@@ -762,24 +809,35 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
 
   return (
     <div className={`flex flex-col gap-4 ${className ?? ''}`}>
-      <Tabs value={activeView} onValueChange={value => setSelectedView(String(value))} className="w-full items-center">
+      <Tabs
+        value={getLoadRangeTabValue(effectiveHours)}
+        onValueChange={(value) => {
+          const next = parseLoadRangeTabValue(String(value))
+          if (next !== undefined)
+            setRangeState({ candidates: rangeCandidates, selectedHours: next })
+        }}
+        className="w-full items-center"
+      >
         <div className="min-w-0 flex-1 overflow-x-auto rounded-sm">
-          <TabsList aria-label="负载历史时间段">
-            {availableViews.map(view => (
-              <TabsTab key={view.label} value={view.label}>
-                {view.label}
-              </TabsTab>
-            ))}
+          <TabsList aria-label={t('load.rangeLabel')}>
+            {rangeCandidates.map((hours) => {
+              const value = getLoadRangeTabValue(hours)
+              return (
+                <TabsTab key={value} value={value}>
+                  {hours === null ? t('load.realtime') : formatLoadRangeLabel(hours, t)}
+                </TabsTab>
+              )
+            })}
           </TabsList>
         </div>
       </Tabs>
 
       {loading
-        ? <ChartSkeletonGrid />
-        : error
-          ? <div className="py-8 text-center text-destructive-foreground">{error}</div>
+        ? <ChartSkeletonGrid loadingLabel={t('common.loading')} />
+        : error != null
+          ? <div className="py-8 text-center text-destructive-foreground">{getDisplayErrorMessage(error, t('load.failed'))}</div>
           : remoteData.length === 0
-            ? <Empty description="暂无负载数据" />
+            ? <Empty description={t('load.empty')} />
             : (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <ChartCard
@@ -798,7 +856,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
                   />
 
                   <ChartCard
-                    title="内存"
+                    title={t('load.memory')}
                     headerValue={(
                       <span className="flex items-baseline gap-1">
                         <span>{formatBytesBrief(latestStatus?.ram)}</span>
@@ -810,7 +868,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
                   />
 
                   <ChartCard
-                    title="磁盘"
+                    title={t('load.disk')}
                     headerValue={(
                       <span className="flex items-baseline gap-1">
                         <span>{formatBytesBrief(latestStatus?.disk)}</span>
@@ -822,7 +880,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
                   />
 
                   <ChartCard
-                    title="网络"
+                    title={t('load.network')}
                     headerValue={(
                       <span className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
                         <span className="flex items-center gap-0.5">
@@ -839,7 +897,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
                   />
 
                   <ChartCard
-                    title="连接"
+                    title={t('load.connections')}
                     headerValue={(
                       <span className="flex items-baseline gap-1">
                         <span>
@@ -857,7 +915,7 @@ export default function LoadChart({ uuid, className }: { uuid: string, className
                   />
 
                   <ChartCard
-                    title="进程"
+                    title={t('load.process')}
                     headerValue={<span>{latestStatus?.process ?? '-'}</span>}
                     option={processChartOption}
                   />
@@ -885,9 +943,9 @@ function ChartCard({ title, headerValue, option }: { title: string, headerValue:
   )
 }
 
-function ChartSkeletonGrid() {
+function ChartSkeletonGrid({ loadingLabel }: { loadingLabel: string }) {
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" role="status" aria-label={loadingLabel}>
       {chartSkeletonItems.map(item => <ChartCardSkeleton key={item} />)}
     </div>
   )

@@ -1,19 +1,76 @@
+import type { Lang } from '@/i18n'
 import dayjs from 'dayjs'
+import { translate } from '@/i18n'
 
 /** 字节单位常量 */
 const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'] as const
 const LAST_BYTE_UNIT = BYTE_UNITS.at(-1)
 
-/** 时间单位配置（秒为单位） */
-const TIME_UNITS = [
-  { value: 86400, label: '天' },
-  { value: 3600, label: '小时' },
-  { value: 60, label: '分钟' },
-  { value: 1, label: '秒' },
-] as const
-
 /** 运行时间格式化精度类型 */
 export type UptimeFormat = 'day' | 'hour' | 'minute' | 'second'
+
+export type DateTimeStyle = 'full' | 'chart' | 'time' | 'visitor'
+
+const UPTIME_UNIT_SECONDS = [86400, 3600, 60, 1] as const
+const UPTIME_UNIT_KEYS = ['uptime.days', 'uptime.hours', 'uptime.minutes', 'uptime.seconds'] as const
+const UPTIME_LESS_THAN_KEYS = {
+  day: 'uptime.lessThanDay',
+  hour: 'uptime.lessThanHour',
+  minute: 'uptime.lessThanMinute',
+  second: 'uptime.lessThanSecond',
+} as const
+const UPTIME_FORMAT_MAX_INDEX: Record<UptimeFormat, number> = {
+  day: 0,
+  hour: 1,
+  minute: 2,
+  second: 3,
+}
+
+const DATE_TIME_OPTIONS: Record<DateTimeStyle, Intl.DateTimeFormatOptions> = {
+  full: {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  },
+  chart: {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  },
+  time: {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  },
+  visitor: {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  },
+}
+
+const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>()
+
+function getDateTimeFormatter(style: DateTimeStyle, lang: Lang): Intl.DateTimeFormat {
+  const key = `${lang}:${style}`
+  const cached = dateTimeFormatters.get(key)
+  if (cached)
+    return cached
+
+  const formatter = new Intl.DateTimeFormat(lang, DATE_TIME_OPTIONS[style])
+  dateTimeFormatters.set(key, formatter)
+  return formatter
+}
 
 /** 字节格式化精度配置 */
 export interface ByteDecimalsConfig {
@@ -165,76 +222,35 @@ export function formatBytesPerSecondWithConfig(bytes: number, config?: ByteDecim
 }
 
 /**
- * 格式化运行时间
- * @param seconds 秒数
- * @returns 格式化后的字符串，如 "2 天 3 小时 15 分钟"
- */
-export function formatUptime(seconds: number): string {
-  if (!seconds || seconds <= 0)
-    return '0 秒'
-
-  const parts: string[] = []
-  let remaining = seconds
-
-  for (const { value, label } of TIME_UNITS) {
-    const amount = Math.floor(remaining / value)
-    if (amount > 0) {
-      parts.push(`${amount} ${label}`)
-      remaining %= value
-    }
-  }
-
-  return parts.length > 0 ? parts.join(' ') : '0 秒'
-}
-
-/**
  * 格式化运行时间（支持自定义精度）
  * @param seconds 秒数
  * @param format 精度格式：'day' | 'hour' | 'minute' | 'second'
- * - 'day': 只显示天（如 "2 天"），不满一天时显示"不足 1 天"
- * - 'hour': 显示天和小时（如 "2 天 3 小时"），不满一小时时显示"不足 1 小时"
- * - 'minute': 显示天、小时、分钟（如 "2 天 3 小时 15 分钟"），不满一分钟时显示"不足 1 分钟"
- * - 'second': 显示天、小时、分钟、秒（如 "2 天 3 小时 15 分钟 30 秒"）
+ * @param lang 界面语言
  * @returns 格式化后的字符串
  */
-export function formatUptimeWithFormat(seconds: number, format: UptimeFormat = 'day'): string {
-  if (!seconds || seconds <= 0)
-    return '0 秒'
+export function formatUptimeWithFormat(seconds: number, format: UptimeFormat, lang: Lang): string {
+  const safeSeconds = Number.isFinite(seconds) && seconds > 0 ? seconds : 0
+  if (safeSeconds === 0)
+    return translate(lang, 'uptime.seconds', { count: 0 })
 
-  // 根据格式确定最大单位索引（从天开始）
-  const formatMaxUnitIndexMap: Record<UptimeFormat, number> = {
-    day: 0, // 只到天
-    hour: 1, // 到小时
-    minute: 2, // 到分钟
-    second: 3, // 到秒
-  }
-
-  const maxUnitIndex = formatMaxUnitIndexMap[format]
+  const maxUnitIndex = UPTIME_FORMAT_MAX_INDEX[format]
   const parts: string[] = []
-  let remaining = seconds
+  let remaining = safeSeconds
 
-  for (let i = 0; i < TIME_UNITS.length; i++) {
-    const unit = TIME_UNITS[i]
-    if (!unit)
+  for (let i = 0; i <= maxUnitIndex; i++) {
+    const value = UPTIME_UNIT_SECONDS[i]
+    const key = UPTIME_UNIT_KEYS[i]
+    if (value === undefined || key === undefined)
       continue
-    const { value, label } = unit
     const amount = Math.floor(remaining / value)
     if (amount > 0) {
-      parts.push(`${amount} ${label}`)
+      parts.push(translate(lang, key, { count: amount }))
       remaining %= value
-    }
-    // 达到最大单位索引时停止
-    if (i >= maxUnitIndex) {
-      break
     }
   }
 
-  // 如果没有任何单位有值，显示"不足 1 X"
-  if (parts.length === 0) {
-    const fallbackUnit = TIME_UNITS[maxUnitIndex]
-    const fallbackLabel = fallbackUnit?.label ?? '秒'
-    return `不足 1 ${fallbackLabel}`
-  }
+  if (parts.length === 0)
+    return translate(lang, UPTIME_LESS_THAN_KEYS[format])
 
   return parts.join(' ')
 }
@@ -273,16 +289,21 @@ export function getStatus(percentage: number): 'success' | 'warning' | 'error' {
 /**
  * 格式化时间戳为可读日期时间
  * @param timestamp 时间戳字符串或 Date 对象
- * @returns 格式化后的字符串，如 "2024-01-15 14:30:00"
+ * @param style 闭合日期时间样式
+ * @param lang 界面语言
+ * @returns 格式化后的字符串；无效或缺失输入返回 "-"
  */
-export function formatDateTime(timestamp: string | Date | undefined, format = 'YYYY-MM-DD HH:mm:ss'): string {
+export function formatDateTime(
+  timestamp: string | Date | undefined,
+  style: DateTimeStyle,
+  lang: Lang,
+): string {
   if (!timestamp)
     return '-'
 
   const date = dayjs(timestamp)
-
   if (!date.isValid())
     return '-'
 
-  return date.format(format)
+  return getDateTimeFormatter(style, lang).format(date.toDate())
 }

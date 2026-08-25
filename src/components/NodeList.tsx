@@ -1,5 +1,6 @@
 'use client'
 
+import type { MessageKey, Translate } from '@/i18n'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
 import { useMemo, useState } from 'react'
@@ -8,6 +9,8 @@ import TrafficProgress from '@/components/TrafficProgress'
 import { Badge } from '@/components/ui/badge'
 import { ProgressThin } from '@/components/ui/progress-thin'
 import { DataTooltip } from '@/components/ui/tooltip'
+import { useI18n } from '@/composables/useI18n'
+import { toRegionLanguage } from '@/i18n'
 import { useAppStore } from '@/stores/app'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
 import { getDiskUsedPercentage, getMemoryUsedPercentage, getTrafficUsed, getTrafficUsedPercentage } from '@/utils/nodeHelpers'
@@ -15,25 +18,40 @@ import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
 import { getExpireTextClass, getNodePriceTags, parseTags } from '@/utils/tagHelper'
 
+type ColumnKey = 'status' | 'os' | 'name' | 'tags' | 'uptime' | 'cpu' | 'mem' | 'disk' | 'traffic' | 'rate'
+
+type ColumnLabelKey = Extract<
+  MessageKey,
+  'node.status' | 'node.system' | 'node.node' | 'node.tags' | 'node.uptime' | 'node.memory' | 'node.disk' | 'node.traffic' | 'node.rate'
+>
+
 interface ColumnConfig {
-  key: string
-  label: string
+  key: ColumnKey
+  labelKey: ColumnLabelKey | null
   width: string | number
   sortable: boolean
 }
 
 const columns: ColumnConfig[] = [
-  { key: 'status', label: '状态', width: '40px', sortable: true },
-  { key: 'os', label: '系统', width: '40px', sortable: true },
-  { key: 'name', label: '节点', width: 'minmax(160px, 0.8fr)', sortable: true },
-  { key: 'tags', label: '标签', width: 'minmax(200px, 1fr)', sortable: false },
-  { key: 'uptime', label: '运行时间', width: '116px', sortable: true },
-  { key: 'cpu', label: 'CPU', width: '100px', sortable: true },
-  { key: 'mem', label: '内存', width: '100px', sortable: true },
-  { key: 'disk', label: '硬盘', width: '100px', sortable: true },
-  { key: 'traffic', label: '流量', width: '100px', sortable: true },
-  { key: 'rate', label: '速率', width: '80px', sortable: true },
+  { key: 'status', labelKey: 'node.status', width: '40px', sortable: true },
+  { key: 'os', labelKey: 'node.system', width: '40px', sortable: true },
+  { key: 'name', labelKey: 'node.node', width: 'minmax(160px, 0.8fr)', sortable: true },
+  { key: 'tags', labelKey: 'node.tags', width: 'minmax(200px, 1fr)', sortable: false },
+  { key: 'uptime', labelKey: 'node.uptime', width: '116px', sortable: true },
+  { key: 'cpu', labelKey: null, width: '100px', sortable: true },
+  { key: 'mem', labelKey: 'node.memory', width: '100px', sortable: true },
+  { key: 'disk', labelKey: 'node.disk', width: '100px', sortable: true },
+  { key: 'traffic', labelKey: 'node.traffic', width: '100px', sortable: true },
+  { key: 'rate', labelKey: 'node.rate', width: '80px', sortable: true },
 ]
+
+function columnLabel(col: ColumnConfig, t: Translate): string {
+  return col.labelKey ? t(col.labelKey) : 'CPU'
+}
+
+function osDisplayName(os: string, t: Translate): string {
+  return os.trim() ? getOSName(os) : t('node.unknownOs')
+}
 
 export default function NodeList({
   nodes,
@@ -46,13 +64,13 @@ export default function NodeList({
   onClick: (node: NodeData) => void
   onPingClick: (node: NodeData) => void
 }) {
-  const [sortKey, setSortKey] = useState('')
+  const [sortKey, setSortKey] = useState<ColumnKey | ''>('')
   const [sortDir, setSortDir] = useState<1 | -1>(1)
   const byteDecimals = useAppStore(state => state.byteDecimals)
-  const lang = useAppStore(state => state.lang)
+  const { lang, t } = useI18n()
   const formatBytes = (bytes: number) => formatBytesWithConfig(bytes, byteDecimals)
   const formatBytesPerSecond = (bytes: number) => formatBytesPerSecondWithConfig(bytes, byteDecimals)
-  const formatUptime = (seconds: number) => formatUptimeWithFormat(seconds, 'hour')
+  const formatUptime = (seconds: number) => formatUptimeWithFormat(seconds, 'hour', lang)
   const gridTemplateColumns = columns.map(col => col.width).join(' ')
   const columnKeys = columns.map(col => col.key)
   const nameIndex = columnKeys.indexOf('name')
@@ -104,15 +122,16 @@ export default function NodeList({
       <div className="flex w-full min-w-fit flex-col gap-1">
         <div className="grid gap-2 rounded-2xl border border-input bg-muted/72 p-2 shadow-xs/5" style={{ gridTemplateColumns }}>
           {columns.map((col) => {
-            const alignClass = ['status', 'os'].includes(col.key) ? 'text-center' : 'text-left'
+            const label = columnLabel(col, t)
+            const alignClass = col.key === 'status' || col.key === 'os' ? 'text-center' : 'text-left'
             const sortLabel = sortKey === col.key
-              ? `${col.label}，${sortDir === 1 ? '升序' : '降序'}`
-              : col.label
+              ? t(sortDir === 1 ? 'node.sortAscending' : 'node.sortDescending', { label })
+              : label
 
             if (!col.sortable) {
               return (
                 <div key={col.key} className={alignClass}>
-                  <span className="text-xs text-muted-foreground">{col.label}</span>
+                  <span className="text-xs text-muted-foreground">{label}</span>
                 </div>
               )
             }
@@ -126,7 +145,7 @@ export default function NodeList({
                 onClick={() => handleSort(col)}
               >
                 <span className="text-xs text-muted-foreground">
-                  {col.label}
+                  {label}
                   {sortKey === col.key ? (sortDir === 1 ? ' ↑' : ' ↓') : ''}
                 </span>
               </button>
@@ -135,51 +154,54 @@ export default function NodeList({
         </div>
 
         <div className="flex flex-col gap-1">
-          {sortedNodes.map((node, index) => (
-            <div
-              key={transitionKey ? `${transitionKey}-${node.uuid}` : node.uuid}
-              className={`motion-card motion-card-pressable motion-stagger-item relative flex h-16 cursor-pointer flex-col justify-center rounded-xl border border-input bg-card px-2 shadow-xs/5 ${!node.online ? '!border-destructive/25' : ''}`}
-              style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
-              onClick={() => onClick(node)}
-            >
-              <button
-                type="button"
-                className="sr-only"
-                aria-label={`查看节点 ${node.name} 详情`}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onClick(node)
-                }}
+          {sortedNodes.map((node, index) => {
+            const detailsLabel = t('node.viewDetails', { name: node.name })
+            return (
+              <div
+                key={transitionKey ? `${transitionKey}-${node.uuid}` : node.uuid}
+                className={`motion-card motion-card-pressable motion-stagger-item relative flex h-16 cursor-pointer flex-col justify-center rounded-xl border border-input bg-card px-2 shadow-xs/5 ${!node.online ? '!border-destructive/25' : ''}`}
+                style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
+                onClick={() => onClick(node)}
               >
-                查看节点详情
-              </button>
-              <div className="grid items-center gap-2" style={{ gridTemplateColumns }}>
-                {columns.map(col => renderCell(col.key, node))}
-              </div>
-              {!node.online
-                ? (
-                    <div className="absolute inset-0 z-2 flex items-center rounded-xl bg-background/10 p-2" aria-hidden="true">
-                      <div className="grid items-center justify-center gap-2" style={{ gridTemplateColumns }}>
-                        <div className="h-full space-y-1" style={offlineOverlayContentStyle}>
-                          <div className="truncate text-sm font-semibold">
-                            <span className="text-destructive-foreground">离线</span>
-                            {' '}
-                            {node.name}
+                <button
+                  type="button"
+                  className="sr-only"
+                  aria-label={detailsLabel}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onClick(node)
+                  }}
+                >
+                  {detailsLabel}
+                </button>
+                <div className="grid items-center gap-2" style={{ gridTemplateColumns }}>
+                  {columns.map(col => renderCell(col.key, node))}
+                </div>
+                {!node.online
+                  ? (
+                      <div className="absolute inset-0 z-2 flex items-center rounded-xl bg-background/10 p-2" aria-hidden="true">
+                        <div className="grid items-center justify-center gap-2" style={{ gridTemplateColumns }}>
+                          <div className="h-full space-y-1" style={offlineOverlayContentStyle}>
+                            <div className="truncate text-sm font-semibold">
+                              <span className="text-destructive-foreground">{t('common.offline')}</span>
+                              {' '}
+                              {node.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">{formatDateTime(node.time, 'full', lang)}</div>
                           </div>
-                          <div className="text-xs text-muted-foreground">{formatDateTime(node.time)}</div>
                         </div>
                       </div>
-                    </div>
-                  )
-                : null}
-            </div>
-          ))}
+                    )
+                  : null}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
   )
 
-  function renderCell(key: string, node: NodeData) {
+  function renderCell(key: ColumnKey, node: NodeData) {
     const mutedClass = !node.online ? 'blur-sm opacity-30' : ''
 
     switch (key) {
@@ -192,13 +214,13 @@ export default function NodeList({
           </div>
         )
       case 'os':
-        return <div key={key} className="flex justify-center"><img src={getOSImage(node.os)} alt={getOSName(node.os)} className="size-4" /></div>
+        return <div key={key} className="flex justify-center"><img src={getOSImage(node.os)} alt={osDisplayName(node.os, t)} className="size-4" /></div>
       case 'name': {
         const priceTags = getNodePriceTags(node, lang)
         return (
           <div key={key} className={`space-y-0.5 ${mutedClass}`}>
             <div className="flex items-center gap-1 text-xs font-semibold">
-              {node.region?.trim() ? <img src={`/images/flags/${getRegionCode(node.region)}.svg`} alt={getRegionDisplayName(node.region)} className="size-5 rounded-sm" /> : null}
+              {node.region?.trim() ? <img src={`/images/flags/${getRegionCode(node.region)}.svg`} alt={getRegionDisplayName(node.region, toRegionLanguage(lang))} className="size-5 rounded-sm" /> : null}
               <span className="truncate">{node.name}</span>
             </div>
             {priceTags.length > 0
@@ -240,7 +262,7 @@ export default function NodeList({
             <button
               type="button"
               className="rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
-              aria-label={`${node.name} 延迟 / 丢包`}
+              aria-label={t('node.pingDetails', { name: node.name })}
               onClick={(event) => {
                 event.stopPropagation()
                 onPingClick(node)
@@ -283,7 +305,7 @@ export default function NodeList({
               content={(
                 <>
                   <div className="flex items-center justify-between gap-3 whitespace-nowrap">
-                    <span className="text-background/70">USED</span>
+                    <span className="text-background/70 uppercase">{t('node.used')}</span>
                     <span>{formatBytes(node.ram ?? 0)}</span>
                   </div>
                   {node.swap

@@ -3,6 +3,7 @@
 /* eslint-disable node/prefer-global/process */
 
 import type { KeyboardEvent, ReactNode } from 'react'
+import type { Lang, MessageArgs, MessageKey, Translate } from '@/i18n'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
@@ -11,13 +12,15 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Empty } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
+import { useI18n } from '@/composables/useI18n'
+import { getAlternateLang, toRegionLanguage, translate } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { selectAppDerived, useAppStore } from '@/stores/app'
 import { selectNodeGroups, useNodesStore } from '@/stores/nodes'
 import { parseNodeGroups } from '@/utils/groupHelper'
 import { navigateTo } from '@/utils/navigation'
 import { getOSName } from '@/utils/osImageHelper'
-import { getRegionDisplayName } from '@/utils/regionHelper'
+import { getRegionCode, getRegionDisplayName, isRegionMatch } from '@/utils/regionHelper'
 
 type CommandSection = 'search' | 'actions' | 'groups' | 'nodes'
 
@@ -29,14 +32,8 @@ interface CommandItem {
   icon: string
   badge?: ReactNode
   keywords: string[]
+  region?: string
   onSelect: () => void
-}
-
-const sectionTitles: Record<CommandSection, string> = {
-  search: '搜索',
-  actions: '操作',
-  groups: '分组',
-  nodes: '节点',
 }
 
 const isCloudflarePages = process.env.NEXT_PUBLIC_IS_CLOUDFLARE_PAGES === 'true'
@@ -50,6 +47,9 @@ function commandMatches(item: CommandItem, query: string): boolean {
   if (!normalized)
     return true
 
+  if (item.region !== undefined && isRegionMatch(item.region, query))
+    return true
+
   return [
     item.label,
     item.description,
@@ -57,13 +57,22 @@ function commandMatches(item: CommandItem, query: string): boolean {
   ].some(value => normalize(value).includes(normalized))
 }
 
-function nodeDescription(node: NodeData): string {
+type StaticMessageKey = {
+  [K in MessageKey]: MessageArgs<K> extends [] ? K : never
+}[MessageKey]
+
+function catalogKeywords(...keys: StaticMessageKey[]): string[] {
+  return keys.flatMap(key => [translate('zh-CN', key), translate('en-US', key)])
+}
+
+function nodeDescription(node: NodeData, lang: Lang, t: Translate): string {
+  const osLabel = node.os.trim() ? getOSName(node.os) : t('node.unknownOs')
   const parts = [
-    getRegionDisplayName(node.region),
-    getOSName(node.os),
+    getRegionDisplayName(node.region, toRegionLanguage(lang)),
+    osLabel,
     parseNodeGroups(node.group).join(' / '),
   ].filter(Boolean)
-  return parts.join(' · ') || '节点详情'
+  return parts.join(' · ') || t('command.nodeDescriptionFallback')
 }
 
 function nodeKeywords(node: NodeData): string[] {
@@ -71,6 +80,9 @@ function nodeKeywords(node: NodeData): string[] {
     node.name,
     node.uuid,
     node.region,
+    getRegionDisplayName(node.region, 'zh'),
+    getRegionDisplayName(node.region, 'en'),
+    getRegionCode(node.region),
     node.os,
     node.tags,
     node.remark ?? '',
@@ -88,6 +100,7 @@ export default function CommandMenu({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const commandItemElementsRef = useRef(new Map<string, HTMLButtonElement>())
+  const { lang, t } = useI18n()
   const nodes = useNodesStore(state => state.nodes)
   const groupsRaw = useMemo(() => selectNodeGroups(nodes), [nodes])
   const themeMode = useAppStore(state => state.themeMode)
@@ -95,6 +108,7 @@ export default function CommandMenu({
   const setHomeSearchText = useAppStore(state => state.setHomeSearchText)
   const setNodeSelectedGroup = useAppStore(state => state.setNodeSelectedGroup)
   const setNodeViewMode = useAppStore(state => state.setNodeViewMode)
+  const setLang = useAppStore(state => state.setLang)
   const updateThemeMode = useThemeModeTransition()
   const isLoggedIn = useAppStore(state => state.isLoggedIn)
   const hideAdminEntryWhenLoggedOut = useAppStore(state => selectAppDerived(state).hideAdminEntryWhenLoggedOut)
@@ -102,6 +116,12 @@ export default function CommandMenu({
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const deferredQuery = useDeferredValue(query)
+  const sectionTitles: Record<CommandSection, string> = {
+    search: t('command.sectionSearch'),
+    actions: t('command.sectionActions'),
+    groups: t('command.sectionGroups'),
+    nodes: t('command.sectionNodes'),
+  }
 
   useEffect(() => {
     if (!open)
@@ -127,19 +147,21 @@ export default function CommandMenu({
   const allItems = useMemo<CommandItem[]>(() => {
     const trimmedQuery = deferredQuery.trim()
     const nextThemeLabel = themeMode === 'auto'
-      ? '切换到浅色主题'
+      ? t('header.switchLight')
       : themeMode === 'light'
-        ? '切换到深色主题'
-        : '切换到跟随系统'
+        ? t('header.switchDark')
+        : t('header.switchAuto')
+    const languageLabel = lang === 'zh-CN' ? t('header.switchEnglish') : t('header.switchChinese')
+    const currentBadge = <Badge variant="secondary" className="rounded-sm px-1.5 py-0 text-[10px]">{t('common.current')}</Badge>
     const actions: CommandItem[] = [
       {
         id: 'view-card',
         section: 'actions',
-        label: '卡片视图',
-        description: '用卡片查看节点状态',
+        label: t('command.cardView'),
+        description: t('command.cardViewDescription'),
         icon: 'tabler:layout-grid',
-        badge: nodeViewMode === 'card' ? <Badge variant="secondary" className="rounded-sm px-1.5 py-0 text-[10px]">当前</Badge> : null,
-        keywords: ['card', 'grid', 'view', 'layout', '卡片', '视图'],
+        badge: nodeViewMode === 'card' ? currentBadge : null,
+        keywords: ['card', 'grid', 'view', 'layout', ...catalogKeywords('command.cardView')],
         onSelect: () => {
           setNodeViewMode('card')
           navigateTo('/')
@@ -148,11 +170,11 @@ export default function CommandMenu({
       {
         id: 'view-list',
         section: 'actions',
-        label: '列表视图',
-        description: '用表格密度查看节点状态',
+        label: t('command.listView'),
+        description: t('command.listViewDescription'),
         icon: 'tabler:table',
-        badge: nodeViewMode === 'list' ? <Badge variant="secondary" className="rounded-sm px-1.5 py-0 text-[10px]">当前</Badge> : null,
-        keywords: ['list', 'table', 'view', 'layout', '列表', '表格'],
+        badge: nodeViewMode === 'list' ? currentBadge : null,
+        keywords: ['list', 'table', 'view', 'layout', ...catalogKeywords('command.listView')],
         onSelect: () => {
           setNodeViewMode('list')
           navigateTo('/')
@@ -162,10 +184,24 @@ export default function CommandMenu({
         id: 'toggle-theme',
         section: 'actions',
         label: nextThemeLabel,
-        description: '调整界面明暗模式',
+        description: t('command.themeDescription'),
         icon: themeMode === 'dark' ? 'icon-park-outline:dark-mode' : 'icon-park-outline:sun-one',
-        keywords: ['theme', 'dark', 'light', 'auto', '主题', '深色', '浅色'],
+        keywords: ['theme', 'dark', 'light', 'auto', ...catalogKeywords('command.themeDescription', 'header.themeAuto', 'header.themeLight', 'header.themeDark')],
         onSelect: () => updateThemeMode(),
+      },
+      {
+        id: 'toggle-language',
+        section: 'actions',
+        label: languageLabel,
+        description: t('command.languageDescription'),
+        icon: 'tabler:language',
+        keywords: [
+          translate('zh-CN', 'language.searchTerms'),
+          translate('en-US', 'language.searchTerms'),
+          'zh-CN',
+          'en-US',
+        ],
+        onSelect: () => setLang(getAlternateLang(lang)),
       },
     ]
 
@@ -173,10 +209,10 @@ export default function CommandMenu({
       actions.unshift({
         id: 'clear-search',
         section: 'actions',
-        label: '清除首页搜索',
+        label: t('command.clearSearch'),
         description: homeSearchText,
         icon: 'tabler:x',
-        keywords: ['clear', 'search', 'reset', '清除', '搜索'],
+        keywords: ['clear', 'search', 'reset', ...catalogKeywords('command.clearSearch')],
         onSelect: () => {
           setHomeSearchText('')
           navigateTo('/')
@@ -188,10 +224,10 @@ export default function CommandMenu({
       actions.push({
         id: 'admin',
         section: 'actions',
-        label: '后台管理',
-        description: '打开 Komari 管理后台',
+        label: t('header.admin'),
+        description: t('command.adminDescription'),
         icon: 'icon-park-outline:setting',
-        keywords: ['admin', 'settings', 'manage', '后台', '管理', '设置'],
+        keywords: ['admin', 'settings', 'manage', ...catalogKeywords('header.admin', 'command.adminDescription')],
         onSelect: () => {
           window.location.href = '/admin'
         },
@@ -202,10 +238,10 @@ export default function CommandMenu({
       ? [{
           id: 'search-home',
           section: 'search',
-          label: `搜索节点：${trimmedQuery}`,
-          description: '在首页节点列表中筛选',
+          label: t('command.searchNodes', { query: trimmedQuery }),
+          description: t('command.searchDescription'),
           icon: 'tabler:search',
-          keywords: [trimmedQuery, 'filter', '搜索', '筛选'],
+          keywords: [trimmedQuery, 'filter', ...catalogKeywords('command.searchDescription')],
           onSelect: () => {
             setHomeSearchText(trimmedQuery)
             navigateTo('/')
@@ -214,15 +250,15 @@ export default function CommandMenu({
       : []
 
     const groupItems: CommandItem[] = [
-      { label: '全部节点', value: 'all' },
+      { label: t('home.allNodes'), value: 'all' },
       ...groupsRaw.map(group => ({ label: group, value: group })),
     ].map(group => ({
       id: `group-${group.value}`,
-      section: 'groups',
+      section: 'groups' as const,
       label: group.label,
-      description: group.value === 'all' ? '显示所有节点' : '切换首页节点分组',
+      description: group.value === 'all' ? t('command.allNodesDescription') : t('command.groupDescription'),
       icon: group.value === 'all' ? 'tabler:server-2' : 'tabler:folder',
-      keywords: [group.label, group.value, 'group', '分组'],
+      keywords: [group.label, group.value, 'group', ...catalogKeywords('command.sectionGroups')],
       onSelect: () => {
         setNodeSelectedGroup(group.value)
         navigateTo('/')
@@ -233,17 +269,18 @@ export default function CommandMenu({
       id: `node-${node.uuid}`,
       section: 'nodes',
       label: node.name,
-      description: nodeDescription(node),
+      description: nodeDescription(node, lang, t),
       icon: node.online ? 'tabler:server-bolt' : 'tabler:server-off',
       badge: node.online
-        ? <span className="rounded-sm bg-emerald-600/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">在线</span>
-        : <span className="rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive-foreground">离线</span>,
+        ? <span className="rounded-sm bg-emerald-600/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">{t('common.online')}</span>
+        : <span className="rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive-foreground">{t('common.offline')}</span>,
       keywords: nodeKeywords(node),
+      region: node.region,
       onSelect: () => navigateTo(`/instance/${encodeURIComponent(node.uuid)}`),
     }))
 
     return [...searchItem, ...actions, ...groupItems, ...nodeItems]
-  }, [deferredQuery, groupsRaw, hideAdminEntryWhenLoggedOut, homeSearchText, isLoggedIn, nodeViewMode, nodes, setHomeSearchText, setNodeSelectedGroup, setNodeViewMode, themeMode, updateThemeMode])
+  }, [deferredQuery, groupsRaw, hideAdminEntryWhenLoggedOut, homeSearchText, isLoggedIn, lang, nodeViewMode, nodes, setHomeSearchText, setLang, setNodeSelectedGroup, setNodeViewMode, t, themeMode, updateThemeMode])
 
   const visibleItems = useMemo(() => {
     const searchItems = allItems.filter(item => item.section === 'search')
@@ -299,10 +336,11 @@ export default function CommandMenu({
       <DialogContent
         className="command-dialog top-4 max-h-[calc(100dvh-2rem)] max-w-2xl translate-y-0 gap-0 overflow-hidden rounded-2xl border-input bg-popover p-0 shadow-lg/5 backdrop-blur-xl sm:top-1/2 sm:max-h-[min(720px,calc(100dvh-3rem))] sm:-translate-y-1/2"
         overlayClass="bg-background/45 backdrop-blur-[2px]"
+        closeLabel={t('common.close')}
       >
         <DialogHeader className="sr-only">
-          <DialogTitle>命令菜单</DialogTitle>
-          <DialogDescription>搜索节点或执行常用操作</DialogDescription>
+          <DialogTitle>{t('command.title')}</DialogTitle>
+          <DialogDescription>{t('command.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="border-b border-border/80 bg-muted/18">
@@ -311,7 +349,7 @@ export default function CommandMenu({
               <Icon icon="tabler:search" width={18} height={18} aria-hidden="true" />
             </span>
             <div className="min-w-0 flex-1">
-              <label htmlFor="komari-command-input" className="sr-only">搜索节点或执行操作</label>
+              <label htmlFor="komari-command-input" className="sr-only">{t('command.inputLabel')}</label>
               <Input
                 id="komari-command-input"
                 ref={inputRef}
@@ -326,15 +364,13 @@ export default function CommandMenu({
                 aria-expanded="true"
                 aria-controls="komari-command-list"
                 aria-activedescendant={activeItem ? `komari-command-${activeItem.id}` : undefined}
-                aria-label="搜索节点或执行操作"
-                placeholder="搜索节点、分组或操作…"
+                aria-label={t('command.inputLabel')}
+                placeholder={t('command.placeholder')}
                 className="h-11 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0"
               />
             </div>
             <span className="hidden shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground sm:inline-flex">
-              {visibleItems.length}
-              {' '}
-              项
+              {t('command.itemCount', { count: visibleItems.length })}
             </span>
           </div>
           <div className="flex gap-1.5 overflow-x-auto px-4 pb-3 pr-14">
@@ -346,7 +382,7 @@ export default function CommandMenu({
                   </span>
                 ))
               : (
-                  <span className="inline-flex shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">无结果</span>
+                  <span className="inline-flex shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">{t('command.noResults')}</span>
                 )}
           </div>
         </div>
@@ -397,22 +433,22 @@ export default function CommandMenu({
               ))
             : (
                 <div className="py-10">
-                  <Empty description="没有匹配项，试试节点名称、地区或分组" />
+                  <Empty description={t('command.noMatches')} />
                 </div>
               )}
         </div>
 
         <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border bg-muted/12 px-4 py-2 text-[11px] text-muted-foreground">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <CommandFooterHint label="导航">
+            <CommandFooterHint label={t('command.navigate')}>
               <CommandKey icon="lucide:arrow-up" />
               <CommandKey icon="lucide:arrow-down" />
             </CommandFooterHint>
-            <CommandFooterHint label="打开">
+            <CommandFooterHint label={t('command.open')}>
               <CommandKey icon="lucide:corner-down-left" />
             </CommandFooterHint>
           </div>
-          <CommandFooterHint label="关闭" className="shrink-0">
+          <CommandFooterHint label={t('command.close')} className="shrink-0">
             <CommandKey>Esc</CommandKey>
           </CommandFooterHint>
         </div>

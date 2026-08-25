@@ -9,6 +9,7 @@ import LoadingCover from '@/components/LoadingCover'
 import { Provider } from '@/components/Provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Toaster } from '@/components/ui/sonner'
+import { useI18n } from '@/composables/useI18n'
 import { selectAppDerived, useAppStore } from '@/stores/app'
 import { destroyInitManager, initApp } from '@/utils/init'
 import { message } from '@/utils/message'
@@ -19,8 +20,10 @@ const instanceFinanceSkeletonItems = ['price', 'monthly', 'remaining-time', 'rem
 const instanceInfoSkeletonItems = ['hardware', 'system', 'storage', 'network']
 
 function InstanceDetailFallback() {
+  const { t } = useI18n()
+
   return (
-    <div className="instance-detail space-y-4" role="status" aria-label="正在加载">
+    <div className="instance-detail space-y-4" role="status" aria-label={t('common.loading')}>
       <div className="flex items-center gap-4 px-4">
         <Skeleton className="size-8 rounded-lg" />
         <Skeleton className="h-6 w-40" />
@@ -64,6 +67,7 @@ declare global {
 }
 
 export default function AppPage() {
+  const { t } = useI18n()
   const loading = useAppStore(state => state.loading)
   const disablePageAnimation = useAppStore(state => selectAppDerived(state).disablePageAnimation)
   const [route, setRoute] = useState(() => typeof window === 'undefined' ? '/' : window.location.pathname)
@@ -119,7 +123,7 @@ export default function AppPage() {
               href="#main-content"
               className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:inline-flex focus:h-9 focus:items-center focus:rounded-lg focus:border focus:border-input focus:bg-background focus:px-3 focus:text-sm focus:text-foreground focus:shadow-xs focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              跳到主要内容
+              {t('shell.skipToContent')}
             </a>
           )
         : null}

@@ -1,6 +1,7 @@
 'use client'
 
 import type { EChartsOption } from 'echarts'
+import type { Lang, Translate } from '@/i18n'
 import { Icon } from '@iconify/react'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -10,7 +11,15 @@ import { Empty } from '@/components/ui/empty'
 import { Group, GroupSeparator } from '@/components/ui/group'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTab } from '@/components/ui/tabs'
+import { useI18n } from '@/composables/useI18n'
 import { useAppDerived, useAppStore } from '@/stores/app'
+import {
+  getEffectiveRangeSelection,
+  getPingRangeCandidates,
+  getPingRangeTabValue,
+} from '@/utils/chartRange'
+import { getDisplayErrorMessage } from '@/utils/displayError'
+import { formatDateTime } from '@/utils/helper'
 import { cutPeakValues, interpolateNullsLinear } from '@/utils/recordHelper'
 import { getSharedRpc, RpcError } from '@/utils/rpc'
 
@@ -84,13 +93,6 @@ interface PingChartData {
   records: PingRecord[]
   tasks: TaskInfo[]
 }
-
-const presetViews = [
-  { label: '1 小时', hours: 1 },
-  { label: '6 小时', hours: 6 },
-  { label: '12 小时', hours: 12 },
-  { label: '1 天', hours: 24 },
-]
 
 const chartColors = ['#FF6B6B', '#4ECDC4', '#A78BFA', '#60A5FA', '#FFB347', '#F472B6', '#34D399', '#FB923C']
 const chartMargin = { top: 30, right: 24, bottom: 52, left: 56 }
@@ -198,14 +200,25 @@ async function fetchLegacyRecords(uuid: string, hours: number): Promise<PingChar
   }
 }
 
-function formatTime(time: string, showDate: boolean): string {
-  const date = dayjs(time)
-  return showDate ? date.format('M/D HH:mm') : date.format('HH:mm')
+function formatPingRangeLabel(hours: number, t: Translate): string {
+  return hours % 24 === 0
+    ? t('range.days', { count: Math.floor(hours / 24) })
+    : t('range.hours', { count: hours })
 }
 
-function formatTimeForTooltip(time: string, hours: number): string {
-  const date = dayjs(time)
-  return hours < 24 ? date.format('HH:mm:ss') : date.format('MM/DD HH:mm')
+function parsePingRangeTabValue(value: string): number | undefined {
+  if (!value.startsWith('hours:'))
+    return undefined
+  const hours = Number(value.slice('hours:'.length))
+  return Number.isFinite(hours) ? hours : undefined
+}
+
+function formatChartAxisTime(time: string, showDate: boolean, lang: Lang): string {
+  return formatDateTime(time, showDate ? 'chart' : 'time', lang)
+}
+
+function formatChartTooltipTime(time: string, hours: number, lang: Lang): string {
+  return formatDateTime(time, hours < 24 ? 'time' : 'chart', lang)
 }
 
 function escapeHtml(value: string): string {
@@ -218,6 +231,7 @@ function escapeHtml(value: string): string {
 }
 
 interface TooltipParam {
+  seriesId?: string | number
   seriesName?: string
   value?: unknown
   dataIndex?: number
@@ -242,13 +256,31 @@ function getNumericTooltipValue(value: unknown): number | null {
   return null
 }
 
+function seriesIdOf(item: TooltipParam): string {
+  return typeof item.seriesId === 'string' || typeof item.seriesId === 'number'
+    ? String(item.seriesId)
+    : ''
+}
+
 export default function PingChart({ uuid, className, onReady }: { uuid: string, className?: string, onReady?: () => void }) {
   const publicSettings = useAppStore(state => state.publicSettings)
   const { isDark } = useAppDerived()
-  const maxHours = publicSettings?.ping_record_preserve_time || 168
-  const views = presetViews.filter(view => maxHours >= view.hours)
-  const [selectedView, setSelectedView] = useState(views[0]?.label ?? '1 小时')
-  const selectedHours = views.find(view => view.label === selectedView)?.hours ?? 1
+  const { lang, t } = useI18n()
+  const rangeCandidates = useMemo(
+    () => getPingRangeCandidates(publicSettings?.ping_record_preserve_time),
+    [publicSettings?.ping_record_preserve_time],
+  )
+  const [rangeState, setRangeState] = useState<{
+    candidates: readonly number[]
+    selectedHours: number
+  }>(() => ({ candidates: rangeCandidates, selectedHours: rangeCandidates[0] }))
+  if (rangeState.candidates !== rangeCandidates) {
+    setRangeState({
+      candidates: rangeCandidates,
+      selectedHours: getEffectiveRangeSelection(rangeCandidates, rangeState.selectedHours),
+    })
+  }
+  const effectiveHours = getEffectiveRangeSelection(rangeCandidates, rangeState.selectedHours)
   const [records, setRecords] = useState<PingRecord[]>([])
   const [tasks, setTasks] = useState<TaskInfo[]>([])
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([])
@@ -256,7 +288,7 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
   const [showLoss, setShowLoss] = useState(true)
   const [cutPeak, setCutPeak] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<unknown>(null)
   const fetchRequestIdRef = useRef(0)
 
   useEffect(() => {
@@ -275,18 +307,18 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
       try {
         let result: PingChartData
         if (metricRpcSupported === false) {
-          result = await fetchLegacyRecords(uuid, selectedHours)
+          result = await fetchLegacyRecords(uuid, effectiveHours)
         }
         else {
           try {
-            result = await fetchMetricRecords(uuid, selectedHours)
+            result = await fetchMetricRecords(uuid, effectiveHours)
             metricRpcSupported = true
           }
           catch (error) {
             if (!isMethodNotFoundError(error))
               throw error
             metricRpcSupported = false
-            result = await fetchLegacyRecords(uuid, selectedHours)
+            result = await fetchLegacyRecords(uuid, effectiveHours)
           }
         }
 
@@ -303,7 +335,7 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
       }
       catch (error) {
         if (!cancelled && requestId === fetchRequestIdRef.current) {
-          setError(error instanceof Error ? error.message : '获取数据失败')
+          setError(error)
           setRecords([])
           setTasks([])
         }
@@ -318,7 +350,7 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
     return () => {
       cancelled = true
     }
-  }, [selectedHours, uuid])
+  }, [effectiveHours, uuid])
 
   const mergeToleranceMs = useMemo(() => {
     const taskIntervals = tasks
@@ -366,7 +398,7 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
     const merged = Array.from(grouped.values()).sort((a, b) => dayjs(a.time as string).valueOf() - dayjs(b.time as string).valueOf())
     const lastItem = merged.at(-1)
     const lastTs = lastItem ? dayjs(lastItem.time as string).valueOf() : dayjs().valueOf()
-    const fromTs = lastTs - selectedHours * 3600_000
+    const fromTs = lastTs - effectiveHours * 3600_000
 
     let startIdx = 0
     for (let i = 0; i < merged.length; i++) {
@@ -381,7 +413,7 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
     }
 
     return merged.slice(startIdx)
-  }, [mergeToleranceMs, records, selectedHours])
+  }, [effectiveHours, mergeToleranceMs, records])
 
   const selectedKeys = useMemo(() => selectedTaskIds.map(String), [selectedTaskIds])
 
@@ -453,7 +485,7 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
     : selectedTaskIds.length === tasks.length
       ? 'all'
       : 'custom'
-  const showDateInAxis = selectedHours >= 24
+  const showDateInAxis = effectiveHours >= 24
   const theme = {
     text: isDark ? 'rgba(255,255,255,.85)' : 'rgba(0,0,0,.85)',
     textSecondary: isDark ? 'rgba(255,255,255,.55)' : 'rgba(0,0,0,.55)',
@@ -493,7 +525,7 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
         if (!rowData)
           return ''
 
-        const timeStr = formatTimeForTooltip(rowData.time as string, selectedHours)
+        const timeStr = formatChartTooltipTime(rowData.time as string, effectiveHours, lang)
         let html = `<div style="font-weight:600;margin-bottom:6px;color:${theme.textSecondary}">${timeStr}</div>`
         html += '<div style="display:flex;flex-direction:column;gap:4px">'
 
@@ -503,10 +535,12 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
           .sort((a, b) => a.numericValue - b.numericValue)
 
         for (const item of sortedItems) {
-          const task = tasks.find(candidate => candidate.name === item.seriesName)
+          const seriesId = seriesIdOf(item)
+          const task = tasks.find(candidate => String(candidate.id) === seriesId)
           const color = task ? getTaskColor(task.id) : chartColors[0]
           const colorDot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:8px;flex-shrink:0"></span>`
-          html += `<div style="display:flex;align-items:center">${colorDot}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(item.seriesName ?? '')}</span><span style="margin-left:16px;font-weight:600;font-variant-numeric:tabular-nums">${Math.round(item.numericValue)} ms</span></div>`
+          const displayName = escapeHtml(task?.name ?? item.seriesName ?? '')
+          html += `<div style="display:flex;align-items:center">${colorDot}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${displayName}</span><span style="margin-left:16px;font-weight:600;font-variant-numeric:tabular-nums">${Math.round(item.numericValue)} ms</span></div>`
         }
 
         html += '</div>'
@@ -526,7 +560,7 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
     grid: chartMargin,
     xAxis: {
       type: 'category',
-      data: chartData.map(row => formatTime(row.time as string, showDateInAxis)),
+      data: chartData.map(row => formatChartAxisTime(row.time as string, showDateInAxis, lang)),
       boundaryGap: false,
       axisLabel: { color: theme.textSecondary, fontSize: 11, margin: 12 },
       axisLine: { show: true, lineStyle: { color: theme.borderColor, width: 1 } },
@@ -534,7 +568,7 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
     },
     yAxis: {
       type: 'value',
-      name: '延迟 (ms)',
+      name: t('ping.axisLatency'),
       nameTextStyle: { color: theme.textSecondary },
       axisLabel: { color: theme.textSecondary, fontSize: 11, formatter: '{value}' },
       axisLine: { show: false },
@@ -550,6 +584,7 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
       const lossMarkerIndexes = packetLossMarkers.get(task.id) ?? []
 
       return {
+        id: String(task.id),
         name: task.name,
         type: 'line',
         data: chartData.map(row => row[String(task.id)] as number | null ?? null),
@@ -589,37 +624,46 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
   }
 
   return (
-    <div className={`flex flex-col gap-4 ${className ?? ''}`}>
-      <Tabs value={selectedView} onValueChange={value => setSelectedView(String(value))} className="w-full">
+    <div className={`flex min-w-0 flex-col gap-4 ${className ?? ''}`}>
+      <Tabs
+        value={getPingRangeTabValue(effectiveHours)}
+        onValueChange={(value) => {
+          const next = parsePingRangeTabValue(String(value))
+          if (next !== undefined)
+            setRangeState({ candidates: rangeCandidates, selectedHours: next })
+        }}
+        className="w-full"
+      >
         <div className="min-w-0 overflow-x-auto rounded-sm">
-          <TabsList aria-label="延迟历史时间段">
-            {views.map(view => <TabsTab key={view.label} value={view.label}>{view.label}</TabsTab>)}
+          <TabsList aria-label={t('ping.rangeLabel')}>
+            {rangeCandidates.map((hours) => {
+              const value = getPingRangeTabValue(hours)
+              return (
+                <TabsTab key={value} value={value} className="max-[359px]:h-8 max-[359px]:px-1.5 max-[359px]:text-xs">
+                  {formatPingRangeLabel(hours, t)}
+                </TabsTab>
+              )
+            })}
           </TabsList>
         </div>
       </Tabs>
       {loading
-        ? <PingChartSkeleton />
-        : error
-          ? <div className="py-8 text-center text-destructive-foreground">{error}</div>
+        ? <PingChartSkeleton loadingLabel={t('common.loading')} />
+        : error != null
+          ? <div className="py-8 text-center text-destructive-foreground">{getDisplayErrorMessage(error, t('ping.failedData'))}</div>
           : tasks.length === 0
-            ? <Empty description="暂无延迟数据" />
+            ? <Empty description={t('ping.empty')} />
             : (
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <Tabs value={taskSelectionView} onValueChange={handleTaskSelectionChange}>
-                      <TabsList aria-label="延迟历史任务选择">
-                        <TabsTab value="all">全选</TabsTab>
-                        <TabsTab value="none">全不选</TabsTab>
+                      <TabsList aria-label={t('ping.taskSelection')}>
+                        <TabsTab value="all">{t('ping.selectAll')}</TabsTab>
+                        <TabsTab value="none">{t('ping.selectNone')}</TabsTab>
                       </TabsList>
                     </Tabs>
                     <div className="text-xs text-muted-foreground">
-                      已选择
-                      {' '}
-                      {selectedTaskIds.length}
-                      {' '}
-                      /
-                      {' '}
-                      {tasks.length}
+                      {t('ping.selected', { selected: selectedTaskIds.length, total: tasks.length })}
                     </div>
                   </div>
                   <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
@@ -645,15 +689,15 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
                       </button>
                     ))}
                   </div>
-                  <Group aria-label="延迟图表显示选项">
+                  <Group aria-label={t('ping.displayOptions')} className="max-[359px]:w-full max-[359px]:[&>button]:min-w-0 max-[359px]:[&>button]:!flex-auto max-[359px]:[&>button]:!px-1 max-[359px]:[&>button]:text-xs">
                     <Button
                       type="button"
                       variant="outline"
                       aria-pressed={showDelay}
                       onClick={() => setShowDelay(value => !value)}
                     >
-                      <Icon icon="lucide:clock" aria-hidden="true" className="size-4" />
-                      延迟
+                      <Icon icon="lucide:clock" aria-hidden="true" className="size-4 max-[359px]:hidden" />
+                      {t('node.latency')}
                     </Button>
                     <GroupSeparator />
                     <Button
@@ -662,8 +706,8 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
                       aria-pressed={showLoss}
                       onClick={() => setShowLoss(value => !value)}
                     >
-                      <Icon icon="lucide:package-x" aria-hidden="true" className="size-4" />
-                      丢包
+                      <Icon icon="lucide:package-x" aria-hidden="true" className="size-4 max-[359px]:hidden" />
+                      {t('node.packetLoss')}
                     </Button>
                     <GroupSeparator />
                     <Button
@@ -672,8 +716,8 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
                       aria-pressed={cutPeak}
                       onClick={() => setCutPeak(value => !value)}
                     >
-                      <Icon icon="lucide:chart-spline" aria-hidden="true" className="size-4" />
-                      平滑峰值
+                      <Icon icon="lucide:chart-spline" aria-hidden="true" className="size-4 max-[359px]:hidden" />
+                      {t('ping.smoothPeaks')}
                     </Button>
                   </Group>
                   <div className="vercel-card h-80 rounded-2xl bg-card p-4">
@@ -685,9 +729,9 @@ export default function PingChart({ uuid, className, onReady }: { uuid: string, 
   )
 }
 
-function PingChartSkeleton() {
+function PingChartSkeleton({ loadingLabel }: { loadingLabel: string }) {
   return (
-    <>
+    <div className="flex flex-col gap-4" role="status" aria-label={loadingLabel}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1 rounded-md bg-muted/50 p-1">
           <Skeleton className="h-7 w-13 rounded-sm" />
@@ -748,7 +792,7 @@ function PingChartSkeleton() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }
 

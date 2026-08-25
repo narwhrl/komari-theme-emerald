@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { DataTooltip } from '@/components/ui/tooltip'
+import { useI18n } from '@/composables/useI18n'
 import { useAppDerived, useAppStore } from '@/stores/app'
 import { selectNodeGroups, useNodesStore } from '@/stores/nodes'
 import { isNodeInGroup, parseNodeGroups } from '@/utils/groupHelper'
@@ -28,8 +29,9 @@ const nodeItemStaggerLimit = 12
 const homePingChartFallbackItems = ['task-1', 'task-2', 'task-3', 'task-4']
 
 function HomePingChartFallback() {
+  const { t } = useI18n()
   return (
-    <div className="flex flex-col gap-4" role="status" aria-label="正在加载">
+    <div className="flex flex-col gap-4" role="status" aria-label={t('common.loading')}>
       <Skeleton className="h-8 w-64 max-w-full rounded-md" />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Skeleton className="h-7 w-28 rounded-sm" />
@@ -50,9 +52,9 @@ const PingChart = dynamic(() => import('@/components/PingChart'), {
   loading: HomePingChartFallback,
 })
 
-const nodeViewModeOptions: Array<{ mode: NodeViewMode, label: string, icon: string }> = [
-  { mode: 'card', label: '卡片视图', icon: 'tabler:layout-grid' },
-  { mode: 'list', label: '列表视图', icon: 'tabler:table' },
+const nodeViewModeOptions: Array<{ mode: NodeViewMode, icon: string }> = [
+  { mode: 'card', icon: 'tabler:layout-grid' },
+  { mode: 'list', icon: 'tabler:table' },
 ]
 
 function isNodeMatchSearch(node: NodeData, search: string): boolean {
@@ -79,6 +81,7 @@ function isNodeViewMode(value: string | undefined): value is NodeViewMode {
 }
 
 export default function HomeView() {
+  const { t } = useI18n()
   const nodes = useNodesStore(state => state.nodes)
   const earthNodes = useNodesStore(state => state.earthNodes)
   const groupsRaw = useMemo(() => selectNodeGroups(nodes), [nodes])
@@ -127,9 +130,9 @@ export default function HomeView() {
   }, [groupsRaw, nodeSelectedGroup, setNodeSelectedGroup])
 
   const groups = useMemo(() => [
-    { tab: '全部节点', name: 'all' },
+    { tab: t('home.allNodes'), name: 'all' },
     ...groupsRaw.map(group => ({ tab: group, name: group })),
-  ], [groupsRaw])
+  ], [groupsRaw, t])
 
   const groupNodeList = useMemo(() => nodes.filter(node => isNodeInGroup(node.group, nodeSelectedGroup)), [nodeSelectedGroup, nodes])
   const sampledGroupNodeList = useMemo(() => earthNodes.filter(node => isNodeInGroup(node.group, nodeSelectedGroup)), [nodeSelectedGroup, earthNodes])
@@ -153,8 +156,8 @@ export default function HomeView() {
         ? (
             <div className="alert px-4">
               <Alert variant="destructive">
-                <AlertTitle>RPC 服务错误</AlertTitle>
-                <AlertDescription>连接服务器失败，请检查网络设置或刷新页面后再试。</AlertDescription>
+                <AlertTitle>{t('home.rpcErrorTitle')}</AlertTitle>
+                <AlertDescription>{t('home.rpcErrorDescription')}</AlertDescription>
               </Alert>
             </div>
           )
@@ -188,7 +191,7 @@ export default function HomeView() {
           <Tabs value={nodeSelectedGroup} onValueChange={value => setNodeSelectedGroup(String(value))} className="flex w-full flex-col gap-4">
             <div className="flex min-w-0 items-center gap-2 max-[359px]:gap-1">
               <div className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain rounded-sm md:pointer-events-auto">
-                <TabsList aria-label="节点分组" className="max-[359px]:gap-x-0">
+                <TabsList aria-label={t('home.groupLabel')} className="max-[359px]:gap-x-0">
                   {groups.map(group => (
                     <TabsTab
                       key={group.name}
@@ -199,8 +202,8 @@ export default function HomeView() {
                       {group.name === 'all'
                         ? (
                             <>
-                              <span className="max-[399px]:hidden">全部节点</span>
-                              <span className="hidden max-[399px]:inline">全部</span>
+                              <span className="max-[399px]:hidden">{t('home.allNodes')}</span>
+                              <span className="hidden max-[399px]:inline">{t('home.all')}</span>
                             </>
                           )
                         : group.tab}
@@ -253,7 +256,7 @@ export default function HomeView() {
                     )
                   : (
                       <div className="py-8 text-center text-muted-foreground">
-                        <Empty description={debouncedSearchText.trim() ? '没有匹配的节点' : '暂无节点'} />
+                        <Empty description={debouncedSearchText.trim() ? t('home.noMatchingNodes') : t('home.noNodes')} />
                       </div>
                     )}
             </TabsPanel>
@@ -265,18 +268,17 @@ export default function HomeView() {
         {selectedPingNode
           ? (
               <DialogContent
-                className="max-w-6xl gap-0 overflow-hidden border-input bg-popover p-0 shadow-lg/5"
+                className="min-w-0 max-w-6xl gap-0 overflow-hidden border-input bg-popover p-0 shadow-lg/5"
                 overlayClass="bg-black/32"
                 initialFocus={pingChartTitleRef}
+                closeLabel={t('common.close')}
               >
-                <DialogHeader className="flex h-13 flex-row items-center px-4">
-                  <DialogTitle ref={pingChartTitleRef} tabIndex={-1} className="truncate">
-                    {selectedPingNode.name}
-                    {' '}
-                    延迟 / 丢包
+                <DialogHeader className="flex h-13 min-w-0 flex-row items-center px-4 pr-12">
+                  <DialogTitle ref={pingChartTitleRef} tabIndex={-1} className="min-w-0 truncate">
+                    {t('home.pingDialogTitle', { name: selectedPingNode.name })}
                   </DialogTitle>
                 </DialogHeader>
-                <div className="max-h-[calc(90vh-4rem)] overflow-y-auto p-4 pt-0">
+                <div className="max-h-[calc(90vh-4rem)] min-w-0 overflow-y-auto p-4 pt-0">
                   <PingChart uuid={selectedPingNode.uuid} onReady={handlePingChartReady} />
                 </div>
               </DialogContent>
@@ -288,9 +290,10 @@ export default function HomeView() {
 }
 
 function NodeViewModeToggle({ value, onValueChange }: { value: NodeViewMode, onValueChange: (mode: NodeViewMode) => void }) {
+  const { t } = useI18n()
   return (
     <ToggleGroup
-      aria-label="节点视图切换"
+      aria-label={t('home.viewToggle')}
       className="pointer-events-auto shrink-0"
       onValueChange={(modes) => {
         const nextMode = modes.at(0)
@@ -300,10 +303,11 @@ function NodeViewModeToggle({ value, onValueChange }: { value: NodeViewMode, onV
       value={[value]}
     >
       {nodeViewModeOptions.map((option) => {
+        const label = option.mode === 'card' ? t('home.cardView') : t('home.listView')
         return (
-          <DataTooltip key={option.mode} as="span" content={option.label} placement="top" contentClass="whitespace-nowrap text-[11px] px-2">
+          <DataTooltip key={option.mode} as="span" content={label} placement="top" contentClass="whitespace-nowrap text-[11px] px-2">
             <ToggleGroupItem
-              aria-label={option.label}
+              aria-label={label}
               className="max-[359px]:min-w-9 max-[359px]:px-1.5"
               value={option.mode}
             >

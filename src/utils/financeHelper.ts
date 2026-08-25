@@ -1,3 +1,4 @@
+import type { Lang } from '@/i18n'
 import type { NodeData } from '@/stores/nodes'
 
 const FINANCE_CURRENCY_CONFIG = {
@@ -263,23 +264,56 @@ export function calculateRemainingValueCNY(
   return 0
 }
 
-export function formatFinanceAmount(amount: number, currency: CurrencyCode): {
+const financeAmountFormatters = new Map<string, Intl.NumberFormat>()
+const exchangeRateFormatters = new Map<Lang, Intl.NumberFormat>()
+
+function getFinanceAmountFormatter(lang: Lang, compact: boolean): Intl.NumberFormat {
+  const key = `${lang}:${compact ? 'compact' : 'standard'}`
+  const cached = financeAmountFormatters.get(key)
+  if (cached)
+    return cached
+
+  const formatter = new Intl.NumberFormat(lang, {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: compact ? 0 : 2,
+    notation: compact ? 'compact' : 'standard',
+  })
+  financeAmountFormatters.set(key, formatter)
+  return formatter
+}
+
+function getExchangeRateFormatter(lang: Lang): Intl.NumberFormat {
+  const cached = exchangeRateFormatters.get(lang)
+  if (cached)
+    return cached
+
+  const formatter = new Intl.NumberFormat(lang, {
+    minimumFractionDigits: 6,
+    maximumFractionDigits: 6,
+  })
+  exchangeRateFormatters.set(lang, formatter)
+  return formatter
+}
+
+export function formatFinanceAmount(amount: number, currency: CurrencyCode, lang: Lang): {
   currency: CurrencyCode
   symbol: string
   value: string
 } {
   const safeAmount = Number.isFinite(amount) ? amount : 0
-  const value = new Intl.NumberFormat('zh-CN', {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: Math.abs(safeAmount) < 100000 ? 2 : 0,
-    notation: Math.abs(safeAmount) >= 100000 ? 'compact' : 'standard',
-  }).format(safeAmount)
+  const compact = Math.abs(safeAmount) >= 100000
+  const value = getFinanceAmountFormatter(lang, compact).format(safeAmount)
 
   return {
     currency,
     symbol: CURRENCY_SYMBOLS[currency],
     value,
   }
+}
+
+export function formatExchangeRate(rate: number, lang: Lang): string {
+  const safeRate = Number.isFinite(rate) ? rate : 0
+  return getExchangeRateFormatter(lang).format(safeRate)
 }
 
 export async function getDailyExchangeRates(): Promise<{

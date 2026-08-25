@@ -4,6 +4,7 @@
  */
 
 import type { Client, KomariRpc, NodeStatus } from '@/utils/rpc'
+import { translate } from '@/i18n'
 import { getAppDerivedState, useAppStore } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { getSharedApi } from '@/utils/api'
@@ -112,7 +113,7 @@ class InitManager {
     try {
       const result = await this.rpc.ping()
       if (result !== 'pong') {
-        throw new RpcError(-32000, 'Unexpected health check response')
+        throw new RpcError(-32000, 'Unexpected health check response', { origin: 'client' })
       }
       return true
     }
@@ -330,7 +331,7 @@ class InitManager {
     client.close()
 
     // 显示提示
-    window.$message?.warning('WebSocket 无法连接，尝试回落 POST 模式。')
+    window.$message?.warning(translate(useAppStore.getState().lang, 'toast.websocketFallback'))
   }
 
   private clearReconnectTimer(): void {

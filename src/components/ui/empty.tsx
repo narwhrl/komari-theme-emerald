@@ -3,11 +3,11 @@ import { Icon } from '@iconify/react'
 import { cn } from '@/lib/utils'
 
 export function Empty({
-  description = '暂无数据',
+  description,
   children,
   className,
 }: {
-  description?: ReactNode
+  description: ReactNode
   children?: ReactNode
   className?: string
 }) {
