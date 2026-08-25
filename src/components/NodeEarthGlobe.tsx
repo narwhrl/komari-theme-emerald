@@ -166,8 +166,10 @@ export default function NodeEarthGlobe({
   const arcs = useMemo<Arc[]>(() => {
     if (!visitorCoord || clusters.length === 0)
       return []
-    return clusters.map(cluster => ({ from: visitorCoord, to: cluster.coord }))
-  }, [clusters, visitorCoord])
+    return clusters
+      .filter(cluster => cluster.code !== visitorCountryCode)
+      .map(cluster => ({ from: visitorCoord, to: cluster.coord }))
+  }, [clusters, visitorCoord, visitorCountryCode])
 
   clustersRef.current = clusters
   spinningRef.current = spinning
@@ -303,7 +305,8 @@ export default function NodeEarthGlobe({
   }
 
   return (
-    <div className={`relative mx-auto aspect-square w-full max-w-md overflow-hidden -translate-y-4 lg:-translate-y-8 ${className ?? ''}`}>
+    <div className={`relative mx-auto aspect-square w-full max-w-md overflow-hidden -translate-y-4 md:max-w-88 md:-translate-y-8 ${className ?? ''}`}>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-[10%] rounded-full bg-muted/80 shadow-sm/5 ring-1 ring-border/60 backdrop-blur-sm" />
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full cursor-grab touch-none select-none contain-layout active:cursor-grabbing"

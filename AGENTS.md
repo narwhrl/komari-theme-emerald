@@ -2,32 +2,33 @@
 
 Repo guide for `komari-theme-emerald`.
 
-## Snapshot
-
-- Generated: Wed May 27 2026, Asia/Shanghai
-- Branch: `master`
-- App: Next.js + React + coss-ui/Base UI + Tailwind CSS v4 theme for Komari Monitor
-- Package manager: `bun` (>= 1.2)
-- Theme manifest: `komari-theme.json`
-
 ## What this repo is
 
 - Builds a Komari theme, not a generic web app
+- This checkout is a Fork of `Tokinx/komari-theme-emerald`; Releases and Cloudflare Pages deploys here are independent of upstream
 - Release artifact is a zip package Komari can import
 - Runtime app code lives under `src/`
-- Runtime static assets include `public/images/`
+- Runtime static assets include `public/images/` and `public/maps/`
 - Release preview image is `docs/preview.png`
+
+## Toolchain
+
+- App: Next.js + React + coss-ui/Base UI + Tailwind CSS v4
+- Package manager: `bun` (`packageManager` is `bun@1.3.14`; `engines.bun` is `>=1.2.0`)
+- Node: `^20.19.0 || >=22.12.0` (CI uses Node 24)
+- Theme manifest: `komari-theme.json`
 
 ## Root structure
 
 - `src/` app source
 - `public/images/` runtime image contract, especially flags and logos
-- `.github/` release workflow
+- `public/maps/` runtime map contract (`world.json` served as `/maps/world.json`)
+- `scripts/` implementations for root commands
+- `.github/workflows/` CI and release workflows
 - `docs/coss-ui.md` local coss-ui-style component usage notes
 - `docs/preview.png` release preview image
 - `komari-theme.json` theme manifest consumed by the zip build
-- `next.config.ts` Next static export configuration
-- `scripts/build-theme.ts` zip packaging
+- `next.config.ts` Next static export configuration and public build env
 - `package.json` root commands and pinned dependency versions
 - `bun.lock` resolved lockfile (managed by bun)
 
@@ -37,21 +38,32 @@ Run from repo root only.
 
 ```bash
 bun run dev
+bun run dev:demo
 bun run build
+bun run build-only
 bun run preview
 bun run lint
+bun run publish
 ```
 
 Notes:
 
-- `bun run build` runs type check plus production build
-- `bun run lint` runs a zero-warning eslint check; use `bun run lint:fix` to apply eslint fixes locally
-- There is no test suite in this repository
-- Do not invent `bun test` or Vitest commands here
+- `bun run dev` and `bun run preview` both run `bun scripts/dev.ts` (Next dev server). `preview` does not serve `dist/` or `out/`.
+- `bun run dev:demo` starts the same server with a local API proxy to the demo backend.
+- `bun run build` runs `clean-output` → `type-check` → `next build` → `package-theme`. Next writes `out/`; `scripts/build-theme.ts` then copies it to `dist/` and deletes `out/`.
+- `bun run build-only` is `next build` and leaves `out/` in place for Cloudflare Pages.
+- `bun run publish` writes the same version into `package.json` and `komari-theme.json`, then `git add`s both files. Do not bump only one of them.
+- `bun run lint` is a zero-warning eslint check; use `bun run lint:fix` to apply eslint fixes locally.
+- There is no test suite in this repository.
+- Do not invent `bun test` or Vitest commands here.
 
-## Build and release contract
+## Build paths
 
-`bun run build` must preserve the Komari packaging flow defined in `scripts/build-theme.ts`.
+There are two production outputs. Do not collapse them.
+
+### Komari theme package
+
+`bun run build` must preserve the packaging flow in `scripts/build-theme.ts`.
 
 Expected output:
 
@@ -62,71 +74,92 @@ Zip contents:
 
 - `dist/`
 - `komari-theme.json`
-- `preview.png`
-
-Current source of packaged preview:
-
-- `docs/preview.png` on disk
-- renamed to `preview.png` inside the zip
+- `preview.png` (copied from `docs/preview.png`)
 
 Do not change zip naming, manifest filename, or preview filename without updating the real build contract.
 
+### Cloudflare Pages
+
+Pages uses `bun run build-only` and publishes `out/`. It does not create or upload the theme zip.
+
+## Version lock
+
+`package.json.version` and `komari-theme.json.version` must stay identical. The release workflow fails the job if they differ.
+
 ## CI facts
 
-Source of truth: `.github/workflows/release-on-version-bump.yml`
+### `.github/workflows/ci.yml`
 
-Release workflow does:
+Runs on push and pull request to `master` and `dev`:
 
 1. `bun install --frozen-lockfile`
-2. Detect whether `package.json` / `komari-theme.json` version changed
+2. `bun run lint`
 3. `bun run build`
-4. Create/update the GitHub release with `komari-theme-emerald-build*.zip`
+4. Upload `komari-theme-emerald-build*.zip` as an artifact
 
 It does not run tests, because there is no test suite.
+
+### `.github/workflows/release-on-version-bump.yml`
+
+Runs on push to `master`:
+
+1. `bun install --frozen-lockfile`
+2. Fail if `package.json.version` !== `komari-theme.json.version`
+3. Release only when `package.json` version changed relative to the previous commit
+4. `bun run build`
+5. Create `v<version>` tag if missing
+6. Create or update the GitHub release with `komari-theme-emerald-build*.zip`
+
+Changing `komari-theme.json` version alone does not trigger a release.
 
 ## Where to look
 
 - Start at `package.json` for root commands
-- Check `next.config.ts` for Next static export behavior and global env values
+- Check `scripts/` for command implementations (`dev.ts`, `dev-api-proxy.ts`, `build-theme.ts`, `publish.ts`, `clean-output.ts`)
+- Check `next.config.ts` for Next static export behavior and public env values
 - Check `scripts/build-theme.ts` for zip packaging
+- Check `scripts/publish.ts` for the version-bump helper
 - Check `komari-theme.json` for theme metadata and managed configuration schema
 - Check `src/` for app behavior
-- Check `public/images/` when code references image filenames directly
+- Check `public/images/` when code references flag or logo filenames
+- Check `public/maps/world.json` when code references `/maps/world.json`
+- Check `.github/workflows/ci.yml` for lint and build CI
 - Check `.github/workflows/release-on-version-bump.yml` for release expectations
 
 Contributor density, useful for triage:
 
 - `src/components/` is a dense UI change area
+- `src/views/` and `src/app/` own the shell and pages
 - `src/utils/` is a dense logic and helper area
 - `src/stores/` is central state, usually affected by cross-cutting changes
+- `src/composables/` and `src/i18n/` are shared view-layer helpers
 
 ## Conventions seen in this repo
 
-- Use `bun`, not pnpm/npm/yarn
-- Dependency versions are declared directly in `package.json`; add new ones with `bun add` / `bun add -d`
-- Keep root guidance focused on build, packaging, manifest, and repo structure
-- Preserve the `@` alias to `src` defined in `tsconfig.json`
-- Treat `komari-theme.json` as release input, not optional metadata
-- Treat `docs/preview.png` as release input, not just documentation art
-- Respect existing generated outputs and naming patterns, especially `komari-theme-emerald-build-<sha>.zip`
-- Root verification is lint plus build, not tests
-- UI is built on coss-ui-style local React components, `@base-ui/react`, and Tailwind CSS v4 under `src/components/ui/`. Do **not** reintroduce Naive UI, reka-ui, Vue component libraries, UnoCSS, or SCSS.
-- Check `docs/coss-ui.md` before adding or changing grouped controls, toggle groups, or other coss-ui-style primitives.
+- Use `bun`, not pnpm/npm/yarn. CI and `packageManager` pin `1.3.14`.
+- Dependency versions are declared directly in `package.json`; add new ones with `bun add` / `bun add -d`.
+- Keep root guidance focused on build, packaging, manifest, and repo structure.
+- Preserve the `@` alias to `src` defined in `tsconfig.json`.
+- Treat `komari-theme.json` as release input, not optional metadata.
+- Treat `docs/preview.png` as release input, not just documentation art.
+- Respect existing generated outputs and naming patterns, especially `komari-theme-emerald-build-<sha>.zip`.
+- Root verification is lint plus build, not tests.
+- UI stack, component, store, and navigation rules live in `src/AGENTS.md`. Check `docs/coss-ui.md` before adding or changing grouped controls or other coss-ui-style primitives.
 
 ## Repo grounded anti-patterns
 
 - Do not rename `komari-theme.json`
 - Do not move or rename `docs/preview.png` casually
+- Do not bump only one of `package.json` / `komari-theme.json` version fields
+- Do not treat a Pages/`out/` build as a substitute for the theme zip
 - Do not rename files under `public/images/flags/` or `public/images/logo/` without checking code references in `src`
-- Do not change asset path conventions like `/images/flags/<code>.svg` or `/images/logo/...` blindly
-- Do not add generic framework advice here that belongs in `src/AGENTS.md`
-- Do not duplicate asset naming specifics from `public/images/AGENTS.md`
+- Do not change asset path conventions like `/images/flags/<CODE>.svg`, `/images/logo/...`, or `/maps/world.json` blindly
+- Do not add generic framework or UI-library advice here that belongs in `src/AGENTS.md`
 
 ## Child guides
 
 For local rules, defer to the nearest child guide:
 
-- `src/AGENTS.md` for app code, component, store, router, and utility changes
-- `public/images/AGENTS.md` for runtime image asset naming and compatibility rules
+- `src/AGENTS.md` for app code, component, store, client navigation, and utility changes
 
 If a child guide exists, it overrides this root file for its subtree.
