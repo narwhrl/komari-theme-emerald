@@ -143,7 +143,7 @@ export default function NodeGeneralCards({
   const showMaps = earthViewMode === 'maps'
   const showVisualPanel = showEarth || showMaps
   const wrapperClass = showVisualPanel
-    ? 'relative isolate overflow-x-clip grid h-auto grid-cols-1 gap-2 p-4 lg:h-58 lg:grid-cols-12 lg:grid-rows-1'
+    ? 'relative isolate overflow-x-clip grid h-auto grid-cols-1 gap-2 p-4 lg:h-80 lg:grid-cols-12 lg:grid-rows-1'
     : 'relative isolate overflow-x-clip grid h-auto grid-cols-1 gap-2 p-4'
   const cardGridClass = showVisualPanel
     ? 'relative z-9 col-span-1 grid grid-cols-2 grid-rows-3 gap-2 lg:col-span-6 lg:row-start-1 lg:grid-cols-12 lg:grid-rows-2 lg:h-auto'
