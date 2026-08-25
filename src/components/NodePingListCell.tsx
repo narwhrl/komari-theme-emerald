@@ -1,9 +1,11 @@
 'use client'
 
 import { DataTooltip } from '@/components/ui/tooltip'
-import { useNodePingDisplay } from '@/composables/useNodePingDisplay'
+import { useI18n } from '@/composables/useI18n'
+import { formatNodePingBarTooltip, useNodePingDisplay } from '@/composables/useNodePingDisplay'
 
 export default function NodePingListCell({ uuid }: { uuid: string, online: boolean }) {
+  const { lang, t } = useI18n()
   const { latencyRenderBars, lossRenderBars, topPingNetworks } = useNodePingDisplay(uuid)
 
   const renderBars = (bars: typeof latencyRenderBars) => (
@@ -12,7 +14,7 @@ export default function NodePingListCell({ uuid }: { uuid: string, online: boole
       style={{ gridTemplateColumns: `repeat(${bars.length}, minmax(0, 1fr))` }}
     >
       {bars.map(bar => (
-        <DataTooltip key={bar.key} placement="top" content={bar.tooltip} className="h-full w-full">
+        <DataTooltip key={bar.key} placement="top" content={formatNodePingBarTooltip(bar, lang, t)} className="h-full w-full">
           <span className={`block h-full w-full rounded-[1px] transition-[opacity,transform] duration-150 group-hover:opacity-50 hover:scale-y-160 hover:opacity-100 ${bar.className}`} />
         </DataTooltip>
       ))}
@@ -34,7 +36,7 @@ export default function NodePingListCell({ uuid }: { uuid: string, online: boole
                 <span className={network.toneClass}>{index ? `· ${network.latency}` : network.latency}</span>
               </DataTooltip>
             ))
-          : <span className="truncate text-muted-foreground">N/A</span>}
+          : <span className="truncate text-muted-foreground">{t('common.notAvailable')}</span>}
       </div>
       <div className="group/panel relative items-center gap-1 opacity-80 hover:opacity-100">
         {renderBars(latencyRenderBars)}

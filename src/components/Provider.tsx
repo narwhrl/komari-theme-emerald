@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import type { ThemeMode } from '@/stores/app'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ScrollContext } from '@/components/ScrollContext'
 import { ThemeTransitionContext } from '@/components/ThemeTransitionContext'
 import { BackTop } from '@/components/ui/back-top'
@@ -13,6 +13,7 @@ import { applyDocumentTheme, runThemeTransition } from '@/utils/themeTransition'
 export function Provider({ children }: { children: ReactNode }) {
   const [isScrolled, setIsScrolled] = useState(false)
   const hydrateFromBrowser = useAppStore(state => state.hydrateFromBrowser)
+  const lang = useAppStore(state => state.lang)
   const themeMode = useAppStore(state => state.themeMode)
   const isSystemDark = useAppStore(state => state.isSystemDark)
   const setThemeMode = useAppStore(state => state.updateThemeMode)
@@ -38,14 +39,21 @@ export function Provider({ children }: { children: ReactNode }) {
     })
   }, [isSystemDark, setThemeMode, themeMode])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     hydrateFromBrowser()
+  }, [hydrateFromBrowser])
+
+  useLayoutEffect(() => {
+    document.documentElement.lang = lang
+  }, [lang])
+
+  useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const updateSystemTheme = () => useAppStore.setState({ isSystemDark: media.matches })
     updateSystemTheme()
     media.addEventListener('change', updateSystemTheme)
     return () => media.removeEventListener('change', updateSystemTheme)
-  }, [hydrateFromBrowser])
+  }, [])
 
   useEffect(() => {
     applyDocumentTheme(derived.isDark)

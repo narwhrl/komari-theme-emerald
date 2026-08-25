@@ -1,5 +1,7 @@
+import type { Lang } from '@/i18n'
 import type { NodeData } from '@/stores/nodes'
 import dayjs from 'dayjs'
+import { translate } from '@/i18n'
 import { CURRENCY_SYMBOLS, normalizeCurrency } from '@/utils/financeHelper'
 
 /** 计费周期类型 */
@@ -142,22 +144,29 @@ export function parseBillingCycleType(billingCycle: number): BillingCycleType {
  * @param lang 语言
  * @returns 显示文本
  */
-export function getBillingCycleText(billingCycle: number, lang: 'zh-CN' | 'en-US' = 'zh-CN'): string {
+export function getBillingCycleText(billingCycle: number, lang: Lang): string {
   const type = parseBillingCycleType(billingCycle)
 
-  const texts: Record<BillingCycleType, Record<'zh-CN' | 'en-US', string>> = {
-    monthly: { 'zh-CN': '月', 'en-US': 'Month' },
-    quarterly: { 'zh-CN': '季', 'en-US': 'Quarter' },
-    semi_annual: { 'zh-CN': '半年', 'en-US': 'Semi-Annual' },
-    annual: { 'zh-CN': '年', 'en-US': 'Year' },
-    biennial: { 'zh-CN': '两年', 'en-US': 'Biennial' },
-    triennial: { 'zh-CN': '三年', 'en-US': 'Triennial' },
-    quinquennial: { 'zh-CN': '五年', 'en-US': 'Quinquennial' },
-    once: { 'zh-CN': '一次性', 'en-US': 'Once' },
-    custom: { 'zh-CN': `${billingCycle} 天`, 'en-US': `${billingCycle} Days` },
+  switch (type) {
+    case 'monthly':
+      return translate(lang, 'billing.month')
+    case 'quarterly':
+      return translate(lang, 'billing.quarter')
+    case 'semi_annual':
+      return translate(lang, 'billing.semiAnnual')
+    case 'annual':
+      return translate(lang, 'billing.year')
+    case 'biennial':
+      return translate(lang, 'billing.biennial')
+    case 'triennial':
+      return translate(lang, 'billing.triennial')
+    case 'quinquennial':
+      return translate(lang, 'billing.quinquennial')
+    case 'once':
+      return translate(lang, 'billing.once')
+    case 'custom':
+      return translate(lang, 'billing.customDays', { count: billingCycle })
   }
-
-  return texts[type][lang]
 }
 
 /**
@@ -261,22 +270,17 @@ export function getExpireStatusHexColor(status: ExpireStatus): string {
  * @param lang 语言
  * @returns 显示文本
  */
-export function getExpireText(expiredAt: string | number | undefined, lang: 'zh-CN' | 'en-US' = 'zh-CN'): string {
+export function getExpireText(expiredAt: string | number | undefined, lang: Lang): string {
   const days = getDaysUntilExpired(expiredAt)
   const status = getExpireStatus(expiredAt)
 
-  if (status === 'expired') {
-    return lang === 'zh-CN' ? '已过期' : 'Expired'
-  }
+  if (status === 'expired')
+    return translate(lang, 'expiry.expired')
 
-  if (status === 'long_term') {
-    return lang === 'zh-CN' ? '长期' : 'Long-term'
-  }
+  if (status === 'long_term')
+    return translate(lang, 'expiry.longTerm')
 
-  if (lang === 'zh-CN') {
-    return `${days} 天`
-  }
-  return `${days} days`
+  return translate(lang, 'expiry.days', { count: days })
 }
 
 /**
@@ -340,9 +344,9 @@ export function parseTags(tags: string | undefined): Array<{ id: string, text: s
  * @param lang 语言
  * @returns 价格显示文本
  */
-export function formatPrice(price: number, currency: string = 'CNY', lang: 'zh-CN' | 'en-US' = 'zh-CN'): string {
+export function formatPrice(price: number, currency: string, lang: Lang): string {
   if (price === 0 || price === -1)
-    return lang === 'zh-CN' ? '免费' : 'Free'
+    return translate(lang, 'finance.free')
   const code = normalizeCurrency(currency)
   return `${CURRENCY_SYMBOLS[code]}${price}`
 }
@@ -358,8 +362,8 @@ export function formatPrice(price: number, currency: string = 'CNY', lang: 'zh-C
 export function formatPriceWithCycle(
   price: number,
   billingCycle: number,
-  currency: string = 'CNY',
-  lang: 'zh-CN' | 'en-US' = 'zh-CN',
+  currency: string,
+  lang: Lang,
 ): string {
   const priceText = formatPrice(price, currency, lang)
   return price > 0 ? `${priceText} / ${getBillingCycleText(billingCycle, lang)}` : priceText
@@ -373,7 +377,7 @@ export interface NodePriceTag {
   suffix?: string
 }
 
-export function getNodePriceTags(node: NodeData, lang: 'zh-CN' | 'en-US'): NodePriceTag[] {
+export function getNodePriceTags(node: NodeData, lang: Lang): NodePriceTag[] {
   const priceText = formatPriceWithCycle(node.price, node.billing_cycle, node.currency, lang)
   const tags: NodePriceTag[] = []
 
@@ -386,14 +390,24 @@ export function getNodePriceTags(node: NodeData, lang: 'zh-CN' | 'en-US'): NodeP
   const days = getDaysUntilExpired(node.expired_at)
   const status = getExpireStatus(node.expired_at)
 
-  if (status === 'expired')
-    tags.push({ id: 'status', text: lang === 'zh-CN' ? '已过期' : 'Expired' })
-  else if (status === 'long_term')
-    tags.push({ id: 'status', text: lang === 'zh-CN' ? '长期' : 'Long-term' })
-  else if (lang === 'zh-CN')
-    tags.push({ id: 'remaining', text: `剩余 ${days} 天`, prefix: '剩余 ', highlightValue: String(days), suffix: ' 天' })
-  else
-    tags.push({ id: 'remaining', text: `${days} days left`, highlightValue: String(days), suffix: ' days left' })
+  if (status === 'expired') {
+    tags.push({ id: 'status', text: translate(lang, 'expiry.expired') })
+  }
+  else if (status === 'long_term') {
+    tags.push({ id: 'status', text: translate(lang, 'expiry.longTerm') })
+  }
+  else {
+    const text = translate(lang, 'expiry.remaining', { count: days })
+    const countText = String(days)
+    const countIndex = text.indexOf(countText)
+    tags.push({
+      id: 'remaining',
+      text,
+      highlightValue: countText,
+      prefix: countIndex >= 0 ? text.slice(0, countIndex) : undefined,
+      suffix: countIndex >= 0 ? text.slice(countIndex + countText.length) : undefined,
+    })
+  }
 
   return tags
 }

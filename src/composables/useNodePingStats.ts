@@ -27,7 +27,7 @@ export interface NodePingStatsState {
 export interface NodePingStatsResult {
   stats: NodePingStatsState
   loading: boolean
-  error: string | null
+  error: unknown
   history: NodePingHistoryPoint[]
   avgLatency: number
   avgLoss: number
@@ -61,7 +61,7 @@ interface SharedPingRecordsState {
 interface SharedPingRecordsEntry {
   data: SharedPingRecordsState | null
   loading: boolean
-  error: string | null
+  error: unknown
   promise: Promise<void> | null
   refreshTimer: ReturnType<typeof setInterval> | null
   subscribers: Set<() => void>
@@ -290,7 +290,7 @@ async function loadSharedPingRecords(entry: SharedPingRecordsEntry, hours: numbe
       entry.lastFetchedAt = Date.now()
     }
     catch (err) {
-      entry.error = err instanceof Error ? err.message : '获取 Ping 历史失败'
+      entry.error = err
       throw err
     }
     finally {

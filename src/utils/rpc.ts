@@ -5,6 +5,8 @@
 
 /* eslint-disable node/prefer-global/process */
 
+import type { ErrorOrigin } from '@/utils/displayError'
+
 // ==================== 类型定义 ====================
 
 /** JSON-RPC 2.0 请求结构 */
@@ -82,7 +84,7 @@ function buildWebSocketUrl(baseUrl: string): string {
     resolvedUrl.protocol = 'wss:'
   }
   else if (resolvedUrl.protocol !== 'ws:' && resolvedUrl.protocol !== 'wss:') {
-    throw new RpcError(-32000, `Unsupported WebSocket protocol: ${resolvedUrl.protocol}`)
+    throw new RpcError(-32000, `Unsupported WebSocket protocol: ${resolvedUrl.protocol}`, { origin: 'client' })
   }
 
   return resolvedUrl.toString()
@@ -242,16 +244,25 @@ export interface PingRecord {
   value: number
 }
 
+function remoteErrorMessage(message: unknown): string {
+  return typeof message === 'string' && message.trim().length > 0 ? message : ''
+}
+
 /** RPC 错误 */
 export class RpcError extends Error {
+  readonly origin: ErrorOrigin
   code: number
   data?: unknown
 
-  constructor(code: number, message: string, data?: unknown) {
+  constructor(code: number, message: string, options: {
+    origin: ErrorOrigin
+    data?: unknown
+  }) {
     super(message)
     this.name = 'RpcError'
+    this.origin = options.origin
     this.code = code
-    this.data = data
+    this.data = options.data
   }
 }
 
@@ -342,7 +353,7 @@ export class RpcClient {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        throw new RpcError(response.status, `HTTP error: ${response.status}`)
+        throw new RpcError(response.status, `HTTP error: ${response.status}`, { origin: 'transport' })
       }
 
       const data: JsonRpcResponse<T> = await response.json()
@@ -352,7 +363,7 @@ export class RpcClient {
       clearTimeout(timeoutId)
       if (error instanceof RpcError)
         throw error
-      throw new RpcError(-32000, `Network error: ${error instanceof Error ? error.message : String(error)}`)
+      throw new RpcError(-32000, `Network error: ${error instanceof Error ? error.message : String(error)}`, { origin: 'transport' })
     }
   }
 
@@ -421,7 +432,7 @@ export class RpcClient {
         socket = new WebSocket(wsUrl)
       }
       catch (error) {
-        reject(new RpcError(-32000, `WebSocket connection failed: ${error instanceof Error ? error.message : String(error)}`))
+        reject(new RpcError(-32000, `WebSocket connection failed: ${error instanceof Error ? error.message : String(error)}`, { origin: 'transport' }))
         return
       }
 
@@ -434,7 +445,7 @@ export class RpcClient {
         }
 
         settle(() => {
-          reject(new RpcError(-32001, `WebSocket connection timeout after ${this.timeout}ms`))
+          reject(new RpcError(-32001, `WebSocket connection timeout after ${this.timeout}ms`, { origin: 'transport' }))
         })
       }, this.timeout)
 
@@ -452,7 +463,7 @@ export class RpcClient {
         this.notifyWebSocketError({ event, url: wsUrl })
 
         settle(() => {
-          reject(new RpcError(-32000, 'WebSocket connection error'))
+          reject(new RpcError(-32000, 'WebSocket connection error', { origin: 'transport' }))
         })
       }
 
@@ -491,12 +502,12 @@ export class RpcClient {
           this.ws = null
         }
 
-        this.rejectPendingRequests(new RpcError(-32000, closeReason))
+        this.rejectPendingRequests(new RpcError(-32000, closeReason, { origin: 'transport' }))
         this.notifyWebSocketClose(closeInfo)
 
         if (!isSettled) {
           settle(() => {
-            reject(new RpcError(-32000, closeReason))
+            reject(new RpcError(-32000, closeReason, { origin: 'transport' }))
           })
         }
 
@@ -524,7 +535,7 @@ export class RpcClient {
 
       const timer = setTimeout(() => {
         this.pendingRequests.delete(id)
-        reject(new RpcError(-32001, 'Request timeout'))
+        reject(new RpcError(-32001, 'Request timeout', { origin: 'transport' }))
       }, timeoutMs)
 
       this.pendingRequests.set(id, {
@@ -541,7 +552,7 @@ export class RpcClient {
         // 异常情况：连接断开了，拒绝请求
         this.pendingRequests.delete(id)
         clearTimeout(timer)
-        reject(new RpcError(-32000, 'WebSocket not connected'))
+        reject(new RpcError(-32000, 'WebSocket not connected', { origin: 'transport' }))
       }
     })
   }
@@ -551,7 +562,7 @@ export class RpcClient {
    */
   private handleResponse<T>(response: JsonRpcResponse<T>): T {
     if ('error' in response) {
-      throw new RpcError(response.error.code, response.error.message, response.error.data)
+      throw new RpcError(response.error.code, remoteErrorMessage(response.error.message), { origin: 'remote', data: response.error.data })
     }
     return response.result
   }
@@ -600,7 +611,7 @@ export class RpcClient {
   close(): void {
     if (this.ws) {
       this.manualCloseRequested = true
-      this.rejectPendingRequests(new RpcError(-32000, 'WebSocket closed by client'))
+      this.rejectPendingRequests(new RpcError(-32000, 'WebSocket closed by client', { origin: 'client' }))
       this.ws.close()
     }
   }

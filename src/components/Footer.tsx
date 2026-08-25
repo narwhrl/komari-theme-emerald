@@ -6,6 +6,7 @@ import type { VersionInfo } from '@/utils/api'
 import { useEffect, useState } from 'react'
 import { DataTooltip } from '@/components/ui/tooltip'
 import VisitorInfoCard from '@/components/VisitorInfoCard'
+import { useI18n } from '@/composables/useI18n'
 import { useAppDerived } from '@/stores/app'
 import { getSharedApi } from '@/utils/api'
 
@@ -13,6 +14,7 @@ const buildVersion = process.env.NEXT_PUBLIC_BUILD_VERSION ?? '0.0.0'
 const buildGitHash = process.env.NEXT_PUBLIC_BUILD_GIT_HASH ?? 'unknown'
 
 export default function Footer() {
+  const { t } = useI18n()
   const derived = useAppDerived()
   const [serverVersion, setServerVersion] = useState<VersionInfo | null>(null)
 
@@ -30,7 +32,7 @@ export default function Footer() {
       <footer className="mx-auto w-full max-w-[1280px] p-4 sm:flex-row sm:gap-4">
         <div className="flex flex-row items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
-            Powered by
+            {t('footer.poweredBy')}
             <DataTooltip as="span" placement="top" content={serverVersion?.version ?? ''}>
               <a
                 href="https://github.com/komari-monitor/komari"
@@ -43,7 +45,7 @@ export default function Footer() {
             </DataTooltip>
           </div>
           <div className="flex flex-wrap items-center gap-1">
-            Theme by
+            {t('footer.themeBy')}
             <DataTooltip as="span" placement="top" content={`v${buildVersion}\n${buildGitHash}`}>
               <a
                 href="https://github.com/Tokinx/komari-theme-emerald"

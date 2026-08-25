@@ -1,17 +1,24 @@
 'use client'
 
 import type { NodePingPerTaskStat, NodePingStatsResult } from '@/composables/useNodePingStats'
+import type { Lang, Translate } from '@/i18n'
 import { useCallback, useMemo } from 'react'
+import { useI18n } from '@/composables/useI18n'
 import { NODE_PING_BAR_COUNT, useNodePingStats } from '@/composables/useNodePingStats'
 import { useAppDerived } from '@/stores/app'
 import { formatDateTime } from '@/utils/helper'
 
 export type NodePingMetric = 'latency' | 'loss'
 
+export type NodePingEmptyStatus = 'loading' | 'failed' | 'disabled' | 'no-data'
+
 export interface NodePingBar {
   key: string
   className: string
-  tooltip: string
+  time: string | null
+  value: number | null
+  emptyStatus: NodePingEmptyStatus | null
+  metric: NodePingMetric
 }
 
 interface UseNodePingDisplayOptions {
@@ -92,10 +99,29 @@ function toNetworkDisplay(stat: NodePingPerTaskStat): NodePingNetworkDisplay {
   }
 }
 
+export function formatNodePingBarTooltip(bar: NodePingBar, lang: Lang, t: Translate): string {
+  if (bar.emptyStatus === 'loading')
+    return t('ping.loading')
+  if (bar.emptyStatus === 'failed')
+    return t('ping.failed')
+  if (bar.emptyStatus === 'disabled')
+    return t('ping.disabled')
+  if (bar.emptyStatus === 'no-data')
+    return t('common.notAvailable')
+
+  const time = formatDateTime(bar.time ?? undefined, 'time', lang)
+  if (bar.value === null)
+    return `${time} ${t('common.notAvailable')}`
+  if (bar.metric === 'latency')
+    return `${time}\n${Math.round(bar.value)} ms`
+  return `${time}\n${bar.value.toFixed(1)}%`
+}
+
 export function useNodePingDisplay(
   uuid: string,
   options: UseNodePingDisplayOptions = {},
 ): UseNodePingDisplayResult {
+  const { t } = useI18n()
   const { pingNetworkOrder } = useAppDerived()
   const pingStatsEnabled = options.enabled ?? true
   const pingStatsHours = RECENT_PING_RECORDS_QUERY_HOURS
@@ -120,28 +146,30 @@ export function useNodePingDisplay(
           : metric === 'latency'
             ? getLatencyToneClass(value)
             : getLossToneClass(value),
-        tooltip: value === null
-          ? `${formatDateTime(point.time, 'HH:mm:ss')} N/A`
-          : metric === 'latency'
-            ? `${formatDateTime(point.time, 'HH:mm:ss')}\n${Math.round(value)} ms`
-            : `${formatDateTime(point.time, 'HH:mm:ss')}\n${value.toFixed(1)}%`,
+        time: point.time,
+        value,
+        emptyStatus: null,
+        metric,
       }
     })
   }, [pingStats.history])
 
   const buildEmptyPingBars = useCallback((metric: NodePingMetric): NodePingBar[] => {
-    const tooltip = pingStats.loading
-      ? '加载中'
+    const emptyStatus: NodePingEmptyStatus = pingStats.loading
+      ? 'loading'
       : pingStats.error
-        ? '加载失败'
+        ? 'failed'
         : !pingStatsEnabled
-            ? '未启用记录'
-            : 'N/A'
+            ? 'disabled'
+            : 'no-data'
 
     return Array.from({ length: NODE_PING_BAR_COUNT }, (_, index) => ({
       key: `${metric}-empty-${index}`,
       className: 'bg-muted-foreground/10',
-      tooltip,
+      time: null,
+      value: null,
+      emptyStatus,
+      metric,
     }))
   }, [pingStats.error, pingStats.loading, pingStatsEnabled])
 
@@ -158,26 +186,31 @@ export function useNodePingDisplay(
   const latencyDisplay = pingStats.hasData
     ? `${Math.round(pingStats.avgLatency)} ms`
     : pingStats.loading
-      ? options.loadingDisplayText ?? '加载中'
+      ? options.loadingDisplayText ?? t('ping.loading')
       : options.emptyDisplayText ?? '-'
 
   const lossDisplay = pingStats.hasData
     ? `${pingStats.avgLoss.toFixed(1)}%`
     : pingStats.loading
-      ? options.loadingDisplayText ?? '加载中'
+      ? options.loadingDisplayText ?? t('ping.loading')
       : options.emptyDisplayText ?? '-'
 
   const latencyPanelTooltip = !pingStats.hasData
     ? pingStats.loading
       ? options.loadingPanelTooltipText?.latency ?? ''
       : options.emptyPanelTooltipText?.latency ?? ''
-    : `平均延迟 ${Math.round(pingStats.avgLatency)} ms`
+    : t('ping.averageLatency', { value: Math.round(pingStats.avgLatency) })
 
   const lossPanelTooltip = !pingStats.hasData
     ? pingStats.loading
       ? options.loadingPanelTooltipText?.loss ?? ''
       : options.emptyPanelTooltipText?.loss ?? ''
-    : `平均丢包 ${pingStats.avgLoss.toFixed(1)}%${pingStats.avgVolatility > 0 ? `，平均波动 ${pingStats.avgVolatility.toFixed(2)}` : ''}`
+    : pingStats.avgVolatility > 0
+      ? t('ping.averageLossVolatility', {
+          loss: pingStats.avgLoss.toFixed(1),
+          volatility: pingStats.avgVolatility.toFixed(2),
+        })
+      : t('ping.averageLoss', { loss: pingStats.avgLoss.toFixed(1) })
 
   const topPingNetworks = useMemo(() => {
     const perTaskStats = pingStats.perTaskStats
