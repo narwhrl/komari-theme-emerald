@@ -5,11 +5,27 @@ Repo guide for `komari-theme-emerald`.
 ## What this repo is
 
 - Builds a Komari theme, not a generic web app
-- This checkout is a Fork of `Tokinx/komari-theme-emerald`; Releases and Cloudflare Pages deploys here are independent of upstream
+- Canonical repository: `narwhrl/komari-theme-emerald`; it has diverged from its historical upstream and is developed, released, and deployed independently
 - Release artifact is a zip package Komari can import
 - Runtime app code lives under `src/`
 - Runtime static assets include `public/images/` and `public/maps/`
 - Release preview image is `docs/preview.png`
+
+## Repository ownership and Git policy
+
+- `narwhrl/komari-theme-emerald` is the sole development, push, pull request, CI, release, and deployment target for this project.
+- The Git remote `origin` MUST point to `https://github.com/narwhrl/komari-theme-emerald.git`. Push branches and tags only to `origin`.
+- `Tokinx/komari-theme-emerald` is historical upstream reference only. The repositories have diverged into different implementations; do not assume compatibility or an ongoing fork-sync workflow.
+- Do not pull, merge, rebase, cherry-pick, push, or open pull requests against the historical upstream unless the user explicitly requests that exact operation.
+- Start every new work branch from a clean `origin/master`, not from `upstream/master` or a locally diverged `master`:
+
+  ```bash
+  git fetch origin
+  git switch -c <branch> origin/master
+  ```
+
+- Pull requests MUST target `narwhrl/komari-theme-emerald:master`. Before creating one, verify that `origin/master..HEAD` contains only the intended commits and that `git diff origin/master...HEAD` contains only the intended files.
+- Never use upstream divergence as a reason to sync, rewrite, or replace this repository's implementation. Treat upstream code as external reference material unless directed otherwise.
 
 ## Toolchain
 
