@@ -6,6 +6,8 @@
 
 /* eslint-disable node/prefer-global/process */
 
+import type { ErrorOrigin } from '@/utils/displayError'
+
 const HTTP_PROTOCOL_REGEX = /^http/
 const HTTPS_PROTOCOL_REGEX = /^https/
 
@@ -191,16 +193,26 @@ export interface ApiClientOptions {
   timeout?: number
 }
 
+function remoteErrorMessage(message: unknown): string {
+  return typeof message === 'string' && message.trim().length > 0 ? message : ''
+}
+
 /** API 错误 */
 export class ApiError extends Error {
+  readonly origin: ErrorOrigin
   status: string
   code?: number
 
-  constructor(message: string, status: string = 'error', code?: number) {
+  constructor(message: string, options: {
+    origin: ErrorOrigin
+    status?: string
+    code?: number
+  }) {
     super(message)
     this.name = 'ApiError'
-    this.status = status
-    this.code = code
+    this.origin = options.origin
+    this.status = options.status ?? 'error'
+    this.code = options.code
   }
 }
 
@@ -249,7 +261,7 @@ export class KomariApi {
       const result: ApiResponse<T> = await response.json()
 
       if (result.status === 'error') {
-        throw new ApiError(result.message || 'Unknown error', 'error', response.status)
+        throw new ApiError(remoteErrorMessage(result.message), { origin: 'remote', code: response.status })
       }
 
       return result.data
@@ -258,7 +270,7 @@ export class KomariApi {
       clearTimeout(timeoutId)
       if (error instanceof ApiError)
         throw error
-      throw new ApiError(`Network error: ${error instanceof Error ? error.message : String(error)}`, 'error')
+      throw new ApiError(`Network error: ${error instanceof Error ? error.message : String(error)}`, { origin: 'transport' })
     }
   }
 
@@ -281,7 +293,7 @@ export class KomariApi {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        throw new ApiError(`HTTP error: ${response.status}`, 'error', response.status)
+        throw new ApiError(`HTTP error: ${response.status}`, { origin: 'transport', code: response.status })
       }
 
       return await response.json()
@@ -290,7 +302,7 @@ export class KomariApi {
       clearTimeout(timeoutId)
       if (error instanceof ApiError)
         throw error
-      throw new ApiError(`Network error: ${error instanceof Error ? error.message : String(error)}`, 'error')
+      throw new ApiError(`Network error: ${error instanceof Error ? error.message : String(error)}`, { origin: 'transport' })
     }
   }
 
@@ -326,7 +338,7 @@ export class KomariApi {
       // 检查 API 响应状态
       const apiResult: ApiResponse<T> = result
       if (apiResult.status === 'error') {
-        throw new ApiError(apiResult.message || 'Unknown error', 'error', response.status)
+        throw new ApiError(remoteErrorMessage(apiResult.message), { origin: 'remote', code: response.status })
       }
 
       return apiResult.data
@@ -335,7 +347,7 @@ export class KomariApi {
       clearTimeout(timeoutId)
       if (error instanceof ApiError)
         throw error
-      throw new ApiError(`Network error: ${error instanceof Error ? error.message : String(error)}`, 'error')
+      throw new ApiError(`Network error: ${error instanceof Error ? error.message : String(error)}`, { origin: 'transport' })
     }
   }
 
@@ -456,7 +468,7 @@ export class RealtimeWebSocket {
         this.ws.onerror = (error) => {
           this.errorListeners.forEach(listener => listener(error))
           if (!this.isOpen) {
-            reject(new ApiError('WebSocket connection failed', 'error'))
+            reject(new ApiError('WebSocket connection failed', { origin: 'transport' }))
           }
         }
 
@@ -466,7 +478,7 @@ export class RealtimeWebSocket {
         }
       }
       catch (error) {
-        reject(new ApiError(`WebSocket error: ${error instanceof Error ? error.message : String(error)}`, 'error'))
+        reject(new ApiError(`WebSocket error: ${error instanceof Error ? error.message : String(error)}`, { origin: 'transport' }))
       }
     })
   }

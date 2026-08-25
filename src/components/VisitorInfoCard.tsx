@@ -1,20 +1,23 @@
 'use client'
 
+import type { Translate } from '@/i18n'
 import { Icon } from '@iconify/react'
 import { useEffect, useMemo, useState } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useI18n } from '@/composables/useI18n'
 import { useAppStore } from '@/stores/app'
+import { formatDateTime } from '@/utils/helper'
 
-interface VisitorGeoData {
-  ip: string
-  isp: string
-  location: string
-  countryCode: string
-}
+type DeviceKind = 'desktop' | 'android' | 'iphone' | 'ipad' | 'tablet'
+type BrowserKind = 'edge' | 'opera' | 'chrome' | 'firefox' | 'safari' | 'unknown'
+type GeoState
+  = | { status: 'loading' }
+    | { status: 'ready', ip: string, isp: string | null, location: string | null, countryCode: string }
+    | { status: 'unavailable' }
 
 interface VisitorClientData {
-  device: string
-  browser: string
+  device: DeviceKind
+  browser: BrowserKind
 }
 
 interface VisitorInfoRow {
@@ -37,17 +40,6 @@ const CHROME_REGEX = /Chrome/i
 const IPV4_SEGMENT_REGEX = /^\d+$/
 const IPV6_SEGMENT_REGEX = /^[\dA-F]{1,4}$/i
 const IPV6_DOUBLE_COLON = '::'
-
-function formatVisitTime(date: Date): string {
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(date)
-}
 
 function maskIpv4Address(value: string): string | null {
   const segments = value.split('.')
@@ -95,29 +87,66 @@ function maskIpForCollapsedState(value: string): string {
 
 function detectClient(): VisitorClientData {
   const ua = navigator.userAgent
-  let device = '桌面设备'
+  let device: DeviceKind = 'desktop'
   if (ANDROID_REGEX.test(ua))
-    device = 'Android 手机'
+    device = 'android'
   else if (IPHONE_OR_IPOD_REGEX.test(ua))
-    device = 'iPhone'
+    device = 'iphone'
   else if (IPAD_REGEX.test(ua))
-    device = 'iPad'
+    device = 'ipad'
   else if (TABLET_REGEX.test(ua))
-    device = '平板电脑'
+    device = 'tablet'
 
-  let browser = '未知浏览器'
+  let browser: BrowserKind = 'unknown'
   if (EDGE_VERSION_REGEX.test(ua))
-    browser = 'Edge'
+    browser = 'edge'
   else if (OPERA_VERSION_REGEX.test(ua))
-    browser = 'Opera'
+    browser = 'opera'
   else if (CHROME_VERSION_REGEX.test(ua) && !EDGE_OR_OPERA_REGEX.test(ua))
-    browser = 'Chrome'
+    browser = 'chrome'
   else if (FIREFOX_VERSION_REGEX.test(ua))
-    browser = 'Firefox'
+    browser = 'firefox'
   else if (SAFARI_REGEX.test(ua) && !CHROME_REGEX.test(ua))
-    browser = 'Safari'
+    browser = 'safari'
 
   return { device, browser }
+}
+
+function joinLocation(parts: Array<string | undefined>): string | null {
+  const location = parts.filter(Boolean).join(' · ')
+  return location || null
+}
+
+function deviceLabel(kind: DeviceKind, t: Translate): string {
+  switch (kind) {
+    case 'desktop':
+      return t('visitor.desktop')
+    case 'android':
+      return t('visitor.android')
+    case 'iphone':
+      return 'iPhone'
+    case 'ipad':
+      return 'iPad'
+    case 'tablet':
+      return t('visitor.tablet')
+  }
+}
+
+function browserLabel(kind: BrowserKind, t: Translate): string {
+  switch (kind) {
+    case 'edge':
+      return 'Edge'
+    case 'opera':
+      return 'Opera'
+    case 'chrome':
+      return 'Chrome'
+    case 'firefox':
+      return 'Firefox'
+    case 'safari':
+      return 'Safari'
+    case 'unknown':
+      return t('visitor.unknownBrowser')
+  }
 }
 
 async function fetchJson<T>(url: string, timeoutMs: number): Promise<T> {
@@ -134,25 +163,43 @@ async function fetchJson<T>(url: string, timeoutMs: number): Promise<T> {
   }
 }
 
-async function fetchVisitorGeo(): Promise<VisitorGeoData | null> {
+async function fetchVisitorGeo(): Promise<Extract<GeoState, { status: 'ready' }> | null> {
   const loaders = [
-    async (): Promise<VisitorGeoData> => {
+    async (): Promise<Extract<GeoState, { status: 'ready' }>> => {
       const data = await fetchJson<{ ip?: string, isp?: string, organization?: string, asn_organization?: string, country?: string, country_code?: string, region?: string, city?: string }>('https://api.ip.sb/geoip', 4000)
       if (!data.ip)
         throw new Error('ip.sb unavailable')
-      return { ip: data.ip, isp: data.isp || data.organization || data.asn_organization || '未知运营商', location: [data.country, data.city || data.region].filter(Boolean).join(' · ') || '未知位置', countryCode: data.country_code || '' }
+      return {
+        status: 'ready',
+        ip: data.ip,
+        isp: data.isp || data.organization || data.asn_organization || null,
+        location: joinLocation([data.country, data.city || data.region]),
+        countryCode: data.country_code || '',
+      }
     },
-    async (): Promise<VisitorGeoData> => {
+    async (): Promise<Extract<GeoState, { status: 'ready' }>> => {
       const data = await fetchJson<{ success?: boolean, message?: string, ip?: string, country?: string, country_code?: string, region?: string, city?: string, connection?: { isp?: string, org?: string } }>('https://ipwho.is/', 4000)
       if (data.success === false || !data.ip)
         throw new Error(data.message || 'ipwho.is unavailable')
-      return { ip: data.ip, isp: data.connection?.isp || data.connection?.org || '未知运营商', location: [data.country, data.city || data.region].filter(Boolean).join(' · ') || '未知位置', countryCode: data.country_code || '' }
+      return {
+        status: 'ready',
+        ip: data.ip,
+        isp: data.connection?.isp || data.connection?.org || null,
+        location: joinLocation([data.country, data.city || data.region]),
+        countryCode: data.country_code || '',
+      }
     },
-    async (): Promise<VisitorGeoData> => {
+    async (): Promise<Extract<GeoState, { status: 'ready' }>> => {
       const data = await fetchJson<{ error?: boolean, reason?: string, ip?: string, org?: string, country_name?: string, country_code?: string, region?: string, city?: string }>('https://ipapi.co/json/', 4000)
       if (data.error || !data.ip)
         throw new Error(data.reason || 'ipapi unavailable')
-      return { ip: data.ip, isp: data.org || '未知运营商', location: [data.country_name, data.city || data.region].filter(Boolean).join(' · ') || '未知位置', countryCode: data.country_code || '' }
+      return {
+        status: 'ready',
+        ip: data.ip,
+        isp: data.org || null,
+        location: joinLocation([data.country_name, data.city || data.region]),
+        countryCode: data.country_code || '',
+      }
     },
   ]
 
@@ -167,46 +214,56 @@ async function fetchVisitorGeo(): Promise<VisitorGeoData | null> {
 }
 
 export default function VisitorInfoCard() {
+  const { lang, t } = useI18n()
   const setVisitorCountryCode = useAppStore(state => state.setVisitorCountryCode)
-  const [loading, setLoading] = useState(true)
-  const [device, setDevice] = useState('检测中')
-  const [browser, setBrowser] = useState('检测中')
-  const [ip, setIp] = useState('获取中')
-  const [isp, setIsp] = useState('获取中')
-  const [location, setLocation] = useState('正在定位访客来源')
-  const [countryCode, setCountryCode] = useState('')
-  const [visitTime, setVisitTime] = useState(() => formatVisitTime(new Date()))
+  const [client, setClient] = useState<VisitorClientData | null>(null)
+  const [geo, setGeo] = useState<GeoState>({ status: 'loading' })
+  const [visitInstant, setVisitInstant] = useState(() => new Date())
   const [flagVisible, setFlagVisible] = useState(true)
   const [expand, setExpand] = useState(false)
 
   useEffect(() => {
-    const client = detectClient()
     // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Device detection requires browser APIs and therefore runs only after hydration.
-    setDevice(client.device)
-    // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- Browser detection requires browser APIs and therefore runs only after hydration.
-    setBrowser(client.browser)
+    setClient(detectClient())
     // eslint-disable-next-line react-hooks-extra/no-direct-set-state-in-use-effect -- The displayed visit time starts when client-side detection completes.
-    setVisitTime(formatVisitTime(new Date()))
+    setVisitInstant(new Date())
 
-    fetchVisitorGeo().then((geo) => {
-      if (geo) {
-        setIp(geo.ip)
-        setIsp(geo.isp)
-        setLocation(geo.location)
-        setCountryCode(geo.countryCode.toUpperCase())
-        setVisitorCountryCode(geo.countryCode.toUpperCase() || null)
+    fetchVisitorGeo().then((result) => {
+      if (result) {
+        setGeo({
+          ...result,
+          countryCode: result.countryCode.toUpperCase(),
+        })
+        setVisitorCountryCode(result.countryCode.toUpperCase() || null)
       }
       else {
-        setIp('暂无法获取')
-        setIsp('网络信息不可用')
-        setLocation('网络访客')
+        setGeo({ status: 'unavailable' })
         setVisitorCountryCode(null)
       }
-      setLoading(false)
     })
   }, [setVisitorCountryCode])
 
-  const subtitle = loading ? '检测中' : location || '网络访客'
+  const loading = geo.status === 'loading'
+  const countryCode = geo.status === 'ready' ? geo.countryCode : ''
+  const ip = geo.status === 'ready'
+    ? geo.ip
+    : geo.status === 'unavailable'
+      ? t('visitor.ipUnavailable')
+      : ''
+  const isp = geo.status === 'ready'
+    ? geo.isp ?? t('visitor.unknownIsp')
+    : geo.status === 'unavailable'
+      ? t('visitor.networkUnavailable')
+      : t('visitor.detecting')
+  const location = geo.status === 'ready'
+    ? geo.location ?? t('visitor.unknownLocation')
+    : geo.status === 'unavailable'
+      ? t('visitor.networkVisitor')
+      : t('visitor.locating')
+  const subtitle = loading ? t('visitor.detecting') : location
+  const device = client ? deviceLabel(client.device, t) : t('visitor.detecting')
+  const browser = client ? browserLabel(client.browser, t) : t('visitor.detecting')
+  const visitTime = formatDateTime(visitInstant, 'visitor', lang)
   const flagSrc = countryCode ? `/images/flags/${countryCode}.svg` : ''
   const displayIp = expand ? ip : maskIpForCollapsedState(ip)
   const rows = useMemo<VisitorInfoRow[]>(() => [
@@ -223,6 +280,8 @@ export default function VisitorInfoCard() {
     <div className="pointer-events-none fixed inset-x-0 bottom-2.5 z-30 flex justify-center">
       <button
         type="button"
+        aria-expanded={expand}
+        aria-label={expand ? t('visitor.collapse') : t('visitor.expand')}
         className={`pointer-events-auto cursor-default border border-border bg-background/90 p-1.5 px-3 shadow-lg backdrop-blur-md transition-[border-radius,transform,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:outline-none ${expand ? 'rounded-lg -translate-y-1 shadow-xl' : 'rounded-xl'}`}
         onClick={() => setExpand(value => !value)}
       >

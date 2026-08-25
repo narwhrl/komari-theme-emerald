@@ -3,8 +3,10 @@
 import { Icon } from '@iconify/react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/composables/useI18n'
 
 export function BackTop() {
+  const { t } = useI18n()
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export function BackTop() {
     <Button
       variant="outline"
       size="icon"
-      aria-label="返回顶部"
+      aria-label={t('common.backTop')}
       className="fixed right-4 bottom-4 z-30 bg-background shadow-lg"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
     >

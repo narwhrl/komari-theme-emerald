@@ -6,6 +6,8 @@ import * as echarts from 'echarts/core'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Empty } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useI18n } from '@/composables/useI18n'
+import { toRegionLanguage } from '@/i18n'
 import { useAppDerived } from '@/stores/app'
 import { useNodesStore } from '@/stores/nodes'
 import { ensureWorldMapRegistered } from '@/utils/echartsWorldMap'
@@ -58,11 +60,12 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
   const fallbackNodes = useNodesStore(state => state.earthNodes)
   const displayNodes = nodes ?? fallbackNodes
   const { isDark } = useAppDerived()
+  const { lang, t } = useI18n()
   const chartRef = useRef<HTMLDivElement | null>(null)
   const chartInstanceRef = useRef<echarts.ECharts | null>(null)
   const [mapName, setMapName] = useState<string>()
   const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loadFailed, setLoadFailed] = useState(false)
 
   const points = useMemo<EarthMapPoint[]>(() => {
     const map = new Map<string, EarthMapPoint>()
@@ -78,7 +81,7 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
       if (!current) {
         map.set(code, {
           code,
-          name: getRegionDisplayName(node.region),
+          name: getRegionDisplayName(node.region, toRegionLanguage(lang)),
           coord,
           online: node.online ? 1 : 0,
           offline: node.online ? 0 : 1,
@@ -92,7 +95,7 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
       current.offline += node.online ? 0 : 1
     }
     return Array.from(map.values()).sort((a, b) => b.online - a.online || b.total - a.total)
-  }, [displayNodes])
+  }, [displayNodes, lang])
 
   const totalServers = displayNodes.length
   const onlineServers = displayNodes.filter(node => node.online).length
@@ -120,7 +123,7 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
         formatter: (params: unknown) => {
           const point = getTooltipPoint(params)
           return point
-            ? `${escapeHtml(point.name)}<br/>在线 ${point.online} · 离线 ${point.offline}`
+            ? `${escapeHtml(point.name)}<br/>${t('map.onlineOffline', { online: point.online, offline: point.offline })}`
             : ''
         },
       },
@@ -206,12 +209,12 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
         },
       ],
     }
-  }, [isDark, mapName, points])
+  }, [isDark, mapName, points, t])
 
   useEffect(() => {
     ensureWorldMapRegistered()
       .then(setMapName)
-      .catch(error => setLoadError(error instanceof Error ? error.message : '地图资源加载失败'))
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false))
   }, [])
 
@@ -239,8 +242,8 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
         {totalServers > 0
           ? (
               <div className="pointer-events-none absolute top-0 right-0 z-2 flex items-center gap-2 rounded border border-border bg-background/90 px-2 py-0.5 text-[10px] text-muted-foreground shadow-xs">
-                {onlineServers > 0 ? <LegendDot color="green" value={onlineServers} /> : null}
-                {offlineServers > 0 ? <LegendDot color="yellow" value={offlineServers} /> : null}
+                {onlineServers > 0 ? <LegendDot color="green" value={onlineServers} label={t('common.online')} /> : null}
+                {offlineServers > 0 ? <LegendDot color="yellow" value={offlineServers} label={t('common.offline')} /> : null}
               </div>
             )
           : null}
@@ -253,9 +256,9 @@ export default function NodeEarthMaps({ nodes, className }: { nodes?: NodeData[]
               ? (
                   <div ref={chartRef} className="h-full w-full" />
                 )
-              : loadError
+              : loadFailed
                 ? (
-                    <Empty description="地图资源加载失败" className="h-full" />
+                    <Empty description={t('map.loadFailed')} className="h-full" />
                   )
                 : null}
         </div>
@@ -276,12 +279,13 @@ function MapSkeleton() {
   )
 }
 
-function LegendDot({ color, value }: { color: 'green' | 'yellow', value: number }) {
+function LegendDot({ color, value, label }: { color: 'green' | 'yellow', value: number, label: string }) {
   const dot = color === 'green' ? 'bg-success-foreground' : 'bg-warning-foreground'
   const text = color === 'green' ? 'text-success-foreground' : 'text-warning-foreground'
   return (
     <div className="flex items-center gap-1">
-      <span className={`inline-block size-1.5 animate-pulse rounded-full ${dot}`} />
+      <span aria-hidden="true" className={`inline-block size-1.5 animate-pulse rounded-full ${dot}`} />
+      <span className="sr-only">{label}</span>
       <span className={text}>{value}</span>
     </div>
   )

@@ -2,13 +2,14 @@
 
 /* eslint-disable node/prefer-global/process */
 
+import type { Lang } from '@/i18n'
 import type { PublicSettings } from '@/utils/api'
 import type { ByteDecimalsConfig } from '@/utils/helper'
 import { create } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
+import { DEFAULT_LANG, resolvePreferredLang } from '@/i18n'
 
 export type ThemeMode = 'auto' | 'light' | 'dark'
-export type Lang = 'zh-CN' | 'en-US'
 export type NodeViewMode = 'card' | 'list'
 export type RpcTransportMode = 'websocket' | 'http'
 export type EarthViewMode = 'earth' | 'earth-stop' | 'maps' | 'cards' | 'hide'
@@ -51,6 +52,25 @@ function writeStorage(key: string, value: string): void {
   catch {
     // Persisted preferences are optional; state updates must still complete.
   }
+}
+
+function readStoredLang(): unknown {
+  if (!canUseStorage())
+    return undefined
+  try {
+    return window.localStorage.getItem('lang')
+  }
+  catch {
+    return undefined
+  }
+}
+
+function readBrowserLanguages(): readonly string[] {
+  if (typeof navigator === 'undefined')
+    return []
+  if (navigator.languages?.length)
+    return navigator.languages
+  return navigator.language ? [navigator.language] : []
 }
 
 function isValidThemeMode(value: unknown): value is ThemeMode {
@@ -134,6 +154,7 @@ export interface AppStoreState {
 
 export interface AppStoreActions {
   hydrateFromBrowser: () => void
+  setLang: (lang: Lang) => void
   setLoading: (loading: boolean) => void
   setPublicSettings: (settings?: PublicSettings) => void
   setNodeSelectedGroup: (group: string) => void
@@ -152,7 +173,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   loading: true,
   themeMode: 'auto',
   isSystemDark: false,
-  lang: 'zh-CN',
+  lang: DEFAULT_LANG,
   publicSettings: undefined,
   nodeSelectedGroup: 'all',
   storedViewMode: null,
@@ -170,13 +191,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const isSystemDark = typeof window !== 'undefined'
       ? window.matchMedia('(prefers-color-scheme: dark)').matches
       : false
+    const lang = resolvePreferredLang(readStoredLang(), readBrowserLanguages())
 
     set({
       themeMode: isValidThemeMode(themeMode) ? themeMode : 'auto',
       nodeSelectedGroup,
       storedViewMode: isValidViewMode(storedViewMode) ? storedViewMode : null,
       isSystemDark,
+      lang,
     })
+  },
+  setLang: (lang) => {
+    set({ lang })
+    writeStorage('lang', lang)
   },
   setLoading: loading => set({ loading }),
   setPublicSettings: settings => set((state) => {

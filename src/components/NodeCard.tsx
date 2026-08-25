@@ -1,19 +1,26 @@
 'use client'
 
 import type { NodePingBar } from '@/composables/useNodePingDisplay'
+import type { Translate } from '@/i18n'
 import type { NodeData } from '@/stores/nodes'
 import { Icon } from '@iconify/react'
 import { Badge } from '@/components/ui/badge'
 import { CardX } from '@/components/ui/card-x'
 import { ProgressThin } from '@/components/ui/progress-thin'
 import { DataTooltip } from '@/components/ui/tooltip'
-import { useNodePingDisplay } from '@/composables/useNodePingDisplay'
+import { useI18n } from '@/composables/useI18n'
+import { formatNodePingBarTooltip, useNodePingDisplay } from '@/composables/useNodePingDisplay'
+import { toRegionLanguage } from '@/i18n'
 import { useAppStore } from '@/stores/app'
 import { formatBytesPerSecondWithConfig, formatBytesWithConfig, formatDateTime, formatUptimeWithFormat, getStatus } from '@/utils/helper'
 import { getDiskUsedPercentage, getMemoryUsedPercentage, getTrafficUsed, getTrafficUsedPercentage, hasRegion } from '@/utils/nodeHelpers'
 import { getOSImage, getOSName } from '@/utils/osImageHelper'
 import { getRegionCode, getRegionDisplayName } from '@/utils/regionHelper'
 import { getExpireTextClass, getNodePriceTags, parseTags } from '@/utils/tagHelper'
+
+function osDisplayName(os: string, t: Translate): string {
+  return os.trim() ? getOSName(os) : t('node.unknownOs')
+}
 
 function PingPanel({
   label,
@@ -30,6 +37,8 @@ function PingPanel({
   node: NodeData
   onPingClick: (node: NodeData) => void
 }) {
+  const { lang, t } = useI18n()
+
   return (
     <button
       type="button"
@@ -50,7 +59,7 @@ function PingPanel({
         style={{ gridTemplateColumns: `repeat(${bars.length}, minmax(0, 1fr))` }}
       >
         {bars.map(bar => (
-          <DataTooltip key={bar.key} placement="top" content={bar.tooltip} className="h-full w-full">
+          <DataTooltip key={bar.key} placement="top" content={formatNodePingBarTooltip(bar, lang, t)} className="h-full w-full">
             <span className={`block h-full w-full rounded-[1px] transition-transform duration-150 group-hover/panel:opacity-60 hover:scale-y-160 hover:!opacity-100 ${bar.className}`} />
           </DataTooltip>
         ))}
@@ -69,10 +78,10 @@ export default function NodeCard({
   onPingClick: (node: NodeData) => void
 }) {
   const byteDecimals = useAppStore(state => state.byteDecimals)
-  const lang = useAppStore(state => state.lang)
+  const { lang, t } = useI18n()
   const formatBytes = (bytes: number) => formatBytesWithConfig(bytes, byteDecimals)
   const formatBytesPerSecond = (bytes: number) => formatBytesPerSecondWithConfig(bytes, byteDecimals)
-  const formatUptime = (seconds: number) => formatUptimeWithFormat(seconds, 'hour')
+  const formatUptime = (seconds: number) => formatUptimeWithFormat(seconds, 'hour', lang)
   const memPercentage = getMemoryUsedPercentage(node)
   const diskPercentage = getDiskUsedPercentage(node)
   const trafficUsed = getTrafficUsed(node)
@@ -82,6 +91,7 @@ export default function NodeCard({
   const customTags = parseTags(node.tags)
   const ping = useNodePingDisplay(node.uuid)
   const nodeHasRegion = hasRegion(node.region)
+  const detailsLabel = t('node.viewDetails', { name: node.name })
 
   return (
     <CardX
@@ -98,36 +108,36 @@ export default function NodeCard({
       )}
       headerExtra={(
         <div className="flex items-center gap-2">
-          <img src={getOSImage(node.os)} alt={getOSName(node.os)} className="size-4" />
-          {nodeHasRegion ? <img src={`/images/flags/${getRegionCode(node.region)}.svg`} alt={getRegionDisplayName(node.region)} className="size-5 shrink-0" /> : null}
+          <img src={getOSImage(node.os)} alt={osDisplayName(node.os, t)} className="size-4" />
+          {nodeHasRegion ? <img src={`/images/flags/${getRegionCode(node.region)}.svg`} alt={getRegionDisplayName(node.region, toRegionLanguage(lang))} className="size-5 shrink-0" /> : null}
         </div>
       )}
     >
       <button
         type="button"
         className="sr-only"
-        aria-label={`查看 ${node.name} 节点详情`}
+        aria-label={detailsLabel}
         onClick={(event) => {
           event.stopPropagation()
           onClick()
         }}
       >
-        查看节点详情
+        {detailsLabel}
       </button>
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-2 gap-3">
           <Metric label="CPU" value={`${(node.cpu ?? 0).toFixed(1)}%`} sub={`${(node.load ?? 0).toFixed(2)}, ${(node.load5 ?? 0).toFixed(2)}, ${(node.load15 ?? 0).toFixed(2)}`} percentage={node.cpu ?? 0} status={getStatus(node.cpu ?? 0)} />
-          <Metric label="内存" value={`${memPercentage.toFixed(1)}%`} sub={`${formatBytes(node.ram ?? 0)} / ${formatBytes(node.mem_total ?? 0)}`} percentage={memPercentage} status={getStatus(memPercentage)} />
-          <Metric label="硬盘" value={`${diskPercentage.toFixed(1)}%`} sub={`${formatBytes(node.disk ?? 0)} / ${formatBytes(node.disk_total ?? 0)}`} percentage={diskPercentage} status={getStatus(diskPercentage)} />
-          <Metric label="流量" value={`${trafficUsedPercentage.toFixed(1)}%`} sub={`${formatBytes(trafficUsed)} / ${node.traffic_limit > 0 ? formatBytes(node.traffic_limit) : '∞'}`} percentage={trafficUsedPercentage} status="success" />
+          <Metric label={t('node.memory')} value={`${memPercentage.toFixed(1)}%`} sub={`${formatBytes(node.ram ?? 0)} / ${formatBytes(node.mem_total ?? 0)}`} percentage={memPercentage} status={getStatus(memPercentage)} />
+          <Metric label={t('node.disk')} value={`${diskPercentage.toFixed(1)}%`} sub={`${formatBytes(node.disk ?? 0)} / ${formatBytes(node.disk_total ?? 0)}`} percentage={diskPercentage} status={getStatus(diskPercentage)} />
+          <Metric label={t('node.traffic')} value={`${trafficUsedPercentage.toFixed(1)}%`} sub={`${formatBytes(trafficUsed)} / ${node.traffic_limit > 0 ? formatBytes(node.traffic_limit) : '∞'}`} percentage={trafficUsedPercentage} status="success" />
         </div>
 
         <div className="relative grid grid-cols-6 gap-1.5">
           {!node.online
             ? (
                 <div className="absolute inset-0 z-1 flex flex-col items-center justify-center gap-1 text-center" aria-hidden="true">
-                  <div className="text-sm font-medium text-destructive-foreground">离线</div>
-                  <div className="text-xs text-muted-foreground">{formatDateTime(node.time)}</div>
+                  <div className="text-sm font-medium text-destructive-foreground">{t('common.offline')}</div>
+                  <div className="text-xs text-muted-foreground">{formatDateTime(node.time, 'full', lang)}</div>
                 </div>
               )
             : null}
@@ -171,7 +181,7 @@ export default function NodeCard({
               )
             : null}
           <div className={`col-span-6 flex items-center justify-between rounded-sm border border-transparent px-2 py-1 text-[11px] text-muted-foreground ${!node.online ? 'blur-xs opacity-60' : ''}`}>
-            <span>三网</span>
+            <span>{t('node.networks')}</span>
             {ping.topPingNetworks.length > 0
               ? (
                   <div className="flex items-center">
@@ -184,10 +194,10 @@ export default function NodeCard({
                     ))}
                   </div>
                 )
-              : <span>N/A</span>}
+              : <span>{t('common.notAvailable')}</span>}
           </div>
-          <PingPanel label="延迟" display={ping.latencyDisplay} tooltip={ping.latencyPanelTooltip} bars={ping.latencyRenderBars} node={node} onPingClick={onPingClick} />
-          <PingPanel label="丢包" display={ping.lossDisplay} tooltip={ping.lossPanelTooltip} bars={ping.lossRenderBars} node={node} onPingClick={onPingClick} />
+          <PingPanel label={t('node.latency')} display={ping.latencyDisplay} tooltip={ping.latencyPanelTooltip} bars={ping.latencyRenderBars} node={node} onPingClick={onPingClick} />
+          <PingPanel label={t('node.packetLoss')} display={ping.lossDisplay} tooltip={ping.lossPanelTooltip} bars={ping.lossRenderBars} node={node} onPingClick={onPingClick} />
         </div>
         {customTags.length > 0
           ? (
