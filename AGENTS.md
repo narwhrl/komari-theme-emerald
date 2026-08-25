@@ -27,6 +27,20 @@ Repo guide for `komari-theme-emerald`.
 - Pull requests MUST target `narwhrl/komari-theme-emerald:master`. Before creating one, verify that `origin/master..HEAD` contains only the intended commits and that `git diff origin/master...HEAD` contains only the intended files.
 - Never use upstream divergence as a reason to sync, rewrite, or replace this repository's implementation. Treat upstream code as external reference material unless directed otherwise.
 
+## GitHub pull requests
+
+- This repository's pull requests target `narwhrl/komari-theme-emerald:master`.
+- A Fine-grained PAT can have repository write permissions while GitHub GraphQL PR mutations used by `gh pr create` or `gh pr view` still fail with `Resource not accessible by personal access token`.
+- When the GraphQL path fails, create and verify the PR through the GitHub REST API instead:
+
+  ```bash
+  gh api --method POST repos/narwhrl/komari-theme-emerald/pulls \
+    -f title='<title>' -f head='<branch>' -f base='master' -f body='<body>'
+  gh api repos/narwhrl/komari-theme-emerald/pulls/<number>
+  ```
+
+- Never commit or document the PAT value; keep it in `gh` authentication or an environment variable.
+
 ## Toolchain
 
 - App: Next.js + React + coss-ui/Base UI + Tailwind CSS v4
